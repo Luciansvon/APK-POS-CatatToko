@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import com.bimacore.usahakecil.domain.MoneyMath
 import com.bimacore.usahakecil.share.ReceiptImageExporter
 import kotlinx.coroutines.launch
+import java.util.Calendar
 
 @Composable
 fun PosApp(
@@ -37,6 +38,7 @@ fun PosApp(
     modifier: Modifier = Modifier,
 ) {
     val snapshot by viewModel.snapshot.collectAsState()
+    val sales by viewModel.sales.collectAsState()
     val screen by viewModel.screen.collectAsState()
     val search by viewModel.search.collectAsState()
     val selectedCategoryId by viewModel.selectedCategoryId.collectAsState()
@@ -67,12 +69,13 @@ fun PosApp(
         viewModel.consumeMessage()
     }
 
-    BackHandler(enabled = screen != PosScreen.CATALOG) {
+    BackHandler(enabled = screen != PosScreen.CASHIER_HOME) {
         when (screen) {
             PosScreen.CART -> viewModel.showCatalog()
             PosScreen.PAYMENT -> viewModel.showCart()
             PosScreen.RECEIPT -> Unit
-            PosScreen.CATALOG -> Unit
+            PosScreen.CATALOG -> viewModel.showCashierHome()
+            PosScreen.CASHIER_HOME -> Unit
         }
     }
 
@@ -103,6 +106,30 @@ fun PosApp(
                     }
                 },
                 onNewTransaction = viewModel::newTransaction,
+                ownerUnlocked = ownerUnlocked,
+                onOwnerAccess = onOwnerAccess,
+            )
+        } else if (screen == PosScreen.CASHIER_HOME) {
+            val todayStart = remember {
+                Calendar.getInstance().apply {
+                    set(Calendar.HOUR_OF_DAY, 0)
+                    set(Calendar.MINUTE, 0)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }.timeInMillis
+            }
+            val trackedProducts = snapshot.products.filter { it.stockTrackingEnabled }
+            CashierLandingScreen(
+                businessLabel = businessLabel,
+                activeTransactions = sales.count { it.createdAt >= todayStart },
+                lowStockCount = trackedProducts.count {
+                    it.stock in 1..it.lowStockThreshold
+                },
+                outOfStockCount = trackedProducts.count { it.stock <= 0 },
+                ownerUnlocked = ownerUnlocked,
+                onOwnerAccess = onOwnerAccess,
+                onStartTransaction = viewModel::showCatalog,
+                onViewStock = viewModel::showCatalog,
             )
         } else if (expanded) {
             Row(Modifier.fillMaxSize()) {
@@ -115,6 +142,7 @@ fun PosApp(
                     onSearchChange = viewModel::setSearch,
                     onCategorySelected = viewModel::selectCategory,
                     onProductClick = viewModel::tapProduct,
+                    onQuantityChange = viewModel::setQuantity,
                     onCartClick = viewModel::showCart,
                     onCalculatorClick = { showCalculator = true },
                     ownerUnlocked = ownerUnlocked,
@@ -123,6 +151,7 @@ fun PosApp(
                 )
                 VerticalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
                 when (screen) {
+                    PosScreen.CASHIER_HOME -> Unit
                     PosScreen.PAYMENT -> PaymentScreen(
                         total = snapshot.cartItems.sumOf { it.subtotal },
                         method = paymentMethod,
@@ -133,6 +162,8 @@ fun PosApp(
                         selectedCustomerId = selectedCustomerId,
                         isSaving = isSaving,
                         onBack = viewModel::showCart,
+                        ownerUnlocked = ownerUnlocked,
+                        onOwnerAccess = onOwnerAccess,
                         onMethodSelected = viewModel::setPaymentMethod,
                         onCashDigit = viewModel::appendCashDigit,
                         onCashDelete = viewModel::deleteCashDigit,
@@ -146,6 +177,8 @@ fun PosApp(
                         items = snapshot.cartItems,
                         compact = false,
                         onBack = viewModel::showCatalog,
+                        ownerUnlocked = ownerUnlocked,
+                        onOwnerAccess = onOwnerAccess,
                         onQuantityChange = viewModel::setQuantity,
                         onContinue = viewModel::showPayment,
                         onCustomize = if (viewModel.supportsCulinaryCustomization) {
@@ -159,6 +192,7 @@ fun PosApp(
             }
         } else {
             when (screen) {
+                PosScreen.CASHIER_HOME -> Unit
                 PosScreen.CATALOG -> CatalogScreen(
                     businessLabel = businessLabel,
                     snapshot = snapshot,
@@ -168,6 +202,7 @@ fun PosApp(
                     onSearchChange = viewModel::setSearch,
                     onCategorySelected = viewModel::selectCategory,
                     onProductClick = viewModel::tapProduct,
+                    onQuantityChange = viewModel::setQuantity,
                     onCartClick = viewModel::showCart,
                     onCalculatorClick = { showCalculator = true },
                     ownerUnlocked = ownerUnlocked,
@@ -177,6 +212,8 @@ fun PosApp(
                     items = snapshot.cartItems,
                     compact = true,
                     onBack = viewModel::showCatalog,
+                    ownerUnlocked = ownerUnlocked,
+                    onOwnerAccess = onOwnerAccess,
                     onQuantityChange = viewModel::setQuantity,
                     onContinue = viewModel::showPayment,
                     onCustomize = if (viewModel.supportsCulinaryCustomization) {
@@ -195,6 +232,8 @@ fun PosApp(
                     selectedCustomerId = selectedCustomerId,
                     isSaving = isSaving,
                     onBack = viewModel::showCart,
+                    ownerUnlocked = ownerUnlocked,
+                    onOwnerAccess = onOwnerAccess,
                     onMethodSelected = viewModel::setPaymentMethod,
                     onCashDigit = viewModel::appendCashDigit,
                     onCashDelete = viewModel::deleteCashDigit,

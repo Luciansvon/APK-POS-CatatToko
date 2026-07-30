@@ -51,6 +51,8 @@ fun CartScreen(
     items: List<CartItem>,
     compact: Boolean,
     onBack: () -> Unit,
+    ownerUnlocked: Boolean,
+    onOwnerAccess: () -> Unit,
     onQuantityChange: (String, Int) -> Unit,
     onContinue: () -> Unit,
     onCustomize: ((CartItem) -> Unit)? = null,
@@ -61,30 +63,12 @@ fun CartScreen(
         modifier = modifier,
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text("Keranjang", fontWeight = FontWeight.Bold)
-                        Text(
-                            "${items.sumOf { it.quantity }} barang",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                },
-                navigationIcon = {
-                    if (compact) {
-                        IconButton(onClick = onBack) {
-                            Icon(
-                                Icons.AutoMirrored.Outlined.ArrowBack,
-                                contentDescription = "Kembali ke katalog",
-                            )
-                        }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                ),
+            CashierFlowHeader(
+                title = "Keranjang",
+                activeStep = 2,
+                ownerUnlocked = ownerUnlocked,
+                onOwnerAccess = onOwnerAccess,
+                onBack = if (compact) onBack else null,
             )
         },
         bottomBar = {

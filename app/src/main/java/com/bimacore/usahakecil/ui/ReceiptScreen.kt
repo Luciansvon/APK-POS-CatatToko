@@ -43,6 +43,8 @@ fun ReceiptScreen(
     isSharing: Boolean,
     onShare: () -> Unit,
     onNewTransaction: () -> Unit,
+    ownerUnlocked: Boolean,
+    onOwnerAccess: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -54,6 +56,14 @@ fun ReceiptScreen(
         verticalArrangement = Arrangement.spacedBy(14.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        item {
+            CashierFlowHeader(
+                title = "Transaksi Selesai",
+                activeStep = 4,
+                ownerUnlocked = ownerUnlocked,
+                onOwnerAccess = onOwnerAccess,
+            )
+        }
         item {
             Card(
                 shape = CircleShape,

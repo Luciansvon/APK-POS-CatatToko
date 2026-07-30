@@ -17,20 +17,20 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Calculate
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Checkroom
 import androidx.compose.material.icons.outlined.Fastfood
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.LocalCafe
 import androidx.compose.material.icons.outlined.LockOpen
+import androidx.compose.material.icons.outlined.Remove
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.ShoppingCart
@@ -40,11 +40,13 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -84,11 +86,14 @@ fun CatalogScreen(
     onSearchChange: (String) -> Unit,
     onCategorySelected: (Long?) -> Unit,
     onProductClick: (Product) -> Unit,
+    onQuantityChange: (String, Int) -> Unit,
     onCartClick: () -> Unit,
     onCalculatorClick: () -> Unit,
     ownerUnlocked: Boolean,
     onOwnerAccess: () -> Unit,
-    modifier: Modifier = Modifier,
+    modifier: Modifier = Modifier
+        .fillMaxWidth()
+        .height(76.dp),
 ) {
     val filteredProducts = snapshot.products.filter { product ->
         val matchesCategory = selectedCategoryId == null ||
@@ -105,48 +110,24 @@ fun CatalogScreen(
         modifier = modifier,
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text(
-                            text = businessLabel,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Text(
-                            text = "Kasir offline",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                },
-                actions = {
+            Column {
+                CashierFlowHeader(
+                    title = "Pilih Produk",
+                    activeStep = 1,
+                    ownerUnlocked = ownerUnlocked,
+                    onOwnerAccess = onOwnerAccess,
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp),
+                    horizontalArrangement = Arrangement.End,
+                ) {
                     IconButton(onClick = onCalculatorClick) {
                         Icon(Icons.Outlined.Calculate, contentDescription = "Buka kalkulator")
                     }
-                    IconButton(
-                        onClick = onOwnerAccess,
-                        modifier = Modifier.testTag("owner-access"),
-                    ) {
-                        Icon(
-                            imageVector = if (ownerUnlocked) {
-                                Icons.Outlined.LockOpen
-                            } else {
-                                Icons.Outlined.Shield
-                            },
-                            contentDescription = if (ownerUnlocked) {
-                                "Mode Owner aktif"
-                            } else {
-                                "Buka mode Owner"
-                            },
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                ),
-            )
+                }
+            }
         },
         bottomBar = {
             if (compact && snapshot.cartItems.isNotEmpty()) {
@@ -209,8 +190,7 @@ fun CatalogScreen(
                     modifier = Modifier.fillMaxSize(),
                 )
             } else {
-                LazyVerticalGrid(
-                    columns = GridCells.Adaptive(minSize = if (compact) 150.dp else 168.dp),
+                LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(
                         start = 16.dp,
@@ -218,7 +198,6 @@ fun CatalogScreen(
                         top = 8.dp,
                         bottom = if (compact && snapshot.cartItems.isNotEmpty()) 16.dp else 24.dp,
                     ),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     items(filteredProducts, key = { it.id }) { product ->
@@ -232,9 +211,11 @@ fun CatalogScreen(
                         }
                         ProductCard(
                             product = product,
+                            cartItems = snapshot.cartItems.filter { it.productId == product.id },
                             quantityInCart = quantities[product.id] ?: 0,
                             availableStock = availableStock,
                             onClick = { onProductClick(product) },
+                            onQuantityChange = onQuantityChange,
                         )
                     }
                 }
@@ -246,23 +227,23 @@ fun CatalogScreen(
 @Composable
 private fun ProductCard(
     product: Product,
+    cartItems: List<com.bimacore.usahakecil.domain.CartItem>,
     quantityInCart: Int,
     availableStock: Int?,
     onClick: () -> Unit,
+    onQuantityChange: (String, Int) -> Unit,
 ) {
     val outOfStock = availableStock != null && availableStock <= 0
     val lowStock = availableStock != null && availableStock in 1..product.lowStockThreshold
 
     Card(
-        onClick = onClick,
-        enabled = !outOfStock,
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
-            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         modifier = Modifier
+            .fillMaxWidth()
             .testTag("product-${product.id}")
             .semantics {
                 contentDescription = buildString {
@@ -336,6 +317,7 @@ private fun ProductCard(
 private fun ProductVisual(
     imageUri: String?,
     icon: ImageVector,
+    modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val bitmap by produceState<ImageBitmap?>(initialValue = null, imageUri) {
@@ -355,9 +337,7 @@ private fun ProductVisual(
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(76.dp)
+        modifier = modifier
             .background(MaterialTheme.colorScheme.primaryContainer),
         contentAlignment = Alignment.Center,
     ) {

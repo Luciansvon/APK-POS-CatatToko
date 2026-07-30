@@ -10,6 +10,8 @@ Desain pertama memakai varian **Retail dan UMKM** sebagai acuan. Setelah style d
 
 - Fungsi operasional rilis `0.2.1` sudah dibuat lebih dulu sesuai keputusan user.
 - Perombakan visual khusus sengaja ditunda.
+- Arah visual flow kasir Retail sudah disetujui dari tujuh gambar GPT Web.
+- Spesifikasi visual tersimpan di `docs/superpowers/specs/2026-07-30-retail-cashier-visual-design.md`.
 - Checklist kosong di dokumen ini berarti desain visualnya belum disetujui, bukan berarti fungsi tersebut selalu belum ada.
 - Laporan laba/HPP, pekerja bulanan, jadwal/shift, pajak, dan pengaturan struk tetap di luar scope sampai requirement-nya disetujui.
 
@@ -26,26 +28,26 @@ Desain pertama memakai varian **Retail dan UMKM** sebagai acuan. Setelah style d
 
 ### P0 - Flow kasir utama
 
-- [ ] Tombol `Buka Mode Owner`
-- [ ] Mode Kasir/Pekerja tanpa navigasi area pengelolaan
-- [ ] Stok produk dan total transaksi aktif tetap terlihat pekerja
-- [ ] Katalog atau kasir
-- [ ] Pencarian dan filter kategori
-- [ ] Kartu produk normal
-- [ ] Kartu produk stok menipis
-- [ ] Kartu produk habis
-- [ ] Badge jumlah produk dalam keranjang
+- [x] Tombol `Buka Mode Owner`
+- [x] Mode Kasir/Pekerja tanpa navigasi area pengelolaan
+- [x] Stok produk dan total transaksi aktif tetap terlihat pekerja
+- [x] Katalog atau kasir
+- [x] Pencarian dan filter kategori
+- [x] Kartu produk normal
+- [x] Kartu produk stok menipis
+- [x] Kartu produk habis
+- [x] Badge jumlah produk dalam keranjang
 - [ ] Pemilih varian ukuran, warna, atau satuan
-- [ ] Keranjang
-- [ ] Quantity stepper dan hapus item
-- [ ] Pembayaran tunai
-- [ ] Keypad uang diterima
-- [ ] Kondisi uang kurang
+- [x] Keranjang
+- [x] Quantity stepper dan hapus item
+- [x] Pembayaran tunai
+- [x] Keypad uang diterima
+- [x] Kondisi uang kurang
 - [ ] Pembayaran QRIS
 - [ ] Pembayaran transfer
 - [ ] Konfirmasi pembayaran sudah masuk
-- [ ] Struk dan kembalian
-- [ ] Bagikan struk
+- [x] Struk dan kembalian
+- [x] Bagikan struk
 - [ ] Kalkulator
 
 ### P1 - Produk dan stok
@@ -145,6 +147,35 @@ Kuliner dan PKL:
 6. Produk dan stok.
 7. Laporan dan PIN.
 8. Modul lanjutan.
+
+## Rencana kerja di Stitch
+
+Status: Arah visual disetujui, belum dipindahkan ke Stitch, dan belum diimplementasikan.
+
+### Paket pertama
+
+- Varian acuan: Retail dan UMKM.
+- Ukuran frame utama: `360 x 800 dp`.
+- Flow: `Kasir -> Keranjang -> Pembayaran Tunai -> Struk`.
+- Layar harus menunjukkan Mode Kasir/Pekerja tanpa akses ke area pengelolaan.
+- Sertakan kondisi stok normal, stok menipis, stok habis, keranjang kosong, uang kurang, transaksi berhasil, dan error penyimpanan.
+- Gunakan tujuh gambar di `docs/design-references/retail-cashier-approved-2026-07-30/` sebagai acuan visual utama.
+
+### Bahan yang perlu disiapkan sebelum mulai
+
+- screenshot runtime terbaru dari setiap langkah flow;
+- aset ikon atau logo yang memang sudah disetujui;
+- keputusan gaya visual, referensi, atau mood yang ingin dikejar user;
+- teks, nominal, dan contoh produk yang realistis agar layout tidak diuji dengan data palsu yang terlalu pendek;
+- batas behavior dari aplikasi saat ini supaya hasil Stitch tidak mengubah aturan transaksi.
+
+### Output yang diharapkan
+
+- satu alur layar yang tersambung, bukan kumpulan mockup lepas;
+- komponen yang dapat dipakai ulang untuk tiga flavor;
+- semantic color, tipografi, spacing, radius, ikon, dan state komponen;
+- catatan perbedaan Retail, Grosir, dan Kuliner;
+- hasil review accessibility dasar sebelum style diterapkan ke Compose.
 
 ## Aturan penerapan oleh Codex
 

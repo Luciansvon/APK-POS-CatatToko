@@ -417,3 +417,88 @@ Status: Selesai, diverifikasi, dan dipaketkan sebagai APK debug.
 
 - Root cause dan solusi dicatat sebagai ERR-012 sampai ERR-014 di `docs/ERROR_SOLUTIONS.md`.
 - Keputusan akses diperbarui pada `AGENTS.md`, arsitektur, spesifikasi, dan kebutuhan UI/UX.
+
+## 2026-07-30 - Catatan audit eksternal dan rencana desain Stitch
+
+Status: Dicatat, belum diverifikasi, dan belum diimplementasikan.
+
+### Arahan user
+
+- Simpan hasil pembacaan repo dari koneksi GitHub sebagai bahan pemeriksaan lanjutan.
+- Tahap berikutnya adalah membuat desain UI di Stitch dengan bantuan Codex.
+- Permintaan ini belum menjadi persetujuan untuk mengubah source, memperbaiki bug, atau menerapkan desain.
+
+### Temuan audit yang perlu dibuktikan dari source dan runtime
+
+1. Snapshot nama usaha pada transaksi atau struk diduga masih memakai label flavor statis, bukan nama profil usaha terbaru.
+2. Pembayaran awal saat membuat utang/piutang manual diduga belum membuat catatan kas, sedangkan pembayaran lanjutan sudah.
+3. Pemeriksaan akses Owner diduga belum konsisten pada seluruh fungsi pengelolaan di lapisan domain/data.
+4. Backup masih berupa database dalam ZIP dengan checksum integritas, belum terenkripsi, dan pembacaan ukuran file perlu diperiksa batas amannya.
+5. PIN Owner diduga belum mempunyai progressive delay atau pembatasan percobaan gagal.
+6. Relasi Room diduga belum memakai foreign key sehingga risiko record yatim perlu diperiksa sebelum fitur hapus/import berkembang.
+
+Temuan di atas berasal dari audit eksternal melalui koneksi GitHub. Temuan tidak boleh dimasukkan ke `docs/ERROR_SOLUTIONS.md` atau disebut sebagai bug terkonfirmasi sebelum reproduksi, pemeriksaan root cause, dan bukti aktual dilakukan.
+
+### Arah desain Stitch
+
+- Mulai dari flow P0 Retail: `Kasir -> Keranjang -> Pembayaran -> Struk`.
+- Gunakan behavior aplikasi yang sudah disetujui sebagai batas desain; desain tidak boleh melemahkan validasi pembayaran, akses Owner, histori stok, atau fungsi offline.
+- Siapkan state normal, aktif, nonaktif, stok habis, uang kurang, error, kosong, dan sukses.
+- Setelah flow Retail disetujui, turunkan sistem visual yang sama ke Grosir dan Kuliner dengan kemampuan serta warna flavor masing-masing.
+
+### Verifikasi aktual
+
+- Isi catatan audit dibaca dan diringkas ke worklog.
+- Rencana kerja Stitch ditambahkan ke `docs/UI_UX_REQUIREMENTS.md`.
+- Tidak ada source aplikasi yang diubah.
+- Test, build, dan smoke test tidak dijalankan karena pekerjaan ini hanya pencatatan requirement dan temuan belum diverifikasi.
+
+## 2026-07-30 - Persetujuan arah visual kasir Retail
+
+Status: Desain visual disetujui, belum diimplementasikan.
+
+### Keputusan user
+
+- Tujuh gambar flow kasir yang dibuat melalui GPT Web sudah sesuai dengan arah visual yang diinginkan.
+- Gambar tersebut menjadi acuan visual utama, bukan bahan untuk dibuat ulang dengan arah desain berbeda.
+
+### Hasil pencatatan
+
+- Menyalin tujuh gambar ke `docs/design-references/retail-cashier-approved-2026-07-30/`.
+- Menetapkan urutan layar Mode Kasir/Pekerja, daftar produk, pencarian, keranjang, pembayaran cukup, pembayaran kurang, dan transaksi berhasil.
+- Membuat `docs/superpowers/specs/2026-07-30-retail-cashier-visual-design.md`.
+- Memperbarui checklist desain P0 di `docs/UI_UX_REQUIREMENTS.md`.
+
+### Batas
+
+- Persetujuan ini mengunci arah visual, bukan memberi persetujuan coding.
+- Copy sinkronisasi, E-Wallet, `Lainnya`, catatan Retail, dan scan barcode harus mengikuti scope produk yang sudah disetujui tanpa mengubah gaya visual.
+
+### Verifikasi aktual
+
+- Ketujuh file referensi terdeteksi dengan ukuran `841 x 1870 px`.
+- Ketujuh file berhasil disalin dan mempunyai hash SHA-256.
+- Tidak ada source aplikasi yang diubah.
+- Test, build, dan smoke test tidak dijalankan karena pekerjaan ini hanya pencatatan desain.
+
+## 2026-07-30 - Implementasi flow kasir Retail dari Stitch
+
+Status: Implementasi Compose dan verifikasi otomatis berjalan.
+
+### Perubahan
+
+- Menambahkan layar awal `Mode Kasir / Pekerja` dengan jumlah transaksi hari ini, stok menipis, dan stok habis dari data lokal.
+- Menambahkan navigasi `CASHIER_HOME -> CATALOG -> CART -> PAYMENT -> RECEIPT`.
+- Mengubah katalog menjadi daftar vertikal yang lebih dekat dengan acuan Stitch.
+- Menambahkan header kasir dan indikator empat langkah pada katalog, keranjang, pembayaran, dan transaksi selesai.
+- Mempertahankan kalkulator offline, varian, satuan, topping Kuliner, QRIS, Transfer, Piutang, validasi uang kurang, berbagi struk, dan PIN Owner.
+- Memperbarui smoke test agar masuk melalui tombol `Mulai Transaksi`.
+
+### Verifikasi aktual
+
+- `testRetailDebugUnitTest` lulus memakai JDK 17 lokal.
+- Unit test Retail, Wholesale, dan Culinary lulus.
+- `assembleDebug` untuk tiga flavor lulus.
+- Compile APK androidTest Retail, Wholesale, dan Culinary lulus.
+- Connected test belum dijalankan karena belum ada konfirmasi target emulator atau perangkat.
+- Visual QA masih berstatus blocked sampai ada screenshot runtime dari emulator/perangkat.

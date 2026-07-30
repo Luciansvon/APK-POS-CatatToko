@@ -66,6 +66,7 @@ class PosRepository(
     private val checkoutMutex = Mutex()
     val customers: Flow<List<PartyEntity>> =
         operationsDao.observeParties(PartyKind.CUSTOMER.name)
+    val sales: Flow<List<SaleEntity>> = saleDao.observeSales()
 
     private val catalogFlow = combine(
         catalogDao.observeCategories(),

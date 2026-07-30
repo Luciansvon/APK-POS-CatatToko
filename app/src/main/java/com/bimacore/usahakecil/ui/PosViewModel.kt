@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 enum class PosScreen {
+    CASHIER_HOME,
     CATALOG,
     CART,
     PAYMENT,
@@ -45,8 +46,13 @@ class PosViewModel(
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = CatalogSnapshot(emptyList(), emptyList(), emptyList(), emptyList(), null),
     )
+    val sales = repository.sales.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = emptyList(),
+    )
 
-    private val _screen = MutableStateFlow(PosScreen.CATALOG)
+    private val _screen = MutableStateFlow(PosScreen.CASHIER_HOME)
     val screen = _screen.asStateFlow()
 
     private val _search = MutableStateFlow("")
@@ -183,6 +189,10 @@ class PosViewModel(
 
     fun showCart() {
         _screen.value = PosScreen.CART
+    }
+
+    fun showCashierHome() {
+        _screen.value = PosScreen.CASHIER_HOME
     }
 
     fun showCatalog() {
