@@ -59,6 +59,8 @@ fun PaymentScreen(
     selectedCustomerId: Long?,
     isSaving: Boolean,
     onBack: () -> Unit,
+    ownerUnlocked: Boolean,
+    onOwnerAccess: () -> Unit,
     onMethodSelected: (PaymentMethod) -> Unit,
     onCashDigit: (Char) -> Unit,
     onCashDelete: () -> Unit,
@@ -84,21 +86,12 @@ fun PaymentScreen(
         modifier = modifier,
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            TopAppBar(
-                title = {
-                    Text("Pembayaran", fontWeight = FontWeight.Bold)
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack, enabled = !isSaving) {
-                        Icon(
-                            Icons.AutoMirrored.Outlined.ArrowBack,
-                            contentDescription = "Kembali ke keranjang",
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                ),
+            CashierFlowHeader(
+                title = "Pembayaran",
+                activeStep = 3,
+                ownerUnlocked = ownerUnlocked,
+                onOwnerAccess = onOwnerAccess,
+                onBack = if (isSaving) null else onBack,
             )
         },
         bottomBar = {

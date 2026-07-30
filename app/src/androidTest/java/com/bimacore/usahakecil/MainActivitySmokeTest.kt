@@ -28,7 +28,8 @@ class MainActivitySmokeTest {
 
     @Test
     fun catalog_and_calculator_are_accessible() {
-        composeRule.onNodeWithText("Kasir offline").assertIsDisplayed()
+        composeRule.onNodeWithTag("start-transaction").performClick()
+        composeRule.onNodeWithText("Pilih Produk").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Buka kalkulator").performClick()
         composeRule.onNodeWithText("Kalkulator").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Tutup kalkulator").performClick()
@@ -37,6 +38,7 @@ class MainActivitySmokeTest {
     @Test
     fun cash_sale_shows_change_and_starts_clean_transaction() {
         assumeTrue(BuildConfig.BUSINESS_TYPE == "RETAIL")
+        composeRule.onNodeWithTag("start-transaction").performClick()
         composeRule.waitUntil(timeoutMillis = 5_000) {
             composeRule.onAllNodesWithText("Keripik Singkong")
                 .fetchSemanticsNodes().isNotEmpty()
@@ -72,7 +74,7 @@ class MainActivitySmokeTest {
         composeRule.onNodeWithTag("new-transaction").performClick()
 
         composeRule.waitUntil(timeoutMillis = 5_000) {
-            composeRule.onAllNodesWithText("Kasir offline")
+            composeRule.onAllNodesWithText("Pilih Produk")
                 .fetchSemanticsNodes().isNotEmpty()
         }
         composeRule.onAllNodesWithText("1 barang").assertCountEquals(0)
