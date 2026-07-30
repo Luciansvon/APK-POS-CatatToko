@@ -4,6 +4,7 @@
 build/
 **/build/
 local.properties
+user.md
 dist/
 tmp/
 *.apk
