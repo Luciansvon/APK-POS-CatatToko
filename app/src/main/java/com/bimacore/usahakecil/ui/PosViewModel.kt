@@ -240,22 +240,27 @@ class PosViewModel(
         if (_isSaving.value) return
         _isSaving.value = true
         viewModelScope.launch {
-            val result = repository.completeSale(
-                CheckoutRequest(
-                    method = _paymentMethod.value,
-                    amountReceived = _cashInput.value.toLongOrNull() ?: 0L,
-                    externalPaymentConfirmed = _externalPaymentConfirmed.value,
-                    customerId = _selectedCustomerId.value,
-                ),
-            )
-            when (result) {
-                is CheckoutResult.Success -> {
-                    _receipt.value = result.receipt
-                    _screen.value = PosScreen.RECEIPT
+            try {
+                val result = repository.completeSale(
+                    CheckoutRequest(
+                        method = _paymentMethod.value,
+                        amountReceived = _cashInput.value.toLongOrNull() ?: 0L,
+                        externalPaymentConfirmed = _externalPaymentConfirmed.value,
+                        customerId = _selectedCustomerId.value,
+                    ),
+                )
+                when (result) {
+                    is CheckoutResult.Success -> {
+                        _receipt.value = result.receipt
+                        _screen.value = PosScreen.RECEIPT
+                    }
+                    is CheckoutResult.Error -> showMessage(result.message)
                 }
-                is CheckoutResult.Error -> showMessage(result.message)
+            } catch (error: Exception) {
+                showMessage(error.message ?: "Transaksi gagal disimpan")
+            } finally {
+                _isSaving.value = false
             }
-            _isSaving.value = false
         }
     }
 

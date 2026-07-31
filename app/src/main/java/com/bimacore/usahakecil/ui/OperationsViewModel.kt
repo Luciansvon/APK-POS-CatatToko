@@ -229,11 +229,12 @@ class OperationsViewModel(
 
     fun adjustStock(
         productId: Long,
+        variantId: Long?,
         delta: Int,
         type: String,
         reason: String,
     ) = execute("Stok diperbarui") {
-        inventory.adjustStock(productId, null, delta, type, reason)
+        inventory.adjustStock(productId, variantId, delta, type, reason)
     }
 
     fun saveUnit(
@@ -268,6 +269,7 @@ class OperationsViewModel(
     fun recordPurchase(
         supplierId: Long,
         productId: Long,
+        variantId: Long?,
         quantity: Int,
         unitCost: Long,
         amountPaid: Long,
@@ -284,6 +286,7 @@ class OperationsViewModel(
                 lines = listOf(
                     PurchaseLineDraft(
                         productId = productId,
+                        variantId = variantId,
                         unitLabel = product.unitLabel,
                         quantity = quantity,
                         unitCost = unitCost,
@@ -433,10 +436,12 @@ class OperationsViewModel(
     }
 
     fun createBackup() = execute("Backup siap dibagikan") {
+        reports.session.requireOwner()
         _backupUri.value = backups.createBackup()
     }
 
     fun inspectBackup(uri: Uri) = execute {
+        reports.session.requireOwner()
         _backupPreview.value = backups.preview(uri)
         _message.value = "Backup valid. Periksa identitas sebelum restore."
     }
@@ -446,6 +451,7 @@ class OperationsViewModel(
     }
 
     fun confirmRestore() = execute("Restore selesai") {
+        reports.session.requireOwner()
         val preview = requireNotNull(_backupPreview.value) { "Pilih file backup dulu" }
         backups.restore(preview)
         _backupPreview.value = null

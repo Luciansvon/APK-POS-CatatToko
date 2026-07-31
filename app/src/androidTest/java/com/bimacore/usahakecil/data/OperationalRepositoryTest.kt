@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.bimacore.usahakecil.domain.AddToCartResult
 import com.bimacore.usahakecil.domain.BusinessCapabilities
 import com.bimacore.usahakecil.domain.BusinessType
 import com.bimacore.usahakecil.domain.CheckoutResult
@@ -257,4 +258,391 @@ class OperationalRepositoryTest {
         assertEquals(7, edited.stock)
         assertTrue(!edited.isActive)
     }
+
+    // ---- ERR-016: Stok produk bervarian ----
+
+    @Test
+    fun purchase_variant_updates_variant_stock_not_parent() = runBlocking {
+        val inventory = InventoryRepository(
+            database,
+            BusinessCapabilities.forType(BusinessType.RETAIL),
+        )
+        val operations = OperationsRepository(database)
+        val categoryId = inventory.saveCategory(CategoryDraft(name = "Barang"))
+        val productId = inventory.saveProduct(
+            ProductDraft(
+                categoryId = categoryId,
+                name = "Kaos",
+                basePrice = 50_000,
+                openingStock = 0,
+                stockTrackingEnabled = true,
+                lowStockThreshold = 1,
+                unitLabel = "pcs",
+            ),
+        )
+        val variantId = inventory.saveVariant(
+            VariantDraft(
+                productId = productId,
+                label = "Merah L",
+                priceOverride = null,
+                openingStock = 5,
+            ),
+        )
+        val supplierId = operations.saveParty(
+            null,
+            PartyKind.SUPPLIER,
+            "Supplier Kaos",
+            "",
+            "",
+        )
+
+        operations.recordPurchase(
+            PurchaseDraft(
+                supplierId = supplierId,
+                amountPaid = 30_000,
+                lines = listOf(
+                    PurchaseLineDraft(
+                        productId = productId,
+                        variantId = variantId,
+                        unitLabel = "pcs",
+                        quantity = 3,
+                        unitCost = 10_000,
+                    ),
+                ),
+            ),
+        )
+
+        val variant = requireNotNull(database.catalogDao().getVariant(variantId))
+        assertEquals(8, variant.stock) // 5 awal + 3 pembelian
+        val product = requireNotNull(database.catalogDao().getProduct(productId))
+        assertEquals(0, product.stock) // parent tidak berubah
+    }
+
+    @Test
+    fun adjust_stock_variant_product_without_variant_id_is_rejected() = runBlocking {
+        val inventory = InventoryRepository(
+            database,
+            BusinessCapabilities.forType(BusinessType.RETAIL),
+        )
+        val categoryId = inventory.saveCategory(CategoryDraft(name = "Barang"))
+        val productId = inventory.saveProduct(
+            ProductDraft(
+                categoryId = categoryId,
+                name = "Kaos",
+                basePrice = 50_000,
+                openingStock = 0,
+                stockTrackingEnabled = true,
+                lowStockThreshold = 1,
+                unitLabel = "pcs",
+            ),
+        )
+        inventory.saveVariant(
+            VariantDraft(
+                productId = productId,
+                label = "Hitam M",
+                priceOverride = null,
+                openingStock = 10,
+            ),
+        )
+
+        val result = runCatching {
+            inventory.adjustStock(
+                productId = productId,
+                variantId = null,
+                delta = 5,
+                type = "ADJUSTMENT_IN",
+                reason = "Stok opname",
+            )
+        }
+
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull()?.message?.contains("varian") == true)
+    }
+
+    @Test
+    fun adjust_stock_variant_updates_variant_stock() = runBlocking {
+        val inventory = InventoryRepository(
+            database,
+            BusinessCapabilities.forType(BusinessType.RETAIL),
+        )
+        val categoryId = inventory.saveCategory(CategoryDraft(name = "Barang"))
+        val productId = inventory.saveProduct(
+            ProductDraft(
+                categoryId = categoryId,
+                name = "Kaos",
+                basePrice = 50_000,
+                openingStock = 0,
+                stockTrackingEnabled = true,
+                lowStockThreshold = 1,
+                unitLabel = "pcs",
+            ),
+        )
+        val variantId = inventory.saveVariant(
+            VariantDraft(
+                productId = productId,
+                label = "Putih S",
+                priceOverride = null,
+                openingStock = 3,
+            ),
+        )
+
+        inventory.adjustStock(
+            productId = productId,
+            variantId = variantId,
+            delta = 5,
+            type = "ADJUSTMENT_IN",
+            reason = "Stok opname",
+        )
+
+        val variant = requireNotNull(database.catalogDao().getVariant(variantId))
+        assertEquals(8, variant.stock) // 3 awal + 5 penyesuaian
+        val product = requireNotNull(database.catalogDao().getProduct(productId))
+        assertEquals(0, product.stock) // parent tidak berubah
+    }
+
+    @Test
+    fun purchase_variant_product_without_variant_id_is_rejected() = runBlocking {
+        val inventory = InventoryRepository(
+            database,
+            BusinessCapabilities.forType(BusinessType.RETAIL),
+        )
+        val operations = OperationsRepository(database)
+        val categoryId = inventory.saveCategory(CategoryDraft(name = "Barang"))
+        val productId = inventory.saveProduct(
+            ProductDraft(
+                categoryId = categoryId,
+                name = "Kaos",
+                basePrice = 50_000,
+                openingStock = 0,
+                stockTrackingEnabled = true,
+                lowStockThreshold = 1,
+                unitLabel = "pcs",
+            ),
+        )
+        inventory.saveVariant(
+            VariantDraft(
+                productId = productId,
+                label = "Biru XL",
+                priceOverride = null,
+                openingStock = 5,
+            ),
+        )
+        val supplierId = operations.saveParty(
+            null,
+            PartyKind.SUPPLIER,
+            "Supplier Kaos",
+            "",
+            "",
+        )
+
+        val result = runCatching {
+            operations.recordPurchase(
+                PurchaseDraft(
+                    supplierId = supplierId,
+                    amountPaid = 10_000,
+                    lines = listOf(
+                        PurchaseLineDraft(
+                            productId = productId,
+                            unitLabel = "pcs",
+                            quantity = 2,
+                            unitCost = 10_000,
+                        ),
+                    ),
+                ),
+            )
+        }
+
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull()?.message?.contains("varian") == true)
+    }
+
+    @Test
+    fun stock_adjustment_refuses_negative_result() = runBlocking {
+        val inventory = InventoryRepository(
+            database,
+            BusinessCapabilities.forType(BusinessType.RETAIL),
+        )
+        val categoryId = inventory.saveCategory(CategoryDraft(name = "Barang"))
+        val productId = inventory.saveProduct(
+            ProductDraft(
+                categoryId = categoryId,
+                name = "Gula",
+                basePrice = 10_000,
+                openingStock = 3,
+                stockTrackingEnabled = true,
+                lowStockThreshold = 1,
+                unitLabel = "kg",
+            ),
+        )
+
+        val result = runCatching {
+            inventory.adjustStock(
+                productId = productId,
+                variantId = null,
+                delta = -5,
+                type = "ADJUSTMENT_OUT",
+                reason = "Koreksi stok",
+            )
+        }
+
+        assertTrue(result.isFailure)
+    }
+
+    // ---- ERR-017: Inkonsistensi Pembayaran Utang/Piutang dan Kas ----
+
+    @Test
+    fun createDebt_with_initial_payment_creates_cash_entry_and_debt_payment() = runBlocking {
+        val operations = OperationsRepository(database)
+        val supplierId = operations.saveParty(null, PartyKind.SUPPLIER, "Supplier B", "", "")
+
+        val debtId = operations.createDebt(
+            kind = DebtKind.PAYABLE,
+            partyId = supplierId,
+            originalAmount = 100_000,
+            initialPayment = 30_000,
+            note = "Beli peralatan",
+        )
+
+        val debt = requireNotNull(database.operationsDao().getDebt(debtId))
+        assertEquals(30_000L, debt.paidAmount)
+        assertEquals("PARTIAL", debt.settlementStatus)
+
+        val payments = database.operationsDao().getDebtPayments(debtId)
+        assertEquals(1, payments.size)
+        assertEquals(30_000L, payments.first().amount)
+
+        val cashEntries = operations.cashEntries.first()
+        assertEquals(1, cashEntries.size)
+        assertEquals("PAYABLE_OUT", cashEntries.first().type)
+        assertEquals(30_000L, cashEntries.first().amount)
+    }
+
+    @Test
+    fun purchase_with_downpayment_creates_debt_payment_record() = runBlocking {
+        val inventory = InventoryRepository(
+            database,
+            BusinessCapabilities.forType(BusinessType.RETAIL),
+        )
+        val operations = OperationsRepository(database)
+        val categoryId = inventory.saveCategory(CategoryDraft(name = "Barang"))
+        val productId = inventory.saveProduct(
+            ProductDraft(
+                categoryId = categoryId,
+                name = "Terigu",
+                basePrice = 12_000,
+                openingStock = 0,
+                stockTrackingEnabled = true,
+                lowStockThreshold = 1,
+                unitLabel = "kg",
+            ),
+        )
+        val supplierId = operations.saveParty(null, PartyKind.SUPPLIER, "Supplier Terigu", "", "")
+
+        val purchaseId = operations.recordPurchase(
+            PurchaseDraft(
+                supplierId = supplierId,
+                amountPaid = 20_000,
+                lines = listOf(
+                    PurchaseLineDraft(
+                        productId = productId,
+                        unitLabel = "kg",
+                        quantity = 5,
+                        unitCost = 10_000,
+                    ),
+                ),
+            ),
+        )
+
+        val debt = operations.debts.first().single()
+        assertEquals(20_000L, debt.paidAmount)
+        assertEquals(50_000L, debt.originalAmount)
+
+        val debtPayments = database.operationsDao().getDebtPayments(debt.id)
+        assertEquals(1, debtPayments.size)
+        assertEquals(20_000L, debtPayments.first().amount)
+    }
+
+    // ---- ERR-018: Orphan Records pada Notes dan Toppings Keranjang Kuliner ----
+
+    @Test
+    fun deleting_cart_line_clears_associated_notes_and_toppings() = runBlocking {
+        val capabilities = BusinessCapabilities.forType(BusinessType.CULINARY)
+        val inventory = InventoryRepository(database, capabilities)
+        val culinary = CulinaryRepository(database, capabilities)
+        val categoryId = inventory.saveCategory(CategoryDraft(name = "Menu"))
+        val menuId = inventory.saveProduct(
+            ProductDraft(
+                categoryId = categoryId,
+                name = "Mie Goreng",
+                basePrice = 15_000,
+                openingStock = 0,
+                stockTrackingEnabled = false,
+                lowStockThreshold = 0,
+                unitLabel = "porsi",
+            ),
+        )
+        val toppingId = culinary.saveTopping(null, menuId, "Telur", 3_000)
+        val pos = PosRepository(database, BusinessType.CULINARY, "Tes Kuliner")
+
+        pos.addProduct(menuId)
+        val line = database.cartDao().getLines().single()
+        pos.setCartCustomization(line.id, "Pedas sedang", mapOf(toppingId to 1))
+
+        assertEquals("Pedas sedang", database.culinaryDao().getCartLineNote(line.id)?.note)
+        assertEquals(1, database.culinaryDao().getCartLineToppings(line.id).size)
+
+        // Delete line by setting quantity to 0
+        pos.setQuantity(line.id, 0)
+
+        assertEquals(0, database.cartDao().getLines().size)
+        assertTrue(database.culinaryDao().getCartLineNote(line.id) == null)
+        assertEquals(0, database.culinaryDao().getCartLineToppings(line.id).size)
+    }
+
+    // ---- ERR-019: Penjualan Produk/Varian Nonaktif ----
+
+    @Test
+    fun inactive_product_cannot_be_added_or_checked_out() = runBlocking {
+        val inventory = InventoryRepository(
+            database,
+            BusinessCapabilities.forType(BusinessType.RETAIL),
+        )
+        val categoryId = inventory.saveCategory(CategoryDraft(name = "Barang"))
+        val productId = inventory.saveProduct(
+            ProductDraft(
+                categoryId = categoryId,
+                name = "Kopi Bubuk",
+                basePrice = 10_000,
+                openingStock = 10,
+                stockTrackingEnabled = true,
+                lowStockThreshold = 1,
+                unitLabel = "pcs",
+            ),
+        )
+        val pos = PosRepository(database, BusinessType.RETAIL, "Tes Retail")
+
+        // Deactivate product
+        inventory.setProductActive(productId, false)
+
+        val addResult = pos.addProduct(productId)
+        assertEquals(AddToCartResult.OutOfStock, addResult)
+
+        // Force add to cart line to test completeSale validation
+        database.cartDao().upsertLine(
+            CartLineEntity(
+                id = "$productId:0:0",
+                productId = productId,
+                variantId = null,
+                quantity = 1,
+                updatedAt = 10L,
+            ),
+        )
+
+        val checkoutResult = pos.completeSale(CheckoutRequest(PaymentMethod.CASH, 10_000, false))
+        assertTrue(checkoutResult is CheckoutResult.Error)
+        assertTrue((checkoutResult as CheckoutResult.Error).message.contains("tidak aktif"))
+    }
 }
+
+
+

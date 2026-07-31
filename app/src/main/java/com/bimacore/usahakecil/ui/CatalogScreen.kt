@@ -237,6 +237,7 @@ private fun ProductCard(
     val lowStock = availableStock != null && availableStock in 1..product.lowStockThreshold
 
     Card(
+        onClick = onClick,
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,

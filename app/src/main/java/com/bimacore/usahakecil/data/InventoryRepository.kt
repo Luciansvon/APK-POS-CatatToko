@@ -187,6 +187,9 @@ class InventoryRepository(
     ) = database.withTransaction {
         require(type in STOCK_TYPES) { "Jenis pergerakan stok tidak valid" }
         val product = requireNotNull(catalogDao.getProduct(productId)) { "Produk tidak tersedia" }
+        require(!product.hasVariants || variantId != null) {
+            "Produk bervarian wajib memilih varian untuk penyesuaian stok"
+        }
         val baseDelta = InventoryRules.toBaseQuantity(kotlin.math.abs(delta), factorToBase) *
             if (delta < 0) -1 else 1
         if (variantId != null) {

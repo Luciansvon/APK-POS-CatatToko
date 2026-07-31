@@ -304,7 +304,7 @@ fun OperationsScreen(
         "stock" -> StockDialog(
             onDismiss = { dialog = null },
             onSave = { delta, type, reason ->
-                viewModel.adjustStock(requireNotNull(selectedProductId), delta, type, reason)
+                viewModel.adjustStock(requireNotNull(selectedProductId), null, delta, type, reason)
                 dialog = null
             },
         )
@@ -320,7 +320,7 @@ fun OperationsScreen(
             products = products.filter { it.isActive }.map { it.id to it.name },
             onDismiss = { dialog = null },
         ) { supplierId, productId, quantity, cost, paid, note ->
-            viewModel.recordPurchase(supplierId, productId, quantity, cost, paid, note)
+            viewModel.recordPurchase(supplierId, productId, null, quantity, cost, paid, note)
             dialog = null
         }
         "worker" -> WorkerDialog(
