@@ -532,3 +532,31 @@ Melakukan debugging terarah untuk 8 area integritas data dan kestabilan aplikasi
   - `Kasir-Kuliner-PKL.apk`
 - **Dokumentasi**: Memperbarui `docs/ERROR_SOLUTIONS.md` (ERR-016 s/d ERR-023), `docs/RELEASE_NOTES.md` (v0.3.1), dan `app/build.gradle.kts`.
 
+---
+
+## 2026-08-01 - Perbaikan Audit Konsolidasi PR & Pengujian 3 Varian APK (Versi 0.3.2)
+
+Status: Selesai, diverifikasi murni pada 3 varian APK, dan dipaketkan di `dist/debug/`.
+
+### Ringkasan Pekerjaan
+
+Menerapkan perbaikan bug P0 & P1 dari dokumen audit konsolidasi `docs/AUDIT_2026-07-31.md` dan menguji 3 varian APK (Retail, Grosir, Kuliner) di emulator MuMuPlayer:
+1. **Integritas Stok Pembelian (CON-001 / ERR-024)**: Mengelompokkan penambahan stok per target `(productId, variantId)` pada `OperationsRepository.recordPurchase()` agar item ganda tidak menimpa stok snapshot lama.
+2. **Resilient Owner Session (CON-002 / ERR-025)**: Mereset `externalOwnerFlowDepth = 0` saat `ReportSession.lock()` dipanggil agar sesi Owner di-lock dengan tepat.
+3. **Themes Compat API 27 (CON-003 / ERR-026)**: Memindahkan `android:windowLightNavigationBar` ke `values-v27/themes.xml` sehingga lulus Android Lint untuk minSdk 23.
+4. **Metadata Version Bump (CON-004)**: Memperbarui `versionCode = 7` dan `versionName = "0.3.2"` di `app/build.gradle.kts`.
+5. **Validasi Checkout Varian (CON-005 / ERR-027)**: Memasukkan validasi `variant.productId == product.id` di `PosRepository.kt`.
+6. **Active Customers Empty State (CON-006 / ERR-028)**: Menggunakan `activeCustomers` pada `PaymentScreen.kt` agar empty state tampil benar jika semua pelanggan nonaktif.
+7. **Stok Varian Layar Owner (CON-007 / ERR-029)**: Menampilkan total stok varian aktif pada kartu produk di `ManagementScreens.kt`.
+8. **Pembersihan Workflow Bootstrap (CON-009)**: Menghapus 2 workflow bootstrap sementara (`apply-audit-patch.yml` dan `apply-priority-audit-fixes.yml`).
+
+### Verifikasi Aktual
+
+- **Unit Tests**: Lulus 100% pada 3 flavor (`testRetailDebugUnitTest`, `testWholesaleDebugUnitTest`, `testCulinaryDebugUnitTest`) — 84/84 unit tests PASSED.
+- **Android Lint**: Lulus 100% pada 3 flavor (`lintRetailDebug`, `lintWholesaleDebug`, `lintCulinaryDebug`) — BUILD SUCCESSFUL.
+- **Build & Packaging**: `assembleDebug` sukses. `scripts/package-apks.ps1` memperbarui 3 APK versi `0.3.2` (versionCode 7) di `dist/debug/`:
+  - `Kasir-Retail-UMKM.apk` | SHA256 `CB193D9CF3E28AA60EEA5C072601F439DBF30F037F31696555B3ECDE8D6A2CFF`
+  - `Kasir-Grosir-Agen.apk` | SHA256 `02DACF1A5B585C48BBEF475868B0904FC2BEED92DE93F83253A33AE2766516AD`
+  - `Kasir-Kuliner-PKL.apk` | SHA256 `79F2DBC48528FB04911FED93D36D289FCC9FF03A2B6788AB1ECA19BE024BDFEF`
+- **Pengujian MuMuPlayer**: Ketiga varian APK dipasang, diluncurkan, dan diambil screenshot secara sukses di emulator (`127.0.0.1:7555`).
+- **Dokumentasi**: Memperbarui `docs/AUDIT_2026-07-31.md`, `docs/RELEASE_NOTES.md` (v0.3.2), `docs/ERROR_SOLUTIONS.md` (ERR-024 s/d ERR-029), `docs/WORKLOG.md`, dan `walkthrough.md`.

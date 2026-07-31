@@ -351,6 +351,9 @@ class PosRepository(
                         require(variant == null || variant.isActive) {
                             "Varian ${variant?.label} sudah tidak aktif"
                         }
+                        require(variant == null || variant.productId == product.id) {
+                            "Varian tidak sesuai produk"
+                        }
                         val parsed = parseLineId(line.id)
                         val unit = parsed.unitId?.let {
                             requireNotNull(inventoryDao.getUnit(it)) {

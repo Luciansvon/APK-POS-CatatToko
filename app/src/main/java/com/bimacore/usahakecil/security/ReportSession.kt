@@ -11,11 +11,14 @@ class ReportSession {
     val isUnlocked: Boolean
         get() = _unlocked.value
 
+    @Synchronized
     fun unlock() {
         _unlocked.value = true
     }
 
+    @Synchronized
     fun lock() {
+        externalOwnerFlowDepth = 0
         _unlocked.value = false
     }
 

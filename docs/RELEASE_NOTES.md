@@ -58,6 +58,38 @@ Status: Draft / Siap dites / Siap dibagikan
 - Kuliner:
 ```
 
+## Versi 0.3.2 - 2026-08-01
+
+Status: Siap dites dan dikemas sebagai APK debug
+
+### Kenapa versi ini dibuat
+
+- Menerapkan perbaikan bug P0 dan P1 dari paket PR konsolidasi audit `AUDIT_2026-07-31.md` dan menghapus 2 workflow bootstrap sementara.
+
+### Perubahan
+
+- **Integritas Stok Pembelian (CON-001 / ERR-024)**: Mengelompokkan penambahan stok per target produk/varian saat recording purchase agar item ganda tidak saling menimpa.
+- **Resilient Owner Session (CON-002 / ERR-025)**: Mereset `externalOwnerFlowDepth = 0` saat `ReportSession.lock()` agar sesi Owner tidak tertinggal terbuka setelah membuka file picker.
+- **Kompatibilitas Theme API 27 (CON-003 / ERR-026)**: Memindahkan `android:windowLightNavigationBar` ke `values-v27/themes.xml` sehingga lulus Android Lint pada minSdk 23.
+- **Metadata Version Bump (CON-004)**: Menaikkan `versionCode` ke `7` dan `versionName` ke `0.3.2`.
+- **Validasi Checkout Varian (CON-005 / ERR-027)**: Memastikan varian yang dibeli benar-benar milik produk induknya di `PosRepository.kt`.
+- **Active Customers Empty State (CON-006 / ERR-028)**: Menggunakan `activeCustomers` pada `PaymentScreen.kt` agar pesan petunjuk muncul jika semua pelanggan nonaktif.
+- **Stok Varian Layar Owner (CON-007 / ERR-029)**: Menampilkan jumlah total stok varian pada kartu produk di `ManagementScreens.kt`.
+- **Pembersihan Workflow Bootstrap (CON-009)**: Menghapus `.github/workflows/apply-audit-patch.yml` dan `.github/workflows/apply-priority-audit-fixes.yml`.
+
+### Verifikasi
+
+- Unit test: `.\gradlew.bat testRetailDebugUnitTest testWholesaleDebugUnitTest testCulinaryDebugUnitTest` (BUILD SUCCESSFUL, 100% LULUS)
+- Android Lint: `.\gradlew.bat lintRetailDebug lintWholesaleDebug lintCulinaryDebug` (BUILD SUCCESSFUL)
+- Build APK: `.\gradlew.bat assembleDebug` (BUILD SUCCESSFUL)
+- Emulator MuMuPlayer: Ketiga varian APK (`Retail`, `Wholesale`, `Culinary`) berhasil dipasang, dijalankan, dan dites pada emulator (`127.0.0.1:7555`).
+
+### APK yang ditimpa
+
+- Retail: `dist/debug/Kasir-Retail-UMKM.apk` | SHA256 `CB193D9CF3E28AA60EEA5C072601F439DBF30F037F31696555B3ECDE8D6A2CFF`
+- Grosir: `dist/debug/Kasir-Grosir-Agen.apk` | SHA256 `02DACF1A5B585C48BBEF475868B0904FC2BEED92DE93F83253A33AE2766516AD`
+- Kuliner: `dist/debug/Kasir-Kuliner-PKL.apk` | SHA256 `79F2DBC48528FB04911FED93D36D289FCC9FF03A2B6788AB1ECA19BE024BDFEF`
+
 ## Versi 0.3.1-audit - 2026-07-31
 
 Status: Siap dites dan dikemas sebagai APK debug
