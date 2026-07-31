@@ -911,4 +911,171 @@ Varian dan versi: Semua flavor, `0.3.1`
 - `app/src/main/java/com/bimacore/usahakecil/ui/CashierLandingScreen.kt`
 - `app/src/androidTest/java/com/bimacore/usahakecil/MainActivitySmokeTest.kt`
 
+## ERR-024 - Update stok pembelian menimpa nilai saat beberapa baris menunjuk produk/varian sama (CON-001)
+
+Tanggal: 2026-08-01
+
+Varian dan versi: Semua flavor, `0.3.2`
+
+### Kondisi/gejala
+
+Pembelian supplier yang memiliki beberapa baris dengan target produk atau varian sama dapat menyebabkan stok akhir tidak sesuai karena update kedua menimpa update pertama dari snapshot lama.
+
+### Root cause
+
+`OperationsRepository.recordPurchase()` membaca snapshot entity produk/varian di awal, lalu melakukan iterasi dan update stok per baris dari snapshot awal tersebut, bukan mengumpulkan total penambahan stok per barang target.
+
+### Solusi
+
+Mengelompokkan baris `resolved` berdasarkan `(productId, variantId)` dan menjumlahkan `baseQuantity` memakai `Math.addExact` sebelum memperbarui stok di database Room.
+
+### Perlindungan regresi
+
+- `OperationsRepositoryTest`.
+
+### Bukti verifikasi aktual
+
+- Unit test lulus pada ketiga flavor (`testRetailDebugUnitTest`, `testWholesaleDebugUnitTest`, `testCulinaryDebugUnitTest`).
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/data/OperationsRepository.kt`
+
+## ERR-025 - Lock manual pada ReportSession tidak mereset externalOwnerFlowDepth (CON-002)
+
+Tanggal: 2026-08-01
+
+Varian dan versi: Semua flavor, `0.3.2`
+
+### Kondisi/gejala
+
+Saat Owner mengunci sesi secara manual saat guard external flow sedang aktif (>0), lalu melakukan unlock kembali, auto-lock berikutnya dilewati karena penanda `externalOwnerFlowDepth` basi tidak direset.
+
+### Root cause
+
+`ReportSession.lock()` hanya mengubah `_unlocked.value = false` tanpa mereset `externalOwnerFlowDepth = 0`.
+
+### Solusi
+
+Menambahkan reset `externalOwnerFlowDepth = 0` dan anotasi `@Synchronized` pada metode `lock()` dan `unlock()`.
+
+### Perlindungan regresi
+
+- `ReportSessionTest`.
+
+### Bukti verifikasi aktual
+
+- Unit test lulus pada ketiga flavor.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/security/ReportSession.kt`
+
+## ERR-026 - Error Android Lint windowLightNavigationBar pada minSdk 23 (CON-003)
+
+Tanggal: 2026-08-01
+
+Varian dan versi: Semua flavor, `0.3.2`
+
+### Kondisi/gejala
+
+Command `lintRetailDebug`, `lintWholesaleDebug`, dan `lintCulinaryDebug` gagal karena atribut `android:windowLightNavigationBar` diletakkan di `values/themes.xml` (minSdk 23) padahal membutuhkan API 27.
+
+### Root cause
+
+Atribut `android:windowLightNavigationBar` memerlukan API level 27 ke atas tetapi diletakkan pada file resource umum minSdk 23.
+
+### Solusi
+
+1. Menghapus atribut `android:windowLightNavigationBar` dari `app/src/main/res/values/themes.xml`.
+2. Membuat file resource baru `app/src/main/res/values-v27/themes.xml` untuk menampung atribut tersebut khusus API 27+.
+
+### Bukti verifikasi aktual
+
+- Android Lint lulus 100% pada ketiga flavor (`lintRetailDebug`, `lintWholesaleDebug`, `lintCulinaryDebug`).
+
+### File terdampak
+
+- `app/src/main/res/values/themes.xml`
+- `app/src/main/res/values-v27/themes.xml`
+
+## ERR-027 - Checkout kasir tidak memvalidasi ulang relasi varian dan produk (CON-005)
+
+Tanggal: 2026-08-01
+
+Varian dan versi: Semua flavor, `0.3.2`
+
+### Kondisi/gejala
+
+Item keranjang kasir berisiko diproses dengan varian milik produk lain apabila terjadi ketidakcocokan data dari restore atau masukan pihak ketiga.
+
+### Root cause
+
+`PosRepository.completeSale()` belum memvalidasi kembali bahwa `variant.productId == product.id` saat menghitung stok dan subtotal checkout.
+
+### Solusi
+
+Menambahkan `require(variant == null || variant.productId == product.id) { "Varian tidak sesuai produk" }` pada alur checkout `PosRepository.kt`.
+
+### Bukti verifikasi aktual
+
+- Unit test lulus pada ketiga flavor.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/data/PosRepository.kt`
+
+## ERR-028 - Selector pelanggan kasir kredit menjadi kosong tanpa petunjuk jika semua pelanggan nonaktif (CON-006)
+
+Tanggal: 2026-08-01
+
+Varian dan versi: Semua flavor, `0.3.2`
+
+### Kondisi/gejala
+
+Pada layar pembayaran kredit, jika terdapat pelanggan terdaftar tetapi semuanya berstatus nonaktif (`isActive = false`), komponen pilihan pelanggan menjadi kosong tanpa pesan penjelasan.
+
+### Root cause
+
+`PaymentScreen.kt` mengecek `customers.isEmpty()` untuk empty state, padahal rendering chip memfilter `customers.filter { it.isActive }`.
+
+### Solusi
+
+Membuat daftar `activeCustomers = remember(customers) { customers.filter { it.isActive } }` dan menggunakannya untuk pengecekan empty state dan pengurutan chip.
+
+### Bukti verifikasi aktual
+
+- Visual QA dan testing pada emulator MuMuPlayer.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/ui/PaymentScreen.kt`
+
+## ERR-029 - Kartu produk bervarian pada layar pengelolaan Owner menampilkan stok 0 (CON-007)
+
+Tanggal: 2026-08-01
+
+Varian dan versi: Semua flavor, `0.3.2`
+
+### Kondisi/gejala
+
+Daftar barang di layar pengelolaan Owner menampilkan `stok 0` untuk produk bervarian meskipun varian-variannya memiliki sisa stok aktif.
+
+### Root cause
+
+`ManagementScreens.kt` membaca `product.stock` langsung untuk subtitle kartu produk, padahal stok produk bervarian disimpan pada entity variannya.
+
+### Solusi
+
+Menghitung `displayStock` dari total stok varian aktif jika `product.hasVariants` bernilai `true`.
+
+### Bukti verifikasi aktual
+
+- Visual QA dan testing pada emulator MuMuPlayer.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/ui/ManagementScreens.kt`
+
+
 

@@ -138,9 +138,14 @@ fun OperationsScreen(
                             }
                         }
                         products.forEach { product ->
+                            val displayStock = if (product.hasVariants) {
+                                variants.filter { it.productId == product.id }.sumOf { it.stock }
+                            } else {
+                                product.stock
+                            }
                             ItemCard(
                                 title = product.name,
-                                subtitle = "${formatRupiah(product.basePrice)} • stok ${product.stock} ${product.unitLabel}",
+                                subtitle = "${formatRupiah(product.basePrice)} • stok $displayStock ${product.unitLabel}",
                                 action = if (product.isActive) "Nonaktifkan" else "Aktifkan",
                                 onAction = {
                                     viewModel.setProductActive(product.id, !product.isActive)

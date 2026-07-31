@@ -157,22 +157,40 @@ class OperationsRepository(
                 )
             },
         )
-        resolved.forEach {
-            if (it.variant != null) {
-                val next = InventoryRules.adjustStock(
-                    it.variant.stock,
-                    it.baseQuantity,
-                    "Pembelian $invoice",
-                )
-                catalogDao.updateVariant(it.variant.copy(stock = next, updatedAt = now))
-            } else {
-                val next = InventoryRules.adjustStock(
-                    it.product.stock,
-                    it.baseQuantity,
-                    "Pembelian $invoice",
-                )
-                catalogDao.updateProduct(it.product.copy(stock = next, updatedAt = now))
+        val aggregatedVariantQty = resolved
+            .filter { it.variant != null }
+            .groupBy { it.variant!!.id }
+        aggregatedVariantQty.forEach { (variantId, lines) ->
+            val totalBaseQty = lines.fold(0) { acc, line ->
+                Math.addExact(acc, line.baseQuantity)
             }
+            val currentVariant = requireNotNull(catalogDao.getVariant(variantId)) {
+                "Varian pembelian tidak tersedia"
+            }
+            val next = InventoryRules.adjustStock(
+                currentVariant.stock,
+                totalBaseQty,
+                "Pembelian $invoice",
+            )
+            catalogDao.updateVariant(currentVariant.copy(stock = next, updatedAt = now))
+        }
+
+        val aggregatedProductQty = resolved
+            .filter { it.variant == null }
+            .groupBy { it.product.id }
+        aggregatedProductQty.forEach { (productId, lines) ->
+            val totalBaseQty = lines.fold(0) { acc, line ->
+                Math.addExact(acc, line.baseQuantity)
+            }
+            val currentProduct = requireNotNull(catalogDao.getProduct(productId)) {
+                "Produk pembelian tidak tersedia"
+            }
+            val next = InventoryRules.adjustStock(
+                currentProduct.stock,
+                totalBaseQty,
+                "Pembelian $invoice",
+            )
+            catalogDao.updateProduct(currentProduct.copy(stock = next, updatedAt = now))
         }
         database.stockDao().insertMovements(
             resolved.map {

@@ -35,6 +35,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
@@ -199,16 +200,17 @@ private fun CustomerSelection(
     selectedCustomerId: Long?,
     onCustomerSelected: (Long?) -> Unit,
 ) {
+    val activeCustomers = remember(customers) { customers.filter { it.isActive } }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Pilih pelanggan", fontWeight = FontWeight.Bold)
-        if (customers.isEmpty()) {
+        if (activeCustomers.isEmpty()) {
             Text(
-                "Belum ada pelanggan. Tambahkan dari Keuangan > Utang & Piutang.",
+                "Belum ada pelanggan aktif. Tambahkan atau aktifkan dari Keuangan > Utang & Piutang.",
                 color = MaterialTheme.colorScheme.error,
             )
         } else {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(customers.filter { it.isActive }) { customer ->
+                items(activeCustomers) { customer ->
                     FilterChip(
                         selected = selectedCustomerId == customer.id,
                         onClick = { onCustomerSelected(customer.id) },
