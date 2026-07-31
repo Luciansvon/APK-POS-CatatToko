@@ -302,9 +302,18 @@ fun OperationsScreen(
             dialog = null
         }
         "stock" -> StockDialog(
+            variants = variants
+                .filter { it.isActive && it.productId == selectedProductId }
+                .map { it.id to it.label },
             onDismiss = { dialog = null },
-            onSave = { delta, type, reason ->
-                viewModel.adjustStock(requireNotNull(selectedProductId), null, delta, type, reason)
+            onSave = { variantId, delta, type, reason ->
+                viewModel.adjustStock(
+                    requireNotNull(selectedProductId),
+                    variantId,
+                    delta,
+                    type,
+                    reason,
+                )
                 dialog = null
             },
         )
@@ -318,9 +327,19 @@ fun OperationsScreen(
         "purchase" -> PurchaseDialog(
             suppliers = suppliers.map { it.id to it.name },
             products = products.filter { it.isActive }.map { it.id to it.name },
+            variants = variants.filter { it.isActive }
+                .map { Triple(it.id, it.productId, it.label) },
             onDismiss = { dialog = null },
-        ) { supplierId, productId, quantity, cost, paid, note ->
-            viewModel.recordPurchase(supplierId, productId, null, quantity, cost, paid, note)
+        ) { supplierId, productId, variantId, quantity, cost, paid, note ->
+            viewModel.recordPurchase(
+                supplierId,
+                productId,
+                variantId,
+                quantity,
+                cost,
+                paid,
+                note,
+            )
             dialog = null
         }
         "worker" -> WorkerDialog(
@@ -660,7 +679,7 @@ fun MoreScreen(
     val openBackup = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
     ) { uri ->
-        uri?.let(viewModel::inspectBackup)
+        viewModel.finishRestoreFileSelection(uri)
     }
 
     Scaffold(
@@ -701,7 +720,15 @@ fun MoreScreen(
                 ) { Text("Bagikan backup") }
             }
             OutlinedButton(
-                onClick = { openBackup.launch(arrayOf("*/*")) },
+                onClick = {
+                    viewModel.beginRestoreFileSelection()
+                    try {
+                        openBackup.launch(arrayOf("*/*"))
+                    } catch (error: Exception) {
+                        viewModel.finishRestoreFileSelection(null)
+                        throw error
+                    }
+                },
                 modifier = Modifier.fillMaxWidth(),
             ) { Text("Pilih file untuk restore") }
             Text(
@@ -976,10 +1003,12 @@ private fun VariantDialog(
 
 @Composable
 private fun StockDialog(
+    variants: List<Pair<Long, String>>,
     onDismiss: () -> Unit,
-    onSave: (Int, String, String) -> Unit,
+    onSave: (Long?, Int, String, String) -> Unit,
 ) {
     val types = listOf("ADJUSTMENT_IN", "ADJUSTMENT_OUT", "DAMAGED", "LOST")
+    var variantIndex by remember { mutableIntStateOf(0) }
     var typeIndex by remember { mutableIntStateOf(0) }
     var quantity by remember { mutableStateOf("") }
     var reason by remember { mutableStateOf("") }
@@ -988,6 +1017,11 @@ private fun StockDialog(
         title = { Text("Penyesuaian stok") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (variants.isNotEmpty()) {
+                    SelectionButton("Varian", variants, variantIndex) {
+                        variantIndex = nextIndex(variantIndex, variants.size)
+                    }
+                }
                 OutlinedButton(onClick = { typeIndex = (typeIndex + 1) % types.size }) {
                     Text("Jenis: ${stockTypeLabel(types[typeIndex])}")
                 }
@@ -1004,7 +1038,12 @@ private fun StockDialog(
             Button(onClick = {
                 val raw = quantity.toIntOrNull() ?: 0
                 val delta = if (types[typeIndex] == "ADJUSTMENT_IN") raw else -raw
-                onSave(delta, types[typeIndex], reason)
+                onSave(
+                    variants.getOrNull(variantIndex)?.first,
+                    delta,
+                    types[typeIndex],
+                    reason,
+                )
             }) { Text("Simpan") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Batal") } },
@@ -1026,12 +1065,17 @@ private fun PartyDialog(
 private fun PurchaseDialog(
     suppliers: List<Pair<Long, String>>,
     products: List<Pair<Long, String>>,
+    variants: List<Triple<Long, Long, String>>,
     onDismiss: () -> Unit,
-    onSave: (Long, Long, Int, Long, Long, String) -> Unit,
+    onSave: (Long, Long, Long?, Int, Long, Long, String) -> Unit,
 ) {
     var supplierIndex by remember { mutableIntStateOf(0) }
     var productIndex by remember { mutableIntStateOf(0) }
+    var variantIndex by remember { mutableIntStateOf(0) }
     var values by remember { mutableStateOf(listOf("", "", "", "")) }
+    val productVariants = variants
+        .filter { it.second == products.getOrNull(productIndex)?.first }
+        .map { it.first to it.third }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Catat pembelian") },
@@ -1042,6 +1086,12 @@ private fun PurchaseDialog(
                 }
                 SelectionButton("Produk", products, productIndex) {
                     productIndex = nextIndex(productIndex, products.size)
+                    variantIndex = 0
+                }
+                if (productVariants.isNotEmpty()) {
+                    SelectionButton("Varian", productVariants, variantIndex) {
+                        variantIndex = nextIndex(variantIndex, productVariants.size)
+                    }
                 }
                 listOf("Jumlah", "Harga beli/satuan", "Sudah dibayar", "Catatan").forEachIndexed { index, label ->
                     OutlinedTextField(
@@ -1066,6 +1116,7 @@ private fun PurchaseDialog(
                     onSave(
                         suppliers[supplierIndex].first,
                         products[productIndex].first,
+                        productVariants.getOrNull(variantIndex)?.first,
                         values[0].toIntOrNull() ?: 0,
                         values[1].toLongOrNull() ?: 0,
                         values[2].toLongOrNull() ?: 0,

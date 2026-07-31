@@ -175,32 +175,45 @@ private fun CartLineCard(
             ) {
                 IconButton(
                     onClick = { onQuantityChange(0) },
-                    modifier = Modifier.semantics {
-                        contentDescription = "Hapus ${item.productName}"
-                    },
+                    modifier = Modifier
+                        .size(36.dp)
+                        .semantics {
+                            contentDescription = "Hapus ${item.productName}"
+                        },
                 ) {
                     Icon(
                         Icons.Outlined.DeleteOutline,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(20.dp),
                     )
                 }
                 if (onCustomize != null) {
-                    TextButton(onClick = { onCustomize(item) }) {
-                        Text("Catatan/Topping")
+                    TextButton(
+                        onClick = { onCustomize(item) },
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 6.dp, vertical = 2.dp),
+                    ) {
+                        Text(
+                            "Catatan/Topping",
+                            style = MaterialTheme.typography.labelLarge,
+                        )
                     }
                 }
                 Spacer(Modifier.weight(1f))
                 FilledTonalIconButton(
                     onClick = { onQuantityChange(item.quantity - 1) },
-                    modifier = Modifier.size(48.dp),
+                    modifier = Modifier.size(36.dp),
                 ) {
-                    Icon(Icons.Outlined.Remove, contentDescription = "Kurangi jumlah")
+                    Icon(
+                        Icons.Outlined.Remove,
+                        contentDescription = "Kurangi jumlah",
+                        modifier = Modifier.size(18.dp),
+                    )
                 }
                 Text(
                     text = item.quantity.toString(),
                     modifier = Modifier
-                        .padding(horizontal = 18.dp)
+                        .padding(horizontal = 8.dp)
                         .semantics { contentDescription = "Jumlah ${item.quantity}" },
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontFeatureSettings = "tnum",
@@ -210,9 +223,13 @@ private fun CartLineCard(
                 FilledTonalIconButton(
                     onClick = { onQuantityChange(item.quantity + 1) },
                     enabled = item.availableStock == null || item.quantity < item.availableStock,
-                    modifier = Modifier.size(48.dp),
+                    modifier = Modifier.size(36.dp),
                 ) {
-                    Icon(Icons.Outlined.Add, contentDescription = "Tambah jumlah")
+                    Icon(
+                        Icons.Outlined.Add,
+                        contentDescription = "Tambah jumlah",
+                        modifier = Modifier.size(18.dp),
+                    )
                 }
             }
         }

@@ -2,7 +2,7 @@
 
 ## Status dokumen
 
-Dokumen ini mencatat arsitektur produk dan implementasi aktif per 30 Juli 2026.
+Dokumen ini mencatat arsitektur produk dan implementasi aktif per 31 Juli 2026.
 
 Status saat ini:
 
@@ -13,6 +13,7 @@ Status saat ini:
 - katalog, kategori, varian, keranjang persisten, pembayaran, transaksi atomik, stok, pembelian, kas, utang-piutang, tenaga kerja, laporan terlindungi, backup/restore, struk PNG, dan kalkulator sudah diimplementasikan;
 - kemampuan khusus Grosir dan Kuliner dikendalikan oleh `BusinessCapabilities`;
 - APK debug Retail, Wholesale, dan Culinary dibangun dari shared source;
+- GitHub Actions memverifikasi unit test, kompilasi test instrumentasi, build debug/release, dan lint seluruh flavor;
 - cloud, pajak otomatis, HPP/laba, payroll formal, printer, marketplace, payment gateway, serta multi-device belum diimplementasikan.
 
 ## Tujuan sistem

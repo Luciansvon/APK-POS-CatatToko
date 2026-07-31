@@ -63,6 +63,27 @@ class WorkforceRepository(
         }
     }
 
+    suspend fun saveEmployeeWithInitialRate(
+        name: String,
+        phone: String,
+        scheme: WorkerScheme,
+        dailyRate: Long?,
+        effectiveAt: Long,
+    ): Long = database.withTransaction {
+        val validatedRate = if (scheme == WorkerScheme.DAILY) {
+            requireNotNull(dailyRate) { "Tarif harian wajib diisi" }.also {
+                require(it in 1..MoneyMath.MAX_MONEY) { "Tarif harian tidak valid" }
+            }
+        } else {
+            null
+        }
+        val employeeId = saveEmployee(null, name, phone, scheme)
+        if (validatedRate != null) {
+            addDailyRate(employeeId, validatedRate, effectiveAt)
+        }
+        employeeId
+    }
+
     suspend fun setEmployeeActive(id: Long, active: Boolean) {
         val current = requireNotNull(workforceDao.getEmployee(id)) { "Pekerja tidak tersedia" }
         workforceDao.updateEmployee(current.copy(isActive = active, updatedAt = clock()))
