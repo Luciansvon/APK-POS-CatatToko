@@ -606,3 +606,309 @@ Retail menonjolkan Produk/Piutang, Wholesale membuka Grosir, dan Culinary membuk
 - `app/src/main/java/com/bimacore/usahakecil/ui/HomeScreen.kt`
 - `app/src/main/java/com/bimacore/usahakecil/ui/ManagementScreens.kt`
 - `app/src/test/java/com/bimacore/usahakecil/domain/BusinessCapabilitiesTest.kt`
+
+## ERR-015 - Build Gradle Gagal Karena Default Java 8 di Lingkungan Sistem
+
+Tanggal: 2026-07-30
+
+Varian dan versi: Semua flavor, `0.3.0`
+
+### Kondisi/gejala
+
+Perintah `./gradlew.bat assembleDebug` gagal saat dijalankan dari shell default dengan pesan error:
+`Dependency requires at least JVM runtime version 11. This build uses a Java 8 JVM.`
+
+### Root cause
+
+Variabel lingkungan global Windows `JAVA_HOME` atau `java.exe` bawaan sistem mengarah ke `Java 8` (JRE 1.8), sedangkan Android Gradle Plugin 8.13.2 dan Kotlin 2.3.0 membutuhkan minimal JDK 17.
+
+### Solusi
+
+Mengarahkan `JAVA_HOME` secara eksplisit ke JDK 17 lokal di `C:\Users\shint\.codex\toolchains\temurin17` saat mengeksekusi skrip pengemasan dan kompilasi Gradle (`build_and_package.ps1`).
+
+### Perlindungan regresi
+
+Skrip pengemasan `build_and_package.ps1` selalu menyetel `$env:JAVA_HOME` ke JDK 17 sebelum menjalankan `gradlew`.
+
+### Bukti verifikasi aktual
+
+- `assembleDebug` ketiga flavor lulus dalam 3m 16s.
+- `testRetailDebugUnitTest`, `testWholesaleDebugUnitTest`, `testCulinaryDebugUnitTest` (84 tasks) lulus dalam 28s.
+- `package-apks.ps1` berhasil memperbarui 3 file APK di `dist/debug/`.
+
+### File terdampak
+
+- `C:\Users\shint\.gemini\antigravity\scratch\build_and_package.ps1`
+- `dist/debug/Kasir-Retail-UMKM.apk`
+- `dist/debug/Kasir-Grosir-Agen.apk`
+- `dist/debug/Kasir-Kuliner-PKL.apk`
+
+## ERR-016 - Perubahan stok produk bervarian tidak memperbarui stok varian
+
+Tanggal: 2026-07-31
+
+Varian dan versi: Semua flavor, `0.3.1`
+
+### Kondisi/gejala
+
+Ketika produk bervarian disesuaikan stoknya atau dibeli dari supplier, stok parent product bertambah tetapi stok varian tidak berubah. Saat kasir melakukan checkout, keranjang membaca stok varian sehingga checkout gagal dengan pesan stok habis.
+
+### Root cause
+
+`InventoryRepository.adjustStock()` dan `OperationsRepository.recordPurchase()` tidak memvalidasi `variantId` untuk produk yang memiliki varian (`hasVariants == true`). Operasi memasukkan stok ke parent product secara keliru.
+
+### Solusi
+
+1. Menambahkan validasi `require(!product.hasVariants || variantId != null)` di `InventoryRepository.adjustStock()` dan `OperationsRepository.recordPurchase()`.
+2. Mengubah `OperationsViewModel.adjustStock()` dan `recordPurchase()` untuk menerima `variantId`.
+3. Memastikan operasi stok pada produk bervarian menolak penyesuaian jika `variantId` tidak disertakan.
+
+### Perlindungan regresi
+
+- `purchase_variant_updates_variant_stock_not_parent`
+- `adjust_stock_variant_product_without_variant_id_is_rejected`
+- `adjust_stock_variant_updates_variant_stock`
+- `purchase_variant_product_without_variant_id_is_rejected`
+
+### Bukti verifikasi aktual
+
+- Unit test `OperationalRepositoryTest` lulus pada ketiga flavor (Retail, Wholesale, Culinary).
+- Command `.\gradlew.bat testRetailDebugUnitTest testWholesaleDebugUnitTest testCulinaryDebugUnitTest` lulus 84 tasks.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/data/InventoryRepository.kt`
+- `app/src/main/java/com/bimacore/usahakecil/data/OperationsRepository.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/OperationsViewModel.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/ManagementScreens.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/data/OperationalRepositoryTest.kt`
+
+## ERR-017 - Inkonsistensi entri kas dan riwayat pembayaran utang/piutang
+
+Tanggal: 2026-07-31
+
+Varian dan versi: Semua flavor, `0.3.1`
+
+### Kondisi/gejala
+
+Pembuatan utang/piutang manual dengan pembayaran awal (`initialPayment > 0`) mencatat `paidAmount` di tagihan tetapi tidak memicu entri arus kas (`CashEntryEntity`). Begitu pula pada pembelian supplier dengan DP, `DebtPaymentEntity` untuk pembayaran awal tidak tercatat di histori pembayaran utang.
+
+### Root cause
+
+`OperationsRepository.createDebt()` tidak memasukkan `CashEntryEntity` saat `initialPayment > 0`. `OperationsRepository.recordPurchase()` tidak memasukkan `DebtPaymentEntity` saat `amountPaid > 0` pada transaksi utang.
+
+### Solusi
+
+1. Menambahkan pembuatan `CashEntryEntity` di `createDebt()` ketika `initialPayment > 0`.
+2. Menambahkan pembuatan `DebtPaymentEntity` di `recordPurchase()` ketika `amountPaid > 0` dan ada sisa tagihan utang.
+
+### Perlindungan regresi
+
+- `createDebt_with_initial_payment_creates_cash_entry_and_debt_payment`
+- `purchase_with_downpayment_creates_debt_payment_record`
+
+### Bukti verifikasi aktual
+
+- Unit test `OperationalRepositoryTest` lulus pada ketiga flavor.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/data/OperationsRepository.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/data/OperationalRepositoryTest.kt`
+
+## ERR-018 - CartLineNote dan CartLineTopping tertinggal saat item keranjang dihapus
+
+Tanggal: 2026-07-31
+
+Varian dan versi: Culinary flavor, `0.3.1`
+
+### Kondisi/gejala
+
+Ketika item keranjang Kuliner dihapus (di-set jumlahnya menjadi 0), catatan pesanan (`cart_line_notes`) dan topping (`cart_line_toppings`) milik lineId tersebut tidak ikut terhapus di database Room, menyebabkan orphan records hingga transaksi baru dimulai.
+
+### Root cause
+
+`PosRepository.setQuantity()` hanya memanggil `cartDao.deleteLine(lineId)` ketika `quantity <= 0`, tanpa membersihkan tabel `cart_line_notes` dan `cart_line_toppings`.
+
+### Solusi
+
+1. Menambahkan query `deleteCartLineNote` dan `deleteCartLineToppingsByLine` di `CulinaryDao`.
+2. Mengubah `PosRepository.setQuantity()` agar menghapus catatan & topping saat `quantity <= 0` pada flavor Kuliner.
+
+### Perlindungan regresi
+
+- `deleting_cart_line_clears_associated_notes_and_toppings`
+
+### Bukti verifikasi aktual
+
+- Unit test `OperationalRepositoryTest` lulus pada ketiga flavor.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/data/OperationalDaos.kt`
+- `app/src/main/java/com/bimacore/usahakecil/data/PosRepository.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/data/OperationalRepositoryTest.kt`
+
+## ERR-019 - Produk dan varian nonaktif dapat ditambah ke keranjang dan ditransaksikan
+
+Tanggal: 2026-07-31
+
+Varian dan versi: Semua flavor, `0.3.1`
+
+### Kondisi/gejala
+
+Produk atau varian yang sudah dinonaktifkan oleh Owner masih dapat ditambah ke keranjang atau diselesaikan transaksinya jika sudah ada di keranjang draft sebelum dinonaktifkan.
+
+### Root cause
+
+`PosRepository.addProduct()` dan `PosRepository.completeSale()` tidak memeriksa flag `isActive` pada `ProductEntity` dan `ProductVariantEntity`.
+
+### Solusi
+
+1. Menambahkan validasi `isActive` pada produk dan varian di `PosRepository.addProduct()`.
+2. Menambahkan assertion `require(product.isActive)` dan `require(variant == null || variant.isActive)` pada `PosRepository.completeSale()`.
+
+### Perlindungan regresi
+
+- `inactive_product_cannot_be_added_or_checked_out`
+
+### Bukti verifikasi aktual
+
+- Unit test `OperationalRepositoryTest` lulus pada ketiga flavor.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/data/PosRepository.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/data/OperationalRepositoryTest.kt`
+
+## ERR-020 - Operasi backup dan restore dapat diakses tanpa verifikasi Owner
+
+Tanggal: 2026-07-31
+
+Varian dan versi: Semua flavor, `0.3.1`
+
+### Kondisi/gejala
+
+Fungsi backup dan restore pada `OperationsViewModel` dapat dieksekusi tanpa memastikan bahwa sesi Owner sedang terbuka (`unlocked`).
+
+### Root cause
+
+`OperationsViewModel.createBackup()`, `inspectBackup()`, dan `confirmRestore()` tidak memanggil `reports.session.requireOwner()`.
+
+### Solusi
+
+1. Menambahkan method `requireOwner()` di `ReportSession` untuk melempar error jika sesi terkunci.
+2. Memanggil `reports.session.requireOwner()` di seluruh entry point backup & restore pada `OperationsViewModel`.
+
+### Perlindungan regresi
+
+- Unit test `ReportRepositoryTest` & verification flow sesi Owner.
+
+### Bukti verifikasi aktual
+
+- Unit test lulus pada ketiga flavor.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/security/ReportSession.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/OperationsViewModel.kt`
+
+## ERR-021 - UI checkout terkunci permanen jika completeSale melempar exception
+
+Tanggal: 2026-07-31
+
+Varian dan versi: Semua flavor, `0.3.1`
+
+### Kondisi/gejala
+
+Jika terjadi error tak terduga saat kasir menekan `Bayar & Selesai`, state `_isSaving` tetap `true` selamanya sehingga tombol checkout menjadi nonaktif dan tidak bisa ditekan lagi.
+
+### Root cause
+
+`PosViewModel.completeSale()` mengubah `_isSaving.value = true`, lalu memanggil repository tanpa blok `try/finally`. Exception menyebabkan `_isSaving.value = false` dilewati.
+
+### Solusi
+
+Membungkus eksekusi `completeSale()` dalam blok `try { ... } catch (error: Exception) { ... } finally { _isSaving.value = false }`.
+
+### Perlindungan regresi
+
+- Verification unit test `PosViewModel` & error handling checkout.
+
+### Bukti verifikasi aktual
+
+- Unit test lulus pada ketiga flavor.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/ui/PosViewModel.kt`
+
+## ERR-022 - Restore backup tidak memvalidasi jenis usaha dan batas ukuran file
+
+Tanggal: 2026-07-31
+
+Varian dan versi: Semua flavor, `0.3.1`
+
+### Kondisi/gejala
+
+Restore file backup dapat dipasang pada varian APK yang berbeda (misal restore backup Grosir ke APK Retail), merusak struktur data atau fitur khusus flavor. File ZIP yang berukuran terlalu besar atau berisi entry berbahaya juga tidak dibatasi.
+
+### Root cause
+
+`BackupManager.preview()` dan `restore()` tidak mencocokkan `manifest.businessType` dengan `profile.businessType` aplikasi aktif. `readPackage()` juga menyalin seluruh stream ZIP tanpa batas ukuran atau jumlah entry.
+
+### Solusi
+
+1. Menambahkan validasi `businessType` pada `preview()` dan `restore()`.
+2. Membatasi ukuran membaca ZIP max 256 MB untuk database dan max 1 MB untuk manifest.
+3. Membatasi jumlah entry ZIP maksimal 2 dan nama entry harus `manifest.txt` atau `database.db`.
+
+### Perlindungan regresi
+
+- `BackupRestoreTest` & `BackupManagerTest`.
+
+### Bukti verifikasi aktual
+
+- Unit test lulus pada ketiga flavor.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/backup/BackupManager.kt`
+
+## ERR-023 - Kartu produk di katalog tidak dapat diklik dan landing kasir terpotong pada layar kecil
+
+Tanggal: 2026-07-31
+
+Varian dan versi: Semua flavor, `0.3.1`
+
+### Kondisi/gejala
+
+1. Mengetuk kartu produk pada layar katalog tidak menambah barang ke keranjang kasir.
+2. Tombol `Mulai Transaksi` pada `CashierLandingScreen` terdorong keluar area layar atau terpotong pada resolusi tinggi/layar kecil.
+
+### Root cause
+
+1. `CatalogScreen.kt` pada komponen `ProductCard` tidak mengoper parameter `onClick = onClick` ke konstruktor `Card(...)`, sehingga kartu produk menjadi non-clickable secara UI.
+2. `CashierLandingScreen.kt` menggunakan `Column` kaku tanpa `verticalScroll()`, menyebabkan layout tombol bawah terpotong pada orientasi atau tinggi viewport tertentu.
+
+### Solusi
+
+1. Menambahkan `onClick = onClick` pada `Card` di `CatalogScreen.kt`.
+2. Menambahkan `verticalScroll(rememberScrollState())` pada `Column` utama di `CashierLandingScreen.kt`.
+
+### Perlindungan regresi
+
+- `MainActivitySmokeTest.kt` menguji aksesibilitas katalog, kalkulator, dan alur transaksi tunai di MuMu Player.
+
+### Bukti verifikasi aktual
+
+- Unit test lulus pada ketiga flavor (84/84 test).
+- Smoke UI test lulus pada emulator MuMu Player.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/ui/CatalogScreen.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/CashierLandingScreen.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/MainActivitySmokeTest.kt`
+
+

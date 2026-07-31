@@ -246,11 +246,14 @@ class PosRepository(
             }
             val product = catalogDao.getProduct(productId)
                 ?: return@withTransaction AddToCartResult.OutOfStock
+            if (!product.isActive) {
+                return@withTransaction AddToCartResult.OutOfStock
+            }
             if (product.hasVariants && variantId == null) {
                 return@withTransaction AddToCartResult.VariantRequired
             }
             val variant = variantId?.let { catalogDao.getVariant(it) }
-            if (variantId != null && (variant == null || variant.productId != productId)) {
+            if (variantId != null && (variant == null || !variant.isActive || variant.productId != productId)) {
                 return@withTransaction AddToCartResult.OutOfStock
             }
             val unit = unitId?.let { inventoryDao.getUnit(it) }
@@ -299,6 +302,10 @@ class PosRepository(
         val line = cartDao.getLine(lineId) ?: return@withTransaction false
         if (quantity <= 0) {
             cartDao.deleteLine(lineId)
+            if (businessType == BusinessType.CULINARY) {
+                culinaryDao.deleteCartLineNote(lineId)
+                culinaryDao.deleteCartLineToppingsByLine(lineId)
+            }
             touchDraft()
             return@withTransaction true
         }
@@ -335,10 +342,14 @@ class PosRepository(
                         val product = requireNotNull(catalogDao.getProduct(line.productId)) {
                             "Produk sudah tidak tersedia"
                         }
+                        require(product.isActive) { "Produk ${product.name} sudah tidak aktif" }
                         val variant = line.variantId?.let {
                             requireNotNull(catalogDao.getVariant(it)) {
                                 "Varian sudah tidak tersedia"
                             }
+                        }
+                        require(variant == null || variant.isActive) {
+                            "Varian ${variant?.label} sudah tidak aktif"
                         }
                         val parsed = parseLineId(line.id)
                         val unit = parsed.unitId?.let {

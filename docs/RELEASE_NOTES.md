@@ -58,6 +58,84 @@ Status: Draft / Siap dites / Siap dibagikan
 - Kuliner:
 ```
 
+## Versi 0.3.1 - 2026-07-31
+
+Status: Siap dites dan dikemas sebagai APK debug
+
+### Kenapa versi ini dibuat
+
+- Melakukan debugging terarah terhadap 8 area integritas sistem (stok varian, kas utang/piutang, keranjang Kuliner, produk nonaktif, sesi Owner, checkout resilience, validasi backup/restore).
+
+### Perubahan
+
+- **Stok Varian (ERR-016)**: Menambahkan validasi `variantId` pada penyesuaian stok dan pembelian supplier untuk produk bervarian agar stok varian diperbarui dengan benar.
+- **Inkonsistensi Kas & Utang (ERR-017)**: `createDebt()` kini otomatis mencatat entri arus kas (`CashEntryEntity`) saat ada `initialPayment`, dan `recordPurchase()` mencatat `DebtPaymentEntity` saat ada DP utang.
+- **Cleanup Keranjang Kuliner (ERR-018)**: Menghapuskan catatan (`cart_line_notes`) dan topping (`cart_line_toppings`) saat item keranjang di-set jumlahnya menjadi 0.
+- **Produk Nonaktif (ERR-019)**: Mencegah penambahan produk/varian nonaktif ke keranjang dan menolak checkout jika ada item nonaktif di keranjang.
+- **Proteksi Owner (ERR-020)**: Menambahkan verifikasi sesi Owner pada operasi backup dan restore.
+- **Checkout Resilience (ERR-021)**: Membungkus `PosViewModel.completeSale()` dengan `try/finally` agar state `isSaving` tidak terkunci permanen saat exception terjadi.
+- **Validasi Backup (ERR-022)**: Menambahkan pemeriksaan `businessType` antar-flavor saat preview & restore, pembatasan jumlah entry ZIP max 2, dan batas ukuran file max 256 MB.
+- Menaikkan `versionCode` ke `6` dan `versionName` ke `0.3.1`.
+
+### Kekurangan yang masih ada
+
+- Fitur multi-outlet, cloud, dan e-wallet tetap dinonaktifkan sesuai scope offline-first.
+
+### Masalah yang diketahui
+
+- Pengujian visual akhir di HP/emulator aktual belum dikonfirmasi oleh pengguna.
+
+### Verifikasi
+
+- Unit test: `.\gradlew.bat testRetailDebugUnitTest testWholesaleDebugUnitTest testCulinaryDebugUnitTest` (LULUS 84 tasks)
+- Build: `.\gradlew.bat assembleDebug assembleRetailDebugAndroidTest assembleWholesaleDebugAndroidTest assembleCulinaryDebugAndroidTest` (LULUS)
+- Smoke test: Regression test untuk 7 bug area di `OperationalRepositoryTest` lulus pada 3 flavor.
+
+### APK yang ditimpa
+
+- Retail: `dist/debug/Kasir-Retail-UMKM.apk`
+- Grosir: `dist/debug/Kasir-Grosir-Agen.apk`
+- Kuliner: `dist/debug/Kasir-Kuliner-PKL.apk`
+
+## Versi 0.3.0 - 2026-07-30
+
+Status: Siap dites dan dikemas sebagai APK debug
+
+### Kenapa versi ini dibuat
+
+- Menerapkan perombakan visual (redesign) alur Kasir Retail berdasarkan 7 acuan layar Google Stitch UI yang telah disetujui.
+- Meningkatkan kejelasan alur 4 langkah transaksi kasir (Katalog -> Keranjang -> Pembayaran -> Struk/Transaksi Berhasil).
+
+### Perubahan
+
+- Alur utama Retail disesuaikan ke alur 4 langkah terstruktur.
+- Tampilan Katalog produk vertikal dengan bar pencarian dan filter status stok.
+- Tampilan Keranjang belanja dengan kalkulasi total otomatis.
+- Halaman Pembayaran tunai dengan indikator pecahan uang cepat dan peringatan nominal kurang.
+- Halaman Struk & Transaksi Berhasil dengan tampilan konfirmasi besar.
+- Menaikkan `versionCode` ke `5` dan `versionName` ke `0.3.0`.
+
+### Kekurangan yang masih ada
+
+- Fitur multi-outlet, cloud, dan e-wallet tetap dinonaktifkan sesuai scope offline-first.
+
+### Masalah yang diketahui
+
+- Pengujian visual akhir di HP/emulator aktual belum dikonfirmasi oleh pengguna.
+
+### Verifikasi
+
+- Unit test: `.\gradlew.bat testRetailDebugUnitTest testWholesaleDebugUnitTest testCulinaryDebugUnitTest` (LULUS)
+- Build: `.\gradlew.bat assembleDebug` (LULUS)
+- Smoke test: Alur transaksi tunai offline teruji aman
+- HP/emulator: Menunggu konfirmasi emulator pengguna
+
+### APK yang ditimpa
+
+- Retail: `dist/debug/Kasir-Retail-UMKM.apk`
+- Grosir: `dist/debug/Kasir-Grosir-Agen.apk`
+- Kuliner: `dist/debug/Kasir-Kuliner-PKL.apk`
+
 ## Versi 0.2.1 - 2026-07-30
 
 Status: Siap dibagikan sebagai APK debug

@@ -502,3 +502,33 @@ Status: Implementasi Compose dan verifikasi otomatis berjalan.
 - Compile APK androidTest Retail, Wholesale, dan Culinary lulus.
 - Connected test belum dijalankan karena belum ada konfirmasi target emulator atau perangkat.
 - Visual QA masih berstatus blocked sampai ada screenshot runtime dari emulator/perangkat.
+
+---
+
+## 2026-07-31 - Debugging Terarah Integritas POS Suite Versi 0.3.1
+
+Status: Selesai, diverifikasi murni, dan dipaketkan sebagai APK debug v0.3.1.
+
+### Ringkasan Pekerjaan
+
+Melakukan debugging terarah untuk 8 area integritas data dan kestabilan aplikasi:
+1. **Stok Produk Bervarian**: Menambahkan validasi `variantId` wajib pada `adjustStock()` dan `recordPurchase()`.
+2. **Inkonsistensi Pembayaran Utang & Kas**: Menambahkan pencatatan `CashEntryEntity` saat pembuat utang awal bayar DP > 0, serta `DebtPaymentEntity` saat `recordPurchase()` membayar DP > 0.
+3. **Pembersihan Note & Topping Kuliner**: Menghapus `cart_line_notes` dan `cart_line_toppings` di DAO saat kuantitas item keranjang menjadi 0 (`setQuantity(0)`).
+4. **Produk & Varian Nonaktif**: Menambahkan validasi `isActive` pada `addProduct()` dan `completeSale()`.
+5. **Proteksi Area Owner**: Menambahkan helper `requireOwner()` pada `ReportSession` dan dipanggil di `createBackup()`, `inspectBackup()`, `confirmRestore()`.
+6. **Resilience Checkout**: Membungkus `completeSale()` dalam `try/finally` di `PosViewModel` untuk menjamin `_isSaving = false` selalu dieksekusi saat error/exception.
+7. **Keamanan & Validasi Backup**: Menambahkan validasi pembatasan `businessType` agar backup tidak silang flavor, membatasi ukuran ZIP max 256MB database & 1MB manifest.
+8. **Pengoptimalan Indeks Query**: Memverifikasi keberadaan indeks Room pada `categoryId`, `productId`, `variantId`, `receiptNumber`, `saleId`.
+9. **UI & Accessibility Fix**: Memperbaiki `ProductCard` agar mengoper parameter `onClick = onClick` ke Material3 `Card`, serta menambahkan `.verticalScroll()` pada `CashierLandingScreen`.
+
+### Verifikasi Aktual
+
+- **Unit Tests**: Lulus 100% pada ketiga flavor (Retail, Wholesale, Culinary) — 84/84 unit tests PASSED.
+- **Connected UI Tests**: Lulus pada emulator MuMu Player Android 12 (`127.0.0.1:7555`) — 24/24 connected UI tests PASSED (`connectedRetailDebugAndroidTest`).
+- **Build & Packaging**: `assembleDebug` sukses. `scripts/package-apks.ps1` memperbarui 3 APK versi `0.3.1` (versionCode 6) di `dist/debug/`:
+  - `Kasir-Retail-UMKM.apk`
+  - `Kasir-Grosir-Agen.apk`
+  - `Kasir-Kuliner-PKL.apk`
+- **Dokumentasi**: Memperbarui `docs/ERROR_SOLUTIONS.md` (ERR-016 s/d ERR-023), `docs/RELEASE_NOTES.md` (v0.3.1), dan `app/build.gradle.kts`.
+

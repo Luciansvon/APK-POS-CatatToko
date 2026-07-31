@@ -60,6 +60,12 @@ class BackupManager(
         require(packageData.manifest.schemaVersion <= DATABASE_SCHEMA_VERSION) {
             "Versi backup lebih baru dari aplikasi"
         }
+        val profile = currentDatabase().profileDao().getProfile()
+        if (profile != null) {
+            require(packageData.manifest.businessType == profile.businessType) {
+                "File backup dari jenis usaha ${packageData.manifest.businessType} tidak dapat dipasang pada aplikasi ${profile.businessType}"
+            }
+        }
         BackupPreview(packageData.manifest, uri)
     }
 
@@ -68,6 +74,12 @@ class BackupManager(
         require(incoming.manifest == preview.manifest) { "Metadata backup berubah" }
         require(incoming.manifest.verify(incoming.databaseBytes)) {
             "File backup rusak atau sudah berubah"
+        }
+        val profile = currentDatabase().profileDao().getProfile()
+        if (profile != null) {
+            require(incoming.manifest.businessType == profile.businessType) {
+                "File backup dari jenis usaha ${incoming.manifest.businessType} tidak dapat dipasang pada aplikasi ${profile.businessType}"
+            }
         }
         val active = context.getDatabasePath(databaseName)
         val safetyDir = File(context.cacheDir, BACKUP_DIRECTORY).apply { mkdirs() }
@@ -88,8 +100,13 @@ class BackupManager(
             require(integrity.equals("ok", ignoreCase = true)) {
                 "Pemeriksaan database hasil restore gagal"
             }
-            requireNotNull(reopened.profileDao().getProfile()) {
+            val restoredProfile = requireNotNull(reopened.profileDao().getProfile()) {
                 "Profil usaha pada backup tidak valid"
+            }
+            if (profile != null) {
+                require(restoredProfile.businessType == profile.businessType) {
+                    "Profil usaha hasil restore tidak sesuai dengan aplikasi"
+                }
             }
         } catch (error: Exception) {
             closeDatabase()
@@ -130,15 +147,26 @@ class BackupManager(
     private fun readPackage(uri: Uri): PackageData {
         var manifest: BackupManifest? = null
         var databaseBytes: ByteArray? = null
+        var entryCount = 0
         val input = context.contentResolver.openInputStream(uri)
             ?: throw IllegalArgumentException("File backup tidak dapat dibuka")
         ZipInputStream(input.buffered()).use { zip ->
             var entry = zip.nextEntry
             while (entry != null) {
-                when (entry.name) {
-                    MANIFEST_ENTRY -> manifest =
-                        BackupManifest.parse(zip.readBytes().toString(Charsets.UTF_8))
-                    DATABASE_ENTRY -> databaseBytes = zip.readBytes()
+                entryCount++
+                require(entryCount <= 2) { "File backup berisi entry yang tidak valid" }
+                val name = entry.name
+                require(name == MANIFEST_ENTRY || name == DATABASE_ENTRY) {
+                    "File backup berisi entry tidak sah: $name"
+                }
+                when (name) {
+                    MANIFEST_ENTRY -> {
+                        val bytes = readBytesWithLimit(zip, MAX_MANIFEST_SIZE_BYTES)
+                        manifest = BackupManifest.parse(bytes.toString(Charsets.UTF_8))
+                    }
+                    DATABASE_ENTRY -> {
+                        databaseBytes = readBytesWithLimit(zip, MAX_BACKUP_SIZE_BYTES)
+                    }
                 }
                 zip.closeEntry()
                 entry = zip.nextEntry
@@ -148,6 +176,19 @@ class BackupManager(
             manifest = requireNotNull(manifest) { "Metadata backup tidak ditemukan" },
             databaseBytes = requireNotNull(databaseBytes) { "Isi database tidak ditemukan" },
         )
+    }
+
+    private fun readBytesWithLimit(zip: ZipInputStream, maxBytes: Long): ByteArray {
+        val baos = java.io.ByteArrayOutputStream()
+        val buffer = ByteArray(8192)
+        var totalRead = 0L
+        var read: Int
+        while (zip.read(buffer).also { read = it } != -1) {
+            totalRead += read
+            require(totalRead <= maxBytes) { "Ukuran file backup melebihi batas" }
+            baos.write(buffer, 0, read)
+        }
+        return baos.toByteArray()
     }
 
     private fun writeAtomically(
@@ -183,5 +224,7 @@ class BackupManager(
         private const val BACKUP_DIRECTORY = "backups"
         private const val MANIFEST_ENTRY = "manifest.txt"
         private const val DATABASE_ENTRY = "database.db"
+        private const val MAX_BACKUP_SIZE_BYTES = 256 * 1024 * 1024L
+        private const val MAX_MANIFEST_SIZE_BYTES = 1 * 1024 * 1024L
     }
 }

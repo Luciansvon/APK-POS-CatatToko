@@ -112,6 +112,9 @@ class OperationsRepository(
                 requireNotNull(catalogDao.getVariant(it)) { "Varian pembelian tidak tersedia" }
             }
             require(variant == null || variant.productId == product.id) { "Varian tidak sesuai produk" }
+            require(!product.hasVariants || variant != null) {
+                "Produk bervarian wajib memilih varian untuk pembelian"
+            }
             val baseQuantity = InventoryRules.toBaseQuantity(line.quantity, line.factorToBase)
             val subtotal = MoneyMath.multiply(line.unitCost, line.quantity)
             ResolvedPurchaseLine(line, product, variant, baseQuantity, subtotal)
@@ -204,7 +207,7 @@ class OperationsRepository(
         }
         val remaining = total - draft.amountPaid
         if (remaining > 0) {
-            operationsDao.insertDebt(
+            val debtId = operationsDao.insertDebt(
                 DebtEntity(
                     kind = DebtKind.PAYABLE.name,
                     partyId = supplier.id,
@@ -219,6 +222,17 @@ class OperationsRepository(
                     updatedAt = now,
                 ),
             )
+            if (draft.amountPaid > 0) {
+                operationsDao.insertDebtPayment(
+                    DebtPaymentEntity(
+                        debtId = debtId,
+                        amount = draft.amountPaid,
+                        paymentMethod = "CASH",
+                        note = "Pembayaran awal pembelian $invoice",
+                        paidAt = now,
+                    ),
+                )
+            }
         }
         purchaseId
     }
@@ -290,6 +304,18 @@ class OperationsRepository(
                     paymentMethod = "CASH",
                     note = "Pembayaran awal",
                     paidAt = now,
+                ),
+            )
+            operationsDao.insertCashEntry(
+                CashEntryEntity(
+                    type = if (kind == DebtKind.PAYABLE) "PAYABLE_OUT" else "RECEIVABLE_IN",
+                    amount = initialPayment,
+                    category = if (kind == DebtKind.PAYABLE) "Bayar utang" else "Terima piutang",
+                    note = "Pembayaran awal ${note.trim().ifBlank { "tagihan" }}",
+                    paymentMethod = "CASH",
+                    referenceType = "DEBT",
+                    referenceId = debtId,
+                    createdAt = now,
                 ),
             )
         }

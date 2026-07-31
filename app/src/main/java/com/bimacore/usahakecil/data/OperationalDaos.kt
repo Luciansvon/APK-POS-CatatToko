@@ -234,6 +234,12 @@ interface CulinaryDao {
     @Query("DELETE FROM cart_line_toppings WHERE lineId = :lineId AND toppingId = :toppingId")
     suspend fun deleteCartLineTopping(lineId: String, toppingId: Long)
 
+    @Query("DELETE FROM cart_line_notes WHERE lineId = :lineId")
+    suspend fun deleteCartLineNote(lineId: String)
+
+    @Query("DELETE FROM cart_line_toppings WHERE lineId = :lineId")
+    suspend fun deleteCartLineToppingsByLine(lineId: String)
+
     @Query("DELETE FROM cart_line_notes")
     suspend fun clearCartLineNotes()
 

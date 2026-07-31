@@ -17,4 +17,9 @@ class ReportSession {
     fun lock() {
         _unlocked.value = false
     }
+
+    fun requireOwner() {
+        check(_unlocked.value) { "Akses ditolak: Sesi Owner belum terverifikasi" }
+    }
 }
+

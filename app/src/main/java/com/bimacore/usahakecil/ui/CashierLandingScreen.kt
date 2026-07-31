@@ -1,5 +1,7 @@
 package com.bimacore.usahakecil.ui
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -67,6 +69,7 @@ fun CashierLandingScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp, vertical = 22.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -113,7 +116,7 @@ fun CashierLandingScreen(
                 valueColor = MaterialTheme.colorScheme.error,
                 error = outOfStockCount > 0,
             )
-            Spacer(Modifier.weight(1f))
+            Spacer(Modifier.height(24.dp))
             Button(
                 onClick = onStartTransaction,
                 modifier = Modifier
