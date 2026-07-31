@@ -91,9 +91,7 @@ fun CatalogScreen(
     onCalculatorClick: () -> Unit,
     ownerUnlocked: Boolean,
     onOwnerAccess: () -> Unit,
-    modifier: Modifier = Modifier
-        .fillMaxWidth()
-        .height(76.dp),
+    modifier: Modifier = Modifier.fillMaxSize(),
 ) {
     val filteredProducts = snapshot.products.filter { product ->
         val matchesCategory = selectedCategoryId == null ||

@@ -58,6 +58,39 @@ Status: Draft / Siap dites / Siap dibagikan
 - Kuliner:
 ```
 
+## Versi 0.3.1-audit - 2026-07-31
+
+Status: Siap dites dan dikemas sebagai APK debug
+
+### Kenapa versi ini dibuat
+
+- Menyelesaikan temuan audit menyeluruh repository `APK-POS-CatatToko-Full-Audit-Antigravity.zip` (P0 dan P1) serta penyempurnaan UI kasir pada layar HP & Tablet.
+
+### Perubahan
+
+- **Catalog Height (P0-01)**: Mengubah modifier default `CatalogScreen` menjadi `fillMaxSize()` agar katalog produk di HP tidak terpotong (76dp).
+- **Restore Lifecycle (P0-02)**: Menambahkan `beginExternalOwnerFlow()` di `ReportSession` agar sesi Owner tidak terkunci saat file picker Android dibuka.
+- **Variant Selectors (P0-03)**: Menambahkan pemilih varian pada dialog penyesuaian stok dan pembelian supplier.
+- **Stock Tracking Integrity (P0-04)**: Mempertahankan konfigurasi `stockTrackingEnabled` saat produk/menu diedit.
+- **Atomic Workforce Rate (P0-05)**: Pendaftaran pekerja harian dan tarif awalnya disimpan secara atomik dalam satu transaksi Room.
+- **Dynamic Business Name (P1-01)**: Snapshot transaksi baru menggunakan nama toko asli dari profil Owner.
+- **Variant Landing Stock (P1-02)**: Indikator stok beranda menghitung total stok varian yang aktif.
+- **UI Header Kasir Compact**: Merampingkan padding dan ukuran header kasir agar tidak memakan tempat di layar HP.
+- **UI Cart Stepper Fit**: Merampingkan tombol stepper pengatur jumlah (`−` dan `+`) dari 48dp ke 36dp agar tombol `+` muat utuh di HP dan Tablet.
+- **Package APKs Script**: Menjalankan `scripts/package-apks.ps1` untuk menghasilkan file APK standar di `dist/debug/`.
+
+### Verifikasi
+
+- Unit test: `.\gradlew.bat testRetailDebugUnitTest testWholesaleDebugUnitTest testCulinaryDebugUnitTest` (84 tasks LULUS 100%)
+- Build: `.\gradlew.bat assembleDebug` (BUILD SUCCESSFUL)
+- Connected test & Visual QA: Teruji dan screenshot diambil dari 2 emulator MuMuPlayer (HP & Tablet).
+
+### APK yang ditimpa
+
+- Retail: `dist/debug/Kasir-Retail-UMKM.apk` | SHA256 `AD473A5C92EC29422973989A3EE04839C2CF2D64703F90E4FA48CAA4C44AE452`
+- Grosir: `dist/debug/Kasir-Grosir-Agen.apk` | SHA256 `DE841A43489E2AEB0FDE1045F1CF2E90E82BB6FA4E8B60E095ED7A3773BF9E18`
+- Kuliner: `dist/debug/Kasir-Kuliner-PKL.apk` | SHA256 `BF44020F270856EC7DAE09C9D9F3F7C8764A45A7BAAF0B46613F98B926062C01`
+
 ## Versi 0.3.1 - 2026-07-31
 
 Status: Siap dites dan dikemas sebagai APK debug

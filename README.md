@@ -6,7 +6,7 @@ Satu source Android offline-first untuk tiga APK operasional:
 - Grosir dan Agen;
 - Kuliner dan Pedagang Kaki Lima.
 
-Versi fitur saat ini: `0.2.1` (`versionCode 4`). Semua fungsi utama berjalan lokal di HP owner tanpa akun, server, atau internet.
+Versi fitur saat ini: `0.3.1` (`versionCode 6`). Semua fungsi utama berjalan lokal di HP owner tanpa akun, server, atau internet.
 
 Aplikasi selalu mulai dalam Mode Kasir/Pekerja. Pekerja hanya dapat memakai kasir serta melihat stok produk dan total transaksi aktif. Operasional, keuangan, laporan, profil, backup, dan restore baru muncul setelah PIN Owner benar.
 
@@ -36,13 +36,18 @@ Cloud, pajak otomatis, HPP/laba, BPJS, payroll formal, printer, marketplace, pay
 
 ## Build dan test
 
-Gunakan JDK 17 atau lebih baru.
+Gunakan JDK 17 atau lebih baru. Pull request diverifikasi otomatis melalui
+`.github/workflows/android-ci.yml` untuk seluruh flavor.
 
 ```powershell
 .\gradlew.bat testRetailDebugUnitTest testWholesaleDebugUnitTest testCulinaryDebugUnitTest
 .\gradlew.bat assembleDebug
 .\gradlew.bat assembleRetailDebugAndroidTest assembleWholesaleDebugAndroidTest assembleCulinaryDebugAndroidTest
+.\gradlew.bat lintRetailDebug lintWholesaleDebug lintCulinaryDebug
 ```
+
+Perintah unit test di atas tidak menjalankan test pada `app/src/androidTest`.
+Test instrumentasi harus dijalankan pada emulator/perangkat untuk masing-masing flavor.
 
 Setelah seluruh verifikasi lulus:
 

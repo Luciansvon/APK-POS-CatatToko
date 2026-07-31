@@ -61,7 +61,7 @@ fun CashierLandingScreen(
             .background(MaterialTheme.colorScheme.background),
     ) {
         CashierHeader(
-            title = "Mode Kasir / Pekerja",
+            title = "Mode Kasir",
             subtitle = businessLabel,
             ownerUnlocked = ownerUnlocked,
             onOwnerAccess = onOwnerAccess,
@@ -70,12 +70,12 @@ fun CashierLandingScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp, vertical = 22.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Box(
                 modifier = Modifier
-                    .size(142.dp)
+                    .size(80.dp)
                     .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
@@ -83,32 +83,32 @@ fun CashierLandingScreen(
                     imageVector = Icons.Outlined.Storefront,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(76.dp),
+                    modifier = Modifier.size(44.dp),
                 )
             }
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(10.dp))
             Text(
                 text = "Kasir bisa jualan, lihat stok,\ndan lihat total transaksi aktif.",
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onBackground,
             )
-            Spacer(Modifier.height(22.dp))
+            Spacer(Modifier.height(12.dp))
             CashierMetric(
                 icon = Icons.AutoMirrored.Outlined.Assignment,
                 label = "Transaksi aktif hari ini",
                 value = activeTransactions,
                 valueColor = MaterialTheme.colorScheme.primary,
             )
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(8.dp))
             CashierMetric(
                 icon = Icons.Outlined.WarningAmber,
                 label = "Produk stok menipis",
                 value = lowStockCount,
                 valueColor = BrandColors.Warning,
             )
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(8.dp))
             CashierMetric(
                 icon = Icons.Outlined.ErrorOutline,
                 label = "Stok habis",
@@ -116,25 +116,25 @@ fun CashierLandingScreen(
                 valueColor = MaterialTheme.colorScheme.error,
                 error = outOfStockCount > 0,
             )
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(14.dp))
             Button(
                 onClick = onStartTransaction,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(58.dp)
+                    .height(50.dp)
                     .testTag("start-transaction"),
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(12.dp),
             ) {
                 Text("Mulai Transaksi", fontWeight = FontWeight.Bold)
             }
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(8.dp))
             OutlinedButton(
                 onClick = onViewStock,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(58.dp)
+                    .height(50.dp)
                     .testTag("view-stock"),
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(12.dp),
             ) {
                 Icon(Icons.Outlined.Inventory2, contentDescription = null)
                 Spacer(Modifier.size(8.dp))
@@ -147,7 +147,7 @@ fun CashierLandingScreen(
 @Composable
 fun CashierHeader(
     title: String,
-    subtitle: String? = "Mode Kasir / Pekerja",
+    subtitle: String? = "Mode Kasir",
     ownerUnlocked: Boolean,
     onOwnerAccess: () -> Unit,
     modifier: Modifier = Modifier,
@@ -156,45 +156,51 @@ fun CashierHeader(
         modifier = modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.primary)
-            .padding(horizontal = 20.dp, vertical = 18.dp),
+            .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
             imageVector = Icons.Outlined.Storefront,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onPrimary,
-            modifier = Modifier.size(34.dp),
+            modifier = Modifier.size(26.dp),
         )
-        Spacer(Modifier.size(12.dp))
+        Spacer(Modifier.size(10.dp))
         Column(Modifier.weight(1f)) {
             Text(
                 text = title,
                 color = MaterialTheme.colorScheme.onPrimary,
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
+                maxLines = 1,
             )
             if (!subtitle.isNullOrBlank()) {
                 Text(
                     text = subtitle,
-                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.82f),
-                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f),
+                    style = MaterialTheme.typography.labelMedium,
+                    maxLines = 1,
                 )
             }
         }
         OutlinedButton(
             onClick = onOwnerAccess,
             modifier = Modifier.testTag("owner-access"),
-            shape = RoundedCornerShape(12.dp),
+            shape = RoundedCornerShape(10.dp),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 4.dp),
         ) {
             Icon(
                 imageVector = if (ownerUnlocked) Icons.Outlined.LockOpen else Icons.Outlined.Shield,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.size(18.dp),
             )
-            Spacer(Modifier.size(6.dp))
+            Spacer(Modifier.size(4.dp))
             Text(
-                if (ownerUnlocked) "Mode Owner" else "Buka Mode Owner",
+                text = if (ownerUnlocked) "Mode Owner" else "Buka Mode Owner",
                 color = MaterialTheme.colorScheme.onPrimary,
+                style = MaterialTheme.typography.labelLarge,
+                maxLines = 1,
             )
         }
     }

@@ -183,6 +183,9 @@ class OperationsViewModel(
         stock: Int,
         unit: String,
     ) = execute(if (id == null) "Produk ditambahkan" else "Produk diperbarui") {
+        val current = id?.let { productId ->
+            products.value.firstOrNull { it.id == productId }
+        }
         inventory.saveProduct(
             ProductDraft(
                 id = id,
@@ -190,8 +193,8 @@ class OperationsViewModel(
                 name = name,
                 basePrice = price,
                 openingStock = stock,
-                stockTrackingEnabled = true,
-                lowStockThreshold = 5,
+                stockTrackingEnabled = current?.stockTrackingEnabled ?: true,
+                lowStockThreshold = current?.lowStockThreshold ?: 5,
                 unitLabel = unit,
             ),
         )
@@ -331,14 +334,13 @@ class OperationsViewModel(
         scheme: WorkerScheme,
         dailyRate: Long?,
     ) = execute("Pekerja ditambahkan") {
-        val id = workforce.saveEmployee(null, name, phone, scheme)
-        if (scheme == WorkerScheme.DAILY) {
-            workforce.addDailyRate(
-                id,
-                requireNotNull(dailyRate) { "Tarif harian wajib diisi" },
-                startOfToday(),
-            )
-        }
+        workforce.saveEmployeeWithInitialRate(
+            name = name,
+            phone = phone,
+            scheme = scheme,
+            dailyRate = dailyRate,
+            effectiveAt = startOfToday(),
+        )
     }
 
     fun recordAttendance(
@@ -433,6 +435,15 @@ class OperationsViewModel(
 
     fun closeSaleDetail() {
         _saleDetail.value = null
+    }
+
+    fun beginRestoreFileSelection() {
+        reports.session.beginExternalOwnerFlow()
+    }
+
+    fun finishRestoreFileSelection(uri: Uri?) {
+        reports.session.endExternalOwnerFlow()
+        uri?.let(::inspectBackup)
     }
 
     fun createBackup() = execute("Backup siap dibagikan") {

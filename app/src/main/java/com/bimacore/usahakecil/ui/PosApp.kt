@@ -118,14 +118,27 @@ fun PosApp(
                     set(Calendar.MILLISECOND, 0)
                 }.timeInMillis
             }
-            val trackedProducts = snapshot.products.filter { it.stockTrackingEnabled }
+            val trackedStock = snapshot.products
+                .filter { it.stockTrackingEnabled }
+                .map { product ->
+                    val availableStock = if (product.hasVariants) {
+                        snapshot.variants
+                            .filter { it.productId == product.id }
+                            .sumOf { it.stock }
+                    } else {
+                        product.stock
+                    }
+                    product to availableStock
+                }
             CashierLandingScreen(
                 businessLabel = businessLabel,
                 activeTransactions = sales.count { it.createdAt >= todayStart },
-                lowStockCount = trackedProducts.count {
-                    it.stock in 1..it.lowStockThreshold
+                lowStockCount = trackedStock.count { (product, availableStock) ->
+                    availableStock in 1..product.lowStockThreshold
                 },
-                outOfStockCount = trackedProducts.count { it.stock <= 0 },
+                outOfStockCount = trackedStock.count { (_, availableStock) ->
+                    availableStock <= 0
+                },
                 ownerUnlocked = ownerUnlocked,
                 onOwnerAccess = onOwnerAccess,
                 onStartTransaction = viewModel::showCatalog,

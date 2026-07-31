@@ -524,10 +524,16 @@ class PosRepository(
                     }
                     val now = clock()
                     val receiptNumber = buildReceiptNumber(now)
+                    val activeBusinessName = database.profileDao()
+                        .getProfile()
+                        ?.businessName
+                        ?.trim()
+                        ?.takeIf { it.isNotBlank() }
+                        ?: businessName
                     val saleId = saleDao.insertSale(
                         SaleEntity(
                             receiptNumber = receiptNumber,
-                            businessName = businessName,
+                            businessName = activeBusinessName,
                             createdAt = now,
                             paymentMethod = request.method.name,
                             total = total,
