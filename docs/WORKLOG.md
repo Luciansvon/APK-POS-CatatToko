@@ -608,4 +608,29 @@ Status: Selesai, diuji pada 3 varian APK, dipaketkan di `dist/debug/`.
 - **Packaging APK**: `scripts/package-apks.ps1` memperbarui 3 APK di `dist/debug/`.
 - **Pengujian MuMuPlayer**: Ketiga varian APK (`Retail`, `Wholesale`, `Culinary`) dipasang, diluncurkan, dan diambil screenshot secara sukses di emulator (`127.0.0.1:7555`), tampilan katalog tidak lagi terpotong.
 
+---
 
+## 2026-08-01 - Sinkronisasi branch dan release identity 0.3.3
+
+Status: Source sudah disinkronkan dengan `origin/main`; APK debug `0.3.3` sudah dibuild dan dipaketkan dari HEAD terbaru.
+
+### Perubahan
+
+- Menggabungkan update `origin/main` ke branch `antigravity/forecasting-foundation-0.3.3` tanpa menulis ulang tiga commit lokal forecasting/UI.
+- Menghapus kembali workflow bootstrap audit sementara yang muncul dari merge dan tidak dipakai untuk CI aktif.
+- Menyamakan `versionCode`, `versionName`, README, release notes, dan handoff forecasting ke `0.3.3` / `8`.
+
+### Batas status
+
+- Unit test, lint, build, dan compile androidTest seluruh flavor lulus.
+- Packaging tiga APK `0.3.3` lulus dan hash dicatat di release notes.
+- Connected smoke test, visual QA, dan uji offline perangkat belum dijalankan.
+
+### Verifikasi aktual
+
+- Unit test tiga flavor: `BUILD SUCCESSFUL`.
+- Lint tiga flavor: `BUILD SUCCESSFUL`.
+- `assembleDebug`: `BUILD SUCCESSFUL`.
+- Compile androidTest tiga flavor: `BUILD SUCCESSFUL`.
+- `scripts/package-apks.ps1`: sukses memperbarui tiga APK debug.
+- Connected test dan visual QA: belum dijalankan karena target emulator/perangkat belum dikonfirmasi.

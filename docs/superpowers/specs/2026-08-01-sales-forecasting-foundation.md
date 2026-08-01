@@ -147,17 +147,14 @@ Verifikasi lokal yang dilakukan pada file pure Kotlin:
 - kuantitas negatif ditolak: PASS;
 - histori kurang ditolak: PASS.
 
-Belum dilakukan:
+Verifikasi repo setelah branch disinkronkan dan metadata `0.3.3` diperbarui:
 
-- Gradle unit test tiga flavor;
-- Android lint;
-- `assembleDebug`;
-- kompilasi androidTest;
-- connected test;
-- smoke test emulator;
-- visual QA.
-
-Alasannya: GitHub App hanya memberikan akses baca dan environment tidak dapat mengunduh repository penuh dari GitHub. Status ini tidak boleh diubah menjadi `BUILD SUCCESSFUL` sampai command repo benar-benar dijalankan.
+- Gradle unit test tiga flavor: PASS;
+- Android lint tiga flavor: PASS;
+- `assembleDebug`: PASS;
+- kompilasi androidTest tiga flavor: PASS;
+- packaging tiga APK debug: PASS;
+- connected test, smoke test emulator, dan visual QA: belum dilakukan karena target emulator/perangkat belum dikonfirmasi.
 
 ## Definition of done tahap integrasi
 

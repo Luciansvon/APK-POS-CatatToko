@@ -58,6 +58,46 @@ Status: Draft / Siap dites / Siap dibagikan
 - Kuliner:
 ```
 
+## Versi 0.3.3 - 2026-08-01
+
+Status: Siap dites sebagai APK debug
+
+### Kenapa versi ini dibuat
+
+- Menyatukan fondasi forecasting offline dan perbaikan layout katalog kasir setelah branch disinkronkan dengan `origin/main`.
+
+### Perubahan
+
+- **Fondasi forecasting penjualan**: Menambahkan engine pure Kotlin pada shared core dengan moving average, simple exponential smoothing, Holt linear, Holt-Winters additive, Croston-SBA, dan rolling-origin backtesting.
+- **Perbaikan katalog kasir (ERR-030)**: Merapikan header, spacing, dan pembagian tinggi `LazyColumn` agar daftar produk tidak terpotong pada layar dengan tinggi terbatas di tiga flavor.
+- **Pembersihan workflow**: Menghapus kembali dua workflow bootstrap audit sementara yang ikut muncul saat sinkronisasi branch.
+- Menaikkan `versionCode` ke `8` dan `versionName` ke `0.3.3`.
+
+### Kekurangan yang masih ada
+
+- Forecasting masih berupa fondasi domain; belum terhubung ke Room, ViewModel, navigasi, atau UI Owner.
+- Void, retur, refund, HPP/laba, enkripsi backup, dan sinkronisasi cloud tetap di luar patch ini.
+
+### Masalah yang diketahui
+
+- Connected smoke test dan visual QA untuk APK hasil build `0.3.3` belum dijalankan pada turn ini.
+
+### Verifikasi
+
+- Unit test: `.\gradlew.bat testRetailDebugUnitTest testWholesaleDebugUnitTest testCulinaryDebugUnitTest` — BUILD SUCCESSFUL.
+- Lint: `.\gradlew.bat lintRetailDebug lintWholesaleDebug lintCulinaryDebug` — BUILD SUCCESSFUL.
+- Build: `.\gradlew.bat assembleDebug` — BUILD SUCCESSFUL.
+- Compile androidTest: `.\gradlew.bat assembleRetailDebugAndroidTest assembleWholesaleDebugAndroidTest assembleCulinaryDebugAndroidTest` — BUILD SUCCESSFUL.
+- Smoke test: belum dijalankan karena target emulator/perangkat belum dikonfirmasi.
+- HP/emulator: Belum dijalankan untuk APK `0.3.3`.
+- Kondisi offline: Belum diuji ulang untuk APK `0.3.3`.
+
+### APK yang ditimpa
+
+- Retail: `dist/debug/Kasir-Retail-UMKM.apk` | SHA256 `5055D73729E95A6E2A25EBFE83C8441F8D21E9220F0B2632FCD14C921C22A753`
+- Grosir: `dist/debug/Kasir-Grosir-Agen.apk` | SHA256 `276AA52CECD9EE91785476610C3630DE90FE8EA5A5EF30CDC4C582CA247ED8F9`
+- Kuliner: `dist/debug/Kasir-Kuliner-PKL.apk` | SHA256 `3E8B55F4B39860CD1D971C8BF7FA6526C8C29117F52D5BFCBBF7EEB58120A6B6`
+
 ## Versi 0.3.2 - 2026-08-01
 
 Status: Siap dites dan dikemas sebagai APK debug

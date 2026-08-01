@@ -3,7 +3,7 @@
 Tanggal: 2026-08-01
 Target repository: `Luciansvon/APK-POS-CatatToko`
 Baseline yang diperiksa: `main` commit `3fce274168274584e816f249f9d2239eaaf5d488`
-Versi baseline: `0.3.2`, `versionCode 7`
+Versi baseline sebelum patch: `0.3.2`, `versionCode 7`. Target patch ini: `0.3.3`, `versionCode 8`.
 
 ## Ringkasan
 
@@ -27,9 +27,11 @@ File tersedia juga dalam arsip dan patch yang menyertai handoff ini.
 | Kompilasi engine dengan `kotlinc` | PASS | Tidak ada error compiler |
 | Kompilasi source + test | PASS | Tidak ada error compiler |
 | Unit scenario runner lokal | PASS | 8/8 skenario lulus |
-| Gradle test seluruh flavor | NOT RUN | Repository penuh tidak tersedia di environment |
-| Android lint | NOT RUN | Repository penuh tidak tersedia di environment |
-| `assembleDebug` | NOT RUN | Repository penuh tidak tersedia di environment |
+| Gradle test seluruh flavor | PASS | `BUILD SUCCESSFUL` pada branch sinkron |
+| Android lint | PASS | `BUILD SUCCESSFUL` pada branch sinkron |
+| `assembleDebug` | PASS | `BUILD SUCCESSFUL` pada branch sinkron |
+| Compile androidTest seluruh flavor | PASS | `BUILD SUCCESSFUL` pada branch sinkron |
+| Packaging APK debug | PASS | Tiga APK dipaketkan dan hash dicatat di `docs/RELEASE_NOTES.md` |
 | Connected test | NOT RUN | Tidak ada checkout repo dan target emulator |
 | Visual QA | NOT RUN | Belum ada UI forecasting |
 

@@ -6,7 +6,7 @@ Satu source Android offline-first untuk tiga APK operasional:
 - Grosir dan Agen;
 - Kuliner dan Pedagang Kaki Lima.
 
-Versi fitur saat ini: `0.3.1` (`versionCode 6`). Semua fungsi utama berjalan lokal di HP owner tanpa akun, server, atau internet.
+Versi fitur saat ini: `0.3.3` (`versionCode 8`). Semua fungsi utama berjalan lokal di HP owner tanpa akun, server, atau internet.
 
 Aplikasi selalu mulai dalam Mode Kasir/Pekerja. Pekerja hanya dapat memakai kasir serta melihat stok produk dan total transaksi aktif. Operasional, keuangan, laporan, profil, backup, dan restore baru muncul setelah PIN Owner benar.
 
