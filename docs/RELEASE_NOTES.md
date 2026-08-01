@@ -15,9 +15,9 @@
 ## Nama APK tetap
 
 ```text
-dist/debug/Kasir-Retail-UMKM.apk
-dist/debug/Kasir-Grosir-Agen.apk
-dist/debug/Kasir-Kuliner-PKL.apk
+dist/debug/CatatToko-Retail.apk
+dist/debug/CatatToko-Grosir.apk
+dist/debug/CatatToko-Kuliner.apk
 ```
 
 ## Template patch berikutnya
@@ -57,6 +57,46 @@ Status: Draft / Siap dites / Siap dibagikan
 - Grosir:
 - Kuliner:
 ```
+
+## Versi 0.4.1 - 2026-08-01
+
+Status: Siap dibagikan sebagai APK debug
+
+### Kenapa versi ini dibuat
+
+- Memperbaiki identitas CatatToko pada layar awal agar tidak memakai ikon Material generik tanpa nama brand.
+
+### Perubahan
+
+- Layar awal kasir menampilkan logo launcher HD dari flavor aktif beserta teks `CatatToko`.
+- Mapping asset tetap mengikuti flavor: Retail jade, Grosir biru, dan Kuliner orange.
+- Nama launcher/APK memakai brand `CatatToko Retail`, `CatatToko Grosir`, dan `CatatToko Kuliner`.
+- Database instalasi baru tidak memiliki PIN Owner bawaan; PIN dibuat sendiri oleh owner. `2468` hanya fixture AndroidTest.
+- Menambahkan regresi AndroidTest untuk keberadaan logo dan teks brand.
+- Menaikkan `versionCode` ke `10` dan `versionName` ke `0.4.1`.
+
+### Kekurangan yang masih ada
+
+- Logo ditampilkan pada layar awal Compose; system splash Android tetap memakai adaptive launcher icon bawaan Android.
+
+### Masalah yang diketahui
+
+- Kontras ikon/jam status bar masih rendah pada latar terang di sebagian emulator.
+
+### Verifikasi
+
+- Unit test tiga flavor: `testRetailDebugUnitTest testWholesaleDebugUnitTest testCulinaryDebugUnitTest` - BUILD SUCCESSFUL.
+- Lint tiga flavor: `lintRetailDebug lintWholesaleDebug lintCulinaryDebug` - BUILD SUCCESSFUL.
+- Build dan compile AndroidTest tiga flavor - BUILD SUCCESSFUL.
+- Connected smoke: Retail 5/5 lulus pada `emulator-5554` dan `emulator-5556`; Wholesale dan Culinary 5 lulus dengan 1 test Retail-only dilewati per device, tanpa failure.
+- Visual QA: 6 screenshot layar awal (3 flavor x 2 device) diaudit vision; logo dan warna flavor tidak tertukar, teks `CatatToko` tampil, dan fresh install menampilkan `Buat PIN Owner`.
+- Kondisi offline: tidak ada perubahan; fungsi inti tetap memakai Room lokal.
+
+### APK yang ditimpa
+
+- Retail: `dist/debug/CatatToko-Retail.apk` | SHA256 `E2F05D2C4E020CCCEC1DD6759B304F2C4C1010A1B60EDCCD09A1A4CC7EA7F36A`
+- Grosir: `dist/debug/CatatToko-Grosir.apk` | SHA256 `A41F3A37823389409D5C2F0B40F34C8E89D6BCC22A53272046A2CFCAD4CBBE32`
+- Kuliner: `dist/debug/CatatToko-Kuliner.apk` | SHA256 `7641E6B3AB481B63BC7D28851A586A721056EA1D433EB205AE869993F6710A59`
 
 ## Versi 0.4.0 - 2026-08-01
 

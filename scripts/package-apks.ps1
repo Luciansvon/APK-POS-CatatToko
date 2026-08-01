@@ -6,15 +6,15 @@ $outputDirectory = Join-Path $projectRoot "dist\debug"
 $packages = @(
     @{
         Source = "app\build\outputs\apk\retail\debug\app-retail-debug.apk"
-        Target = "Kasir-Retail-UMKM.apk"
+        Target = "CatatToko-Retail.apk"
     },
     @{
         Source = "app\build\outputs\apk\wholesale\debug\app-wholesale-debug.apk"
-        Target = "Kasir-Grosir-Agen.apk"
+        Target = "CatatToko-Grosir.apk"
     },
     @{
         Source = "app\build\outputs\apk\culinary\debug\app-culinary-debug.apk"
-        Target = "Kasir-Kuliner-PKL.apk"
+        Target = "CatatToko-Kuliner.apk"
     }
 )
 

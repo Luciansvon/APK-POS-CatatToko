@@ -4,6 +4,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -38,10 +39,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.bimacore.usahakecil.R
 import com.bimacore.usahakecil.ui.theme.BrandColors
 
 @Composable
@@ -76,18 +81,27 @@ fun CashierLandingScreen(
         ) {
             Box(
                 modifier = Modifier
-                    .size(80.dp)
+                    .size(88.dp)
                     .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(
-                    imageVector = Icons.Outlined.Storefront,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(44.dp),
+                Image(
+                    painter = painterResource(R.drawable.ic_launcher_foreground_v2),
+                    contentDescription = stringResource(R.string.brand_logo_description),
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier
+                        .size(76.dp)
+                        .testTag("catattoko-brand"),
                 )
             }
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = stringResource(R.string.brand_name),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            Spacer(Modifier.height(8.dp))
             Text(
                 text = "Kasir bisa jualan, lihat stok,\ndan lihat total transaksi aktif.",
                 style = MaterialTheme.typography.titleMedium,

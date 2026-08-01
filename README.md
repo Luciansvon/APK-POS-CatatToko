@@ -58,9 +58,9 @@ Setelah seluruh verifikasi lulus:
 APK debug:
 
 ```text
-dist/debug/Kasir-Retail-UMKM.apk
-dist/debug/Kasir-Grosir-Agen.apk
-dist/debug/Kasir-Kuliner-PKL.apk
+dist/debug/CatatToko-Retail.apk
+dist/debug/CatatToko-Grosir.apk
+dist/debug/CatatToko-Kuliner.apk
 ```
 
 ## Dokumentasi
