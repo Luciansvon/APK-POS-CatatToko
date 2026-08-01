@@ -1077,5 +1077,42 @@ Menghitung `displayStock` dari total stok varian aktif jika `product.hasVariants
 
 - `app/src/main/java/com/bimacore/usahakecil/ui/ManagementScreens.kt`
 
+## ERR-030 - Daftar produk di katalog kasir terdorong keluar layar atau terpotong pada layar HP/Tablet
+
+Tanggal: 2026-08-01
+
+Varian dan versi: Semua flavor (Retail, Wholesale, Culinary), `0.3.3`
+
+### Kondisi/gejala
+
+Pada layar katalog kasir (orientasi landscape atau layar HP/Tablet dengan tinggi terbatas), daftar produk (`LazyColumn`) terdorong ke bawah sehingga hanya menyisakan beberapa piksel di bagian paling bawah layar dan tidak terlihat utuh.
+
+### Root cause
+
+1. `CatalogScreen.kt` menempatkan tombol kalkulator pada `Row` terpisah di bawah `CashierFlowHeader`, memakan ruang setinggi 48dp secara vertikal.
+2. Padding vertikal pada `CashierFlowHeader` (14dp) dan lingkaran langkah transaksi (34dp) terlalu besar.
+3. Spacing antar pencarian, filter kategori, dan daftar produk (`Spacer` 12dp/8dp) terlalu longgar.
+4. Pendaratan `LazyColumn` belum dikunci memakai `Modifier.weight(1f)` secara fleksibel di dalam `Column`.
+
+### Solusi
+
+1. Memindahkan tombol kalkulator (`Icons.Outlined.Calculate`) ke dalam `CashierHeader` hijau di bagian atas (di samping tombol Mode Owner).
+2. Menghapus `Row` kalkulator terpisah dari `CatalogScreen.kt`.
+3. Merampingkan padding `CashierFlowHeader` (6dp) dan ukuran lingkaran langkah (28dp).
+4. Mengatur spacing pencarian & filter kategori menjadi 4dp, serta memberi `Modifier.weight(1f)` pada `LazyColumn` daftar produk.
+
+### Bukti verifikasi aktual
+
+- Unit test lulus 100% pada ketiga flavor (`testRetailDebugUnitTest`, `testWholesaleDebugUnitTest`, `testCulinaryDebugUnitTest`).
+- Android Lint lulus 100% pada ketiga flavor (`lintRetailDebug`, `lintWholesaleDebug`, `lintCulinaryDebug`).
+- `assembleDebug` lulus untuk ketiga varian APK.
+- Visual QA dan testing pada emulator MuMuPlayer (`127.0.0.1:7555`) mengonfirmasi daftar produk pada ketiga varian APK (`Retail`, `Wholesale`, `Culinary`) tampil utuh, lega, dan bisa di-scroll dengan lancar.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/ui/CashierLandingScreen.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/CatalogScreen.kt`
+
+
 
 

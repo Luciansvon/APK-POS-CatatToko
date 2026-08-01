@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Assignment
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Calculate
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.LockOpen
@@ -150,22 +151,23 @@ fun CashierHeader(
     subtitle: String? = "Mode Kasir",
     ownerUnlocked: Boolean,
     onOwnerAccess: () -> Unit,
+    onCalculatorClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.primary)
-            .padding(horizontal = 14.dp, vertical = 10.dp),
+            .padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
             imageVector = Icons.Outlined.Storefront,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onPrimary,
-            modifier = Modifier.size(26.dp),
+            modifier = Modifier.size(24.dp),
         )
-        Spacer(Modifier.size(10.dp))
+        Spacer(Modifier.size(8.dp))
         Column(Modifier.weight(1f)) {
             Text(
                 text = title,
@@ -182,6 +184,19 @@ fun CashierHeader(
                     maxLines = 1,
                 )
             }
+        }
+        if (onCalculatorClick != null) {
+            IconButton(
+                onClick = onCalculatorClick,
+                modifier = Modifier.testTag("calculator-button"),
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Calculate,
+                    contentDescription = "Buka kalkulator",
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                )
+            }
+            Spacer(Modifier.size(4.dp))
         }
         OutlinedButton(
             onClick = onOwnerAccess,
@@ -263,17 +278,19 @@ fun CashierFlowHeader(
     ownerUnlocked: Boolean,
     onOwnerAccess: () -> Unit,
     onBack: (() -> Unit)? = null,
+    onCalculatorClick: (() -> Unit)? = null,
 ) {
     Column {
         CashierHeader(
             title = title,
             ownerUnlocked = ownerUnlocked,
             onOwnerAccess = onOwnerAccess,
+            onCalculatorClick = onCalculatorClick,
         )
         if (onBack != null) {
             IconButton(
                 onClick = onBack,
-                modifier = Modifier.padding(start = 8.dp, top = 4.dp),
+                modifier = Modifier.padding(start = 8.dp, top = 2.dp),
             ) {
                 Icon(
                     Icons.AutoMirrored.Outlined.ArrowBack,
@@ -284,7 +301,7 @@ fun CashierFlowHeader(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 18.dp, vertical = 14.dp),
+                .padding(horizontal = 12.dp, vertical = 6.dp),
             verticalAlignment = Alignment.Top,
         ) {
             listOf("Pilih Produk", "Keranjang", "Pembayaran", "Selesai")
@@ -296,7 +313,7 @@ fun CashierFlowHeader(
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(34.dp)
+                                .size(28.dp)
                                 .background(
                                     if (step == activeStep) {
                                         MaterialTheme.colorScheme.primary
@@ -314,10 +331,11 @@ fun CashierFlowHeader(
                                 } else {
                                     MaterialTheme.colorScheme.onSurfaceVariant
                                 },
+                                style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
                             )
                         }
-                        Spacer(Modifier.height(5.dp))
+                        Spacer(Modifier.height(2.dp))
                         Text(
                             label,
                             style = MaterialTheme.typography.labelSmall,

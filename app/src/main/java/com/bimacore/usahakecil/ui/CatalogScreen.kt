@@ -108,24 +108,13 @@ fun CatalogScreen(
         modifier = modifier,
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            Column {
-                CashierFlowHeader(
-                    title = "Pilih Produk",
-                    activeStep = 1,
-                    ownerUnlocked = ownerUnlocked,
-                    onOwnerAccess = onOwnerAccess,
-                )
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp),
-                    horizontalArrangement = Arrangement.End,
-                ) {
-                    IconButton(onClick = onCalculatorClick) {
-                        Icon(Icons.Outlined.Calculate, contentDescription = "Buka kalkulator")
-                    }
-                }
-            }
+            CashierFlowHeader(
+                title = "Pilih Produk",
+                activeStep = 1,
+                ownerUnlocked = ownerUnlocked,
+                onOwnerAccess = onOwnerAccess,
+                onCalculatorClick = onCalculatorClick,
+            )
         },
         bottomBar = {
             if (compact && snapshot.cartItems.isNotEmpty()) {
@@ -147,7 +136,7 @@ fun CatalogScreen(
                 onValueChange = onSearchChange,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
                     .semantics { contentDescription = "Cari produk" },
                 singleLine = true,
                 leadingIcon = {
@@ -161,7 +150,7 @@ fun CatalogScreen(
                     unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.55f),
                 ),
             )
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(4.dp))
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -181,19 +170,23 @@ fun CatalogScreen(
                     )
                 }
             }
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(4.dp))
             if (filteredProducts.isEmpty()) {
                 EmptyCatalog(
                     hasSearch = search.isNotBlank(),
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
                 )
             } else {
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
                     contentPadding = PaddingValues(
                         start = 16.dp,
                         end = 16.dp,
-                        top = 8.dp,
+                        top = 6.dp,
                         bottom = if (compact && snapshot.cartItems.isNotEmpty()) 16.dp else 24.dp,
                     ),
                     verticalArrangement = Arrangement.spacedBy(12.dp),

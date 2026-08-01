@@ -589,3 +589,23 @@ Status: Diimplementasikan pada domain shared core (`antigravity/forecasting-foun
 - `docs/superpowers/specs/2026-08-01-sales-forecasting-foundation.md`
 - `docs/handoffs/ANTIGRAVITY_FORECASTING_FOUNDATION_2026-08-01.md`
 
+---
+
+## 2026-08-01 - Perbaikan Bug Tampilan Katalog Kasir Terpotong (3 Varian APK)
+
+Status: Selesai, diuji pada 3 varian APK, dipaketkan di `dist/debug/`.
+
+### Hasil
+
+- **Merampingkan Header Kasir & Menyatukan Tombol Kalkulator (ERR-030)**: Memindahkan tombol kalkulator ke dalam header topBar di samping tombol Mode Owner untuk menghemat 48dp tinggi vertikal.
+- **Mengoptimalkan Spacing & Layout Weight**: Merampingkan padding langkah transaksi (6dp) dan spacing pencarian/kategori (4dp) serta mengunci `LazyColumn` dengan `Modifier.weight(1f)` agar daftar barang selalu tampil utuh dan bisa di-scroll lancar pada orientasi landscape/HP/Tablet di 3 APK.
+
+### Verifikasi aktual
+
+- `testRetailDebugUnitTest`, `testWholesaleDebugUnitTest`, `testCulinaryDebugUnitTest`: LULUS 100%.
+- `lintRetailDebug`, `lintWholesaleDebug`, `lintCulinaryDebug`: BUILD SUCCESSFUL.
+- `assembleDebug`: BUILD SUCCESSFUL.
+- **Packaging APK**: `scripts/package-apks.ps1` memperbarui 3 APK di `dist/debug/`.
+- **Pengujian MuMuPlayer**: Ketiga varian APK (`Retail`, `Wholesale`, `Culinary`) dipasang, diluncurkan, dan diambil screenshot secara sukses di emulator (`127.0.0.1:7555`), tampilan katalog tidak lagi terpotong.
+
+
