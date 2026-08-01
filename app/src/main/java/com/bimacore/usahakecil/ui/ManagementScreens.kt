@@ -755,7 +755,9 @@ fun MoreScreen(
 ) {
     val context = LocalContext.current
     val profile by viewModel.profile.collectAsState()
+    val busy by viewModel.busy.collectAsState()
     val backupUri by viewModel.backupUri.collectAsState()
+    val excelUri by viewModel.excelUri.collectAsState()
     val preview by viewModel.backupPreview.collectAsState()
     var showProfile by remember { mutableStateOf(false) }
     val openBackup = rememberLauncherForActivityResult(
@@ -786,7 +788,35 @@ fun MoreScreen(
             }
             HorizontalDivider()
             SectionTitle("Backup & restore")
-            Button(onClick = viewModel::createBackup, modifier = Modifier.fillMaxWidth()) {
+            Button(
+                onClick = viewModel::createExcelExport,
+                enabled = !busy,
+                modifier = Modifier.fillMaxWidth().testTag("excel-export"),
+            ) {
+                Text("Export Excel")
+            }
+            if (excelUri != null) {
+                OutlinedButton(
+                    onClick = {
+                        context.startActivity(
+                            Intent.createChooser(
+                                Intent(Intent.ACTION_SEND).apply {
+                                    type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                                    putExtra(Intent.EXTRA_STREAM, excelUri)
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                },
+                                "Bagikan Excel",
+                            ),
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("Bagikan Excel") }
+            }
+            Button(
+                onClick = viewModel::createBackup,
+                enabled = !busy,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
                 Text("Buat backup lokal")
             }
             if (backupUri != null) {

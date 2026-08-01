@@ -79,6 +79,7 @@ class OperationsRepository(
             if (unlocked) shifts else emptyList()
         }
     } ?: shiftDao.observeShifts()
+    val openShift: Flow<ShiftEntity?> = shiftDao.observeOpenShift()
 
     suspend fun saveParty(
         id: Long?,
@@ -312,7 +313,6 @@ class OperationsRepository(
         openingCash: Long,
         openingNote: String,
     ): Long = database.withTransaction {
-        requireOwnerForShift()
         val normalizedCashier = cashierName.trim()
         require(normalizedCashier.isNotBlank()) { "Nama kasir wajib diisi" }
         require(openingCash in 0..MoneyMath.MAX_MONEY) { "Modal awal tidak valid" }

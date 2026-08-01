@@ -26,6 +26,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.bimacore.usahakecil.domain.MoneyMath
 import com.bimacore.usahakecil.share.ReceiptImageExporter
+import com.bimacore.usahakecil.data.ShiftEntity
 import kotlinx.coroutines.launch
 import java.util.Calendar
 
@@ -33,8 +34,10 @@ import java.util.Calendar
 fun PosApp(
     businessLabel: String,
     viewModel: PosViewModel,
+    activeShift: ShiftEntity?,
     ownerUnlocked: Boolean,
     onOwnerAccess: () -> Unit,
+    onOpenShift: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val snapshot by viewModel.snapshot.collectAsState()
@@ -139,8 +142,10 @@ fun PosApp(
                 outOfStockCount = trackedStock.count { (_, availableStock) ->
                     availableStock <= 0
                 },
+                activeShift = activeShift,
                 ownerUnlocked = ownerUnlocked,
                 onOwnerAccess = onOwnerAccess,
+                onOpenShift = onOpenShift,
                 onStartTransaction = viewModel::showCatalog,
                 onViewStock = viewModel::showCatalog,
             )

@@ -17,6 +17,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.printToString
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.bimacore.usahakecil.data.ShiftEntity
 import kotlinx.coroutines.runBlocking
@@ -35,6 +36,39 @@ class MainActivitySmokeTest {
     @Before
     fun lockOwnerSessionForTestIsolation() {
         (composeRule.activity.application as PosApplication).reportSession.lock()
+        dismissFirstRunGuideIfPresent()
+    }
+
+    @Test
+    fun first_run_guide_requires_confirmation_and_explains_both_modes() {
+        composeRule.activity
+            .getSharedPreferences(FirstRunGuidePreferences.FILE_NAME, 0)
+            .edit()
+            .clear()
+            .commit()
+        composeRule.activity.runOnUiThread { composeRule.activity.recreate() }
+
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithTag("first-run-guide")
+                .fetchSemanticsNodes()
+                .isNotEmpty()
+        }
+        composeRule.onNodeWithText("Mode Kasir / Pekerja").assertIsDisplayed()
+        composeRule.onNodeWithText("Mode Owner").assertIsDisplayed()
+        composeRule.onNodeWithText("Buka Mode Owner", substring = true).assertIsDisplayed()
+        composeRule.onAllNodesWithText("Lewati").assertCountEquals(0)
+        composeRule.onNodeWithTag("onboarding-complete").performScrollTo().performClick()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.activity
+                .getSharedPreferences(FirstRunGuidePreferences.FILE_NAME, 0)
+                .getBoolean(FirstRunGuidePreferences.COMPLETED_KEY, false)
+        }
+        composeRule.waitForIdle()
+        assertTrue(
+            composeRule.activity
+                .getSharedPreferences(FirstRunGuidePreferences.FILE_NAME, 0)
+                .getBoolean(FirstRunGuidePreferences.COMPLETED_KEY, false),
+        )
     }
 
     @Test
@@ -80,8 +114,9 @@ class MainActivitySmokeTest {
             composeRule.onAllNodesWithTag("payment-list").fetchSemanticsNodes().isNotEmpty()
         }
         composeRule.onNodeWithTag("payment-list")
-            .performScrollToNode(hasTestTag("quick-cash-20000"))
-        composeRule.onNodeWithTag("quick-cash-20000").performClick()
+            .performScrollToNode(hasTestTag("quick-cash-option"))
+        val quickCashOptions = composeRule.onAllNodesWithTag("quick-cash-option")
+        quickCashOptions[quickCashOptions.fetchSemanticsNodes().lastIndex].performClick()
         composeRule.onNodeWithTag("complete-sale").performClick()
 
         runCatching {
@@ -96,7 +131,7 @@ class MainActivitySmokeTest {
             )
         }
         composeRule.onNodeWithText("Transaksi Berhasil").assertIsDisplayed()
-        composeRule.onAllNodesWithText("Rp8.000")[0].assertIsDisplayed()
+        composeRule.onAllNodesWithText("Kembalian")[0].assertIsDisplayed()
         composeRule.onNodeWithTag("receipt-list")
             .performScrollToNode(hasTestTag("new-transaction"))
         composeRule.onNodeWithTag("new-transaction").performClick()
@@ -152,6 +187,32 @@ class MainActivitySmokeTest {
         composeRule.onNodeWithText("Lainnya").performClick()
         composeRule.onNodeWithText("Backup & restore").assertIsDisplayed()
         composeRule.onNodeWithText("Buat backup lokal").assertIsDisplayed()
+        composeRule.onNodeWithTag("excel-export").assertIsDisplayed()
+        waitForEnabledTag("excel-export")
+        composeRule.onNodeWithTag("excel-export").performClick()
+        waitForText("Bagikan Excel")
+    }
+
+    @Test
+    fun owner_mode_does_not_require_an_open_shift_for_management_or_export() {
+        val application = composeRule.activity.application as PosApplication
+        runBlocking {
+            application.database.openHelper.writableDatabase.execSQL(
+                "DELETE FROM shifts WHERE status = 'OPEN'",
+            )
+        }
+        composeRule.waitForIdle()
+
+        unlockOwner()
+        composeRule.onNodeWithText("Laporan").performClick()
+        waitForText("Omzet hari ini")
+
+        composeRule.onNodeWithText("Lainnya").performClick()
+        waitForText("Backup & restore")
+        composeRule.onNodeWithTag("excel-export").assertIsDisplayed()
+        waitForEnabledTag("excel-export")
+        composeRule.onNodeWithTag("excel-export").performClick()
+        waitForText("Bagikan Excel")
     }
 
     @Test
@@ -210,6 +271,7 @@ class MainActivitySmokeTest {
         waitForText("Ubah nama usaha")
         waitForText("Backup & restore")
         waitForText("Buat backup lokal")
+        composeRule.onNodeWithTag("excel-export").assertIsDisplayed()
         waitForText("Pilih file untuk restore")
         waitForText("Keluar Mode Owner")
         composeRule.onNodeWithText("Offline-first", substring = true).performScrollTo()
@@ -229,6 +291,14 @@ class MainActivitySmokeTest {
         composeRule.waitUntil(timeoutMillis = 5_000) {
             composeRule.onAllNodesWithText("Laporan")
                 .fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    private fun dismissFirstRunGuideIfPresent() {
+        composeRule.waitForIdle()
+        if (composeRule.onAllNodesWithTag("onboarding-complete").fetchSemanticsNodes().isNotEmpty()) {
+            composeRule.onNodeWithTag("onboarding-complete").performScrollTo().performClick()
+            composeRule.waitForIdle()
         }
     }
 
@@ -262,4 +332,12 @@ class MainActivitySmokeTest {
             )
         }
     }
+
+    private fun waitForEnabledTag(tag: String) {
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onNodeWithTag(tag).fetchSemanticsNode().config
+                .contains(SemanticsProperties.Disabled).not()
+        }
+    }
+
 }

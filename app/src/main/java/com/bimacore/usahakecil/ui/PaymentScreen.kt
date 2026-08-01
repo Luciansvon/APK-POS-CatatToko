@@ -346,7 +346,7 @@ private fun QuickCashAmounts(
             FilterChip(
                 selected = amountReceived == amount,
                 onClick = { onAmount(amount) },
-                modifier = Modifier.testTag("quick-cash-$amount"),
+                modifier = Modifier.testTag("quick-cash-option"),
                 label = {
                     Text(if (amount == total) "Uang Pas" else formatRupiah(amount))
                 },
