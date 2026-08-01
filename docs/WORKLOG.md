@@ -654,7 +654,7 @@ Status: Diimplementasikan dan diverifikasi lewat test, lint, build, serta kompil
 
 ### Batas fitur
 
-- Forecasting restock, retur/refund, void, HPP/laba, Excel, notifikasi, dan cloud masih belum diimplementasikan.
+- Forecasting restock, retur/refund, void, HPP/laba, notifikasi, dan cloud masih belum diimplementasikan.
 
 ---
 
@@ -732,3 +732,101 @@ Status: Diimplementasikan; menunggu verifikasi build dan visual dua device.
 - Menambahkan assertion AndroidTest untuk logo dan teks brand.
 - APK tetap dipasang setelah patch untuk visual QA dan tidak di-uninstall kecuali diganti patch baru.
 - Packaging final: `CatatToko-Retail.apk` (`E2F05D2C4E020CCCEC1DD6759B304F2C4C1010A1B60EDCCD09A1A4CC7EA7F36A`), `CatatToko-Grosir.apk` (`A41F3A37823389409D5C2F0B40F34C8E89D6BCC22A53272046A2CFCAD4CBBE32`), dan `CatatToko-Kuliner.apk` (`7641E6B3AB481B63BC7D28851A586A721056EA1D433EB205AE869993F6710A59`).
+
+---
+
+## 2026-08-01 - Header kasir compact dan buka shift oleh pekerja
+
+Status: Diimplementasikan; verifikasi otomatis dan visual sedang dijalankan.
+
+### Perubahan
+
+- Mengecilkan tinggi header hijau kasir menjadi minimum 52dp.
+- Subtitle flavor memakai ukuran 11sp, satu baris, dan ellipsis agar `Retail & UMKM` tidak terpotong secara vertikal atau melebar.
+- Menambahkan status shift pada layar kasir dan tombol `Buka Shift` yang dapat dipakai pekerja tanpa PIN Owner.
+- Membuat observasi shift aktif tetap tersedia secara offline tanpa membuka ringkasan kas atau riwayat shift.
+- `Tutup Shift`, ringkasan kas, dan riwayat shift tetap dilindungi sesi Owner.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/data/OperationalDaos.kt`
+- `app/src/main/java/com/bimacore/usahakecil/data/OperationsRepository.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/CashierLandingScreen.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/HomeScreen.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/OperationsViewModel.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/PosApp.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/data/OperationalRepositoryTest.kt`
+
+---
+
+## 2026-08-01 - Export Excel offline Owner-only
+
+Status: Diimplementasikan; verifikasi otomatis dan runtime Android lulus.
+
+### Perubahan
+
+- Menambahkan generator workbook OpenXML `.xlsx` tanpa dependency spreadsheet eksternal.
+- Menambahkan export snapshot offline dari tabel operasional yang relevan.
+- Menambahkan guard sesi Owner pada manager dan ViewModel.
+- Menambahkan tombol `Export Excel` dan `Bagikan Excel` di area Owner.
+- Menambahkan test format ZIP/XML, escaping karakter, nama sheet, serta test Android untuk guard Owner dan isi data.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/export/ExcelWorkbookExporter.kt`
+- `app/src/main/java/com/bimacore/usahakecil/export/ExcelExportManager.kt`
+- `app/src/main/java/com/bimacore/usahakecil/PosApplication.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/OperationsViewModel.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/ManagementScreens.kt`
+- `app/src/main/res/xml/file_paths.xml`
+- `app/src/test/java/com/bimacore/usahakecil/export/ExcelWorkbookExporterTest.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/export/ExcelExportTest.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/MainActivitySmokeTest.kt`
+
+### Verifikasi aktual
+
+- Unit test Retail, Wholesale, dan Culinary: lulus.
+- Lint Retail, Wholesale, dan Culinary: lulus.
+- `assembleDebug`: lulus.
+- Compile AndroidTest Retail, Wholesale, dan Culinary: lulus.
+- Connected `ExcelExportTest`: lulus pada `emulator-5554` portrait dan `emulator-5556` landscape.
+- Connected `ExcelExportTest` juga lulus pada Wholesale dan Culinary di kedua device.
+- Connected UI smoke export sampai `Bagikan Excel`: lulus pada kedua device.
+- Percobaan awal landscape menemukan snackbar Owner menutup tombol export; layout dan busy guard diperbaiki lalu dites ulang lulus.
+
+---
+
+## 2026-08-01 - First-run guide, full feature coverage, dan Excel final
+
+Status: Diimplementasikan, diuji lintas flavor, dan dipackage sebagai `0.4.2` / `versionCode 11`.
+
+### Perubahan
+
+- Menambahkan guide wajib first-run yang menjelaskan Mode Kasir/Pekerja, Mode Owner, cara membuka Owner, dan kondisi offline. Guide tidak dapat dilewati dengan back atau klik di luar.
+- Menambah regression coverage untuk pembayaran tunai/QRIS/kredit, rekonsiliasi laporan, utang/piutang, tenaga kerja, status order kuliner, serta capability flavor.
+- Mengubah Excel menjadi workbook terkurasi dengan `Info Export`, `Ringkasan`, transaksi, stok, kas, utang-piutang, shift, pembelian, dan tenaga kerja.
+- Menambahkan auto-width per kolom dari teks terpanjang dengan batas 10–72 karakter.
+- Menambahkan test export 500 order dan validasi runtime memakai spreadsheet artifact tool.
+- Mengunci regresi bahwa Mode Owner tidak membutuhkan shift aktif untuk membuka Laporan dan Export Excel; shift hanya wajib untuk checkout kasir.
+- Menstabilkan smoke checkout agar memilih nominal cepat yang tersedia, bukan mengandalkan nominal hardcode.
+
+### Verifikasi aktual
+
+- Full Gradle matrix: unit test, lint, assemble debug, dan compile AndroidTest tiga flavor lulus (`259 actionable tasks`).
+- Full connected smoke: Retail 38/38 per emulator; Wholesale dan Culinary 38/38 per emulator dengan test penjualan tunai Retail-only dilewati.
+- Smoke regresi Owner tanpa shift: Retail 7/7 per emulator; Wholesale dan Culinary 7 lulus + 1 test Retail-only dilewati per emulator.
+- Domain coverage: 4/4 test pada Retail, Wholesale, dan Culinary di dua emulator.
+- Excel coverage: 2/2 test pada Retail, Wholesale, dan Culinary di dua emulator; test kedua mengekspor 500 order.
+- Onboarding: test portrait dan landscape lulus; guide wajib terbukti dapat di-scroll dan dikonfirmasi.
+- Artifact final: `artifacts/ui-qa/retail-export-result.xlsx`, tervalidasi `Info Export!B4`, `Ringkasan`, dan render width kolom.
+
+### APK final
+
+- Retail: `dist/debug/CatatToko-Retail.apk` | SHA256 `69A74F403049FFF5C62076DACBAE7A6927B625338BE3D588BF2112C13096987B`
+- Grosir: `dist/debug/CatatToko-Grosir.apk` | SHA256 `73751F81598C831AADAB747D4900997F6D18F5FF0BCEAFC206FF579A4A6DD6CA`
+- Kuliner: `dist/debug/CatatToko-Kuliner.apk` | SHA256 `8E4989C76DC63EAC305BD303B51308C1AB6878682E51F16F093450560121C892`
+
+### Batas rilis
+
+- Export masih seluruh data offline; periode harian/mingguan/bulanan/tahunan, chart Excel, forecasting Excel, dan analisis laba/HPP belum termasuk.
+- Fitur agen bank/e-wallet belum ditambahkan dan tetap di luar scope rilis ini.

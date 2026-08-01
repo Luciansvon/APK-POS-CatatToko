@@ -98,6 +98,47 @@ Status: Siap dibagikan sebagai APK debug
 - Grosir: `dist/debug/CatatToko-Grosir.apk` | SHA256 `A41F3A37823389409D5C2F0B40F34C8E89D6BCC22A53272046A2CFCAD4CBBE32`
 - Kuliner: `dist/debug/CatatToko-Kuliner.apk` | SHA256 `7641E6B3AB481B63BC7D28851A586A721056EA1D433EB205AE869993F6710A59`
 
+## Versi 0.4.2 - 2026-08-01
+
+Status: Siap dibagikan sebagai APK debug
+
+### Kenapa versi ini dibuat
+
+- Menyediakan export data operasional offline yang bisa dipakai Owner dalam format `.xlsx`.
+- Memperbaiki waktu export yang sebelumnya tampil sebagai timestamp mentah.
+- Menambahkan panduan wajib first-run agar perbedaan Mode Kasir/Pekerja dan Mode Owner tidak terlewat.
+
+### Perubahan
+
+- Menambahkan workbook `.xlsx` OpenXML dengan sheet informasi dan tabel operasional.
+- Menambahkan tombol `Export Excel` dan `Bagikan Excel` pada area Owner.
+- Mengubah `Info Export!B4` menjadi format tanggal/jam Indonesia yang terbaca manusia.
+- Mengatur lebar setiap kolom berdasarkan teks terpanjang dengan batas 10–72 karakter agar tidak ada teks penting yang kepotong.
+- Menambahkan ringkasan angka deterministik; filter periode dan chart Excel belum termasuk.
+- Memperbaiki posisi tombol Excel dan busy guard agar aksi tidak tertutup snackbar atau tertekan saat proses lain berjalan.
+- Menaikkan `versionCode` ke `11` dan `versionName` ke `0.4.2`.
+
+### Kekurangan yang masih ada
+
+- Export masih berupa snapshot seluruh data offline; filter harian/mingguan/bulanan/tahunan, chart Excel, forecasting Excel, dan analisis laba/HPP belum termasuk.
+
+### Masalah yang diketahui
+
+- Kontras ikon/jam status bar masih rendah pada latar terang di sebagian emulator.
+
+### Verifikasi
+
+- Unit test, lint, build, dan compile AndroidTest tiga flavor lulus: `259 actionable tasks`.
+- Full connected smoke UI: Retail 38/38 per device; Wholesale dan Culinary 38/38 per device dengan satu test Retail-only dilewati.
+- Connected `ExcelExportTest` 2/2 lulus pada Retail, Wholesale, dan Culinary di `emulator-5554` portrait serta `emulator-5556` landscape; termasuk 500 order.
+- File runtime final tervalidasi artifact tool sebagai ZIP OpenXML dengan `Info Export`, `Ringkasan`, `Penjualan`, dan tabel `Katalog & Stok`; lebar kolom Catatan tidak terpotong.
+
+### APK yang ditimpa
+
+- Retail: `dist/debug/CatatToko-Retail.apk` | SHA256 `69A74F403049FFF5C62076DACBAE7A6927B625338BE3D588BF2112C13096987B`
+- Grosir: `dist/debug/CatatToko-Grosir.apk` | SHA256 `73751F81598C831AADAB747D4900997F6D18F5FF0BCEAFC206FF579A4A6DD6CA`
+- Kuliner: `dist/debug/CatatToko-Kuliner.apk` | SHA256 `8E4989C76DC63EAC305BD303B51308C1AB6878682E51F16F093450560121C892`
+
 ## Versi 0.4.0 - 2026-08-01
 
 Status: Draft, siap dites sebagai APK debug

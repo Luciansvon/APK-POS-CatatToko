@@ -138,6 +138,9 @@ interface ShiftDao {
     @Query("SELECT * FROM shifts WHERE status = 'OPEN' ORDER BY openedAt DESC, id DESC LIMIT 1")
     suspend fun getOpenShift(): ShiftEntity?
 
+    @Query("SELECT * FROM shifts WHERE status = 'OPEN' ORDER BY openedAt DESC, id DESC LIMIT 1")
+    fun observeOpenShift(): Flow<ShiftEntity?>
+
     @Insert
     suspend fun insertShift(shift: ShiftEntity): Long
 

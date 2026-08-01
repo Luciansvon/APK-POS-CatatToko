@@ -39,6 +39,8 @@ fun HomeScreen(
     posViewModel: PosViewModel,
     operationsViewModel: OperationsViewModel,
     onRecreate: () -> Unit,
+    showFirstRunGuide: Boolean,
+    onFirstRunGuideComplete: () -> Unit,
 ) {
     val ownerUnlocked by operationsViewModel.ownerUnlocked.collectAsState()
     val destinations = remember(operationsViewModel.capabilities, ownerUnlocked) {
@@ -49,7 +51,9 @@ fun HomeScreen(
     }
     var destination by remember { mutableStateOf(AppDestination.POS) }
     var showOwnerAccess by remember { mutableStateOf(false) }
+    var showShiftOpen by remember { mutableStateOf(false) }
     val hasOwnerPin by operationsViewModel.reportHasPin.collectAsState()
+    val activeShift by operationsViewModel.openShift.collectAsState()
     val message by operationsViewModel.message.collectAsState()
     val restoreCompleted by operationsViewModel.restoreCompleted.collectAsState()
     val snackbar = remember { SnackbarHostState() }
@@ -129,8 +133,10 @@ fun HomeScreen(
                 AppDestination.POS -> PosApp(
                     businessLabel = businessLabel,
                     viewModel = posViewModel,
+                    activeShift = activeShift,
                     ownerUnlocked = ownerUnlocked,
                     onOwnerAccess = { showOwnerAccess = true },
+                    onOpenShift = { showShiftOpen = true },
                 )
                 AppDestination.OPERATIONS -> OperationsScreen(
                     viewModel = operationsViewModel,
@@ -164,6 +170,20 @@ fun HomeScreen(
                 operationsViewModel.lockReport()
                 showOwnerAccess = false
             },
+        )
+    }
+    if (showShiftOpen) {
+        ShiftOpenDialog(
+            onDismiss = { showShiftOpen = false },
+        ) { cashierName, openingCash, note ->
+            operationsViewModel.openShift(cashierName, openingCash, note)
+            showShiftOpen = false
+        }
+    }
+    if (showFirstRunGuide) {
+        com.bimacore.usahakecil.FirstRunGuide(
+            businessLabel = businessLabel,
+            onComplete = onFirstRunGuideComplete,
         )
     }
 }

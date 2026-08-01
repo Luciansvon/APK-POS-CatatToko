@@ -145,15 +145,17 @@ class OperationalRepositoryTest {
     }
 
     @Test
-    fun shift_history_requires_owner_session_when_repository_is_production_bound() = runBlocking {
+    fun worker_can_open_shift_but_owner_still_controls_shift_finance() = runBlocking {
         val session = ReportSession()
         val operations = OperationsRepository(database, ownerSession = session)
 
         assertTrue(operations.shifts.first().isEmpty())
-        assertTrue(runCatching { operations.openShift("Kasir", 0, "") }.isFailure)
+        operations.openShift("Kasir", 0, "")
+        assertEquals("Kasir", operations.openShift.first()?.cashierName)
+        assertTrue(runCatching { operations.readOpenShiftSummary() }.isFailure)
+        assertTrue(runCatching { operations.closeShift(0, "") }.isFailure)
 
         session.unlock()
-        operations.openShift("Kasir", 0, "")
         assertEquals(1, operations.shifts.first().size)
     }
 

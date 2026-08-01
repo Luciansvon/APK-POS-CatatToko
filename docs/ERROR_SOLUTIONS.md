@@ -268,11 +268,46 @@ Test dibuat adaptif: membuka sticky summary bila tersedia, atau langsung memakai
 
 - `app/src/androidTest/java/com/bimacore/usahakecil/MainActivitySmokeTest.kt`
 
+## ERR-038 - Export Excel belum terkurasi dan belum terbukti pada banyak order
+
+Tanggal: 2026-08-01
+
+Varian dan versi: Semua flavor, `0.4.2`
+
+### Kondisi/gejala
+
+Export awal belum memberi workbook yang rapi untuk Owner: waktu export masih sulit dibaca, isi belum disusun sebagai laporan terkurasi, dan belum ada bukti export ketika jumlah order besar.
+
+### Root cause
+
+Generator awal belum memiliki format laporan yang jelas dan kolom masih fixed width. Pada percobaan runtime pertama, snackbar status Owner juga menutup area tombol export di layout landscape dan aksi export dapat tersentuh saat operasi PIN masih sibuk.
+
+### Solusi
+
+Menambahkan workbook `.xlsx` OpenXML offline dengan sheet `Info Export`, `Ringkasan`, dan tabel operasional terpilih melalui whitelist. Waktu export memakai format tanggal Indonesia, lebar kolom dihitung dari teks terpanjang dengan batas 10–72 karakter, file disimpan sementara di cache melalui `FileProvider`, dan akses dijaga `ReportSession.requireOwner()` pada manager serta ViewModel. Blok Excel dipindah ke area aman, tombol dibuat nonaktif selama operasi lain berjalan, dan export tidak lagi memunculkan snackbar yang menutup tombol share. Data draft keranjang dan `report_security` tidak ikut diekspor.
+
+### Bukti verifikasi aktual
+
+- `ExcelWorkbookExporterTest` memeriksa paket ZIP OpenXML, sheet, escaping XML, deduplikasi nama sheet, dan width otomatis per kolom.
+- `ExcelExportTest`: 2/2 lulus pada Retail, Wholesale, dan Culinary di `emulator-5554` portrait serta `emulator-5556` landscape; termasuk export 500 order.
+- Full unit test, lint, assemble, dan compile AndroidTest tiga flavor: lulus (`259 actionable tasks`, `BUILD SUCCESSFUL`).
+- Full connected smoke UI: Retail 38/38 per device; Wholesale dan Culinary 38/38 per device dengan satu test Retail-only dilewati.
+- Runtime APK menghasilkan `artifacts/ui-qa/retail-export-result.xlsx` sebesar 17.526 byte. Artifact tool membaca `Info Export!B4` sebagai `01 Agustus 2026, 21:25:09 WIB`, dan render final tidak memotong teks Catatan.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/export/ExcelWorkbookExporter.kt`
+- `app/src/main/java/com/bimacore/usahakecil/export/ExcelExportManager.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/OperationsViewModel.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/ManagementScreens.kt`
+- `app/src/test/java/com/bimacore/usahakecil/export/ExcelWorkbookExporterTest.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/export/ExcelExportTest.kt`
+
 ## ERR-035 - Layar awal hanya memakai ikon Material tanpa identitas CatatToko
 
 Tanggal: 2026-08-01
 
-Varian dan versi: Semua flavor, `0.4.1`
+Varian dan versi: Semua flavor, `0.4.2`
 
 ### Kondisi/gejala
 
@@ -967,8 +1002,67 @@ Menyelaraskan `DATABASE_SCHEMA_VERSION` menjadi `4`, serta menambahkan migrasi b
 
 - `app/src/main/java/com/bimacore/usahakecil/backup/BackupManager.kt`
 - `app/src/androidTest/java/com/bimacore/usahakecil/backup/BackupRestoreTest.kt`
+
+## ERR-036 - Subtitle flavor pada header kasir terpotong di bagian bawah
+
+Tanggal: 2026-08-01
+
+Varian dan versi: Semua flavor, `0.4.1`
+
+### Kondisi/gejala
+
+Subtitle `Retail & UMKM` pada header Mode Kasir terlihat bagian bawah hurufnya terpotong pada layar compact.
+
+### Root cause
+
+Header memakai dua baris teks dengan line height default dan padding vertikal yang terlalu besar dibanding ruang efektif baris, sehingga subtitle dirender terlalu mepet pada batas bawah header.
+
+### Solusi
+
+Header dirampingkan menjadi minimum 52dp. Subtitle memakai `labelSmall` dengan `11sp`, `14sp` line height, satu baris tanpa wrap, dan ellipsis sebagai fallback untuk label flavor yang lebih panjang.
+
+### Bukti verifikasi aktual
+
+- Compile Retail Debug lulus setelah perubahan.
+- Unit test, lint, build, dan visual emulator untuk semua flavor masih menjadi tahap verifikasi patch ini.
+
+### File terdampak
+
 - `app/src/main/java/com/bimacore/usahakecil/ui/CashierLandingScreen.kt`
-- `app/src/androidTest/java/com/bimacore/usahakecil/MainActivitySmokeTest.kt`
+
+## ERR-037 - Pekerja tidak dapat membuka shift tanpa PIN Owner pada mode offline
+
+Tanggal: 2026-08-01
+
+Varian dan versi: Semua flavor, `0.4.1`
+
+### Kondisi/gejala
+
+Saat belum ada shift aktif, pekerja harus meminta Owner membuka area Keuangan terlebih dahulu. Ini tidak efisien untuk APK offline satu HP.
+
+### Root cause
+
+`OperationsRepository.openShift()` memanggil `requireOwnerForShift()`, sementara tombol pembuka shift hanya tersedia di layar Keuangan Owner.
+
+### Solusi
+
+Menambahkan tombol `Buka Shift` pada Mode Kasir dan observasi shift aktif yang hanya memuat status/nama shift. Pembukaan shift tetap memvalidasi nama, modal awal, satu shift aktif, dan menyimpan data lokal. Ringkasan kas, penutupan shift, dan riwayat tetap memerlukan PIN Owner.
+
+### Bukti verifikasi aktual
+
+- Regression test memastikan repository terikat sesi Owner yang terkunci tetap dapat membuka shift, tetapi tidak dapat membaca ringkasan atau menutup shift.
+- Smoke test `owner_mode_does_not_require_an_open_shift_for_management_or_export` menghapus shift aktif pada fixture, lalu membuktikan Owner tetap dapat membuka Laporan dan Export Excel tanpa membuka shift.
+- Connected smoke Retail, Wholesale, dan Culinary lulus pada emulator portrait dan landscape; checkout tetap diuji terpisah dengan shift aktif.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/data/OperationalDaos.kt`
+- `app/src/main/java/com/bimacore/usahakecil/data/OperationsRepository.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/HomeScreen.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/OperationsViewModel.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/PosApp.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/CashierLandingScreen.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/data/OperationalRepositoryTest.kt`
 
 ## ERR-034 - Label Operasional terpotong dua baris pada navigasi HP
 

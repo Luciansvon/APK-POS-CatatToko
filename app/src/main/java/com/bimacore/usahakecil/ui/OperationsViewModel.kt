@@ -33,6 +33,7 @@ import com.bimacore.usahakecil.data.WorkforceRepository
 import com.bimacore.usahakecil.domain.AttendanceStatus
 import com.bimacore.usahakecil.domain.BusinessCapabilities
 import com.bimacore.usahakecil.domain.OrderStatus
+import com.bimacore.usahakecil.export.ExcelExportManager
 import java.util.Calendar
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -54,6 +55,7 @@ class OperationsViewModel(
     private val reports: ReportRepository,
     private val culinary: CulinaryRepository,
     private val backups: BackupManager,
+    private val excelExports: ExcelExportManager,
 ) : ViewModel() {
     val profile = database.profileDao().observeProfile().stateIn(
         viewModelScope,
@@ -105,6 +107,11 @@ class OperationsViewModel(
         SharingStarted.WhileSubscribed(5_000),
         emptyList(),
     )
+    val openShift = operations.openShift.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        null,
+    )
     val debts = operations.debts.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
@@ -155,6 +162,8 @@ class OperationsViewModel(
     val backupUri = _backupUri.asStateFlow()
     private val _backupPreview = MutableStateFlow<BackupPreview?>(null)
     val backupPreview = _backupPreview.asStateFlow()
+    private val _excelUri = MutableStateFlow<Uri?>(null)
+    val excelUri = _excelUri.asStateFlow()
     private val _restoreCompleted = MutableStateFlow(false)
     val restoreCompleted = _restoreCompleted.asStateFlow()
     private val _saleDetail = MutableStateFlow<SaleDetail?>(null)
@@ -497,6 +506,11 @@ class OperationsViewModel(
         _backupUri.value = backups.createBackup()
     }
 
+    fun createExcelExport() = execute {
+        reports.session.requireOwner()
+        _excelUri.value = excelExports.createExport()
+    }
+
     fun inspectBackup(uri: Uri) = execute {
         reports.session.requireOwner()
         _backupPreview.value = backups.preview(uri)
@@ -612,6 +626,7 @@ class OperationsViewModel(
                 reports = application.newReportRepository(),
                 culinary = application.newCulinaryRepository(),
                 backups = application.newBackupManager(),
+                excelExports = application.newExcelExportManager(),
             ) as T
     }
 }

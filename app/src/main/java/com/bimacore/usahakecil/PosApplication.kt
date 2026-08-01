@@ -11,6 +11,7 @@ import com.bimacore.usahakecil.data.ReportRepository
 import com.bimacore.usahakecil.data.WorkforceRepository
 import com.bimacore.usahakecil.domain.BusinessCapabilities
 import com.bimacore.usahakecil.domain.BusinessType
+import com.bimacore.usahakecil.export.ExcelExportManager
 import com.bimacore.usahakecil.security.ReportSession
 
 class PosApplication : Application() {
@@ -52,6 +53,13 @@ class PosApplication : Application() {
         currentDatabase = { database },
         closeDatabase = ::closeDatabase,
         reopenDatabase = { database },
+    )
+
+    fun newExcelExportManager() = ExcelExportManager(
+        context = this,
+        database = database,
+        ownerSession = reportSession,
+        businessType = businessType.name,
     )
 
     @Synchronized

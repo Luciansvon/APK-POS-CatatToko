@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -45,7 +46,10 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.bimacore.usahakecil.data.ShiftEntity
 import com.bimacore.usahakecil.R
 import com.bimacore.usahakecil.ui.theme.BrandColors
 
@@ -55,8 +59,10 @@ fun CashierLandingScreen(
     activeTransactions: Int,
     lowStockCount: Int,
     outOfStockCount: Int,
+    activeShift: ShiftEntity?,
     ownerUnlocked: Boolean,
     onOwnerAccess: () -> Unit,
+    onOpenShift: () -> Unit,
     onStartTransaction: () -> Unit,
     onViewStock: () -> Unit,
     modifier: Modifier = Modifier,
@@ -109,6 +115,33 @@ fun CashierLandingScreen(
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onBackground,
             )
+            if (activeShift == null) {
+                Spacer(Modifier.height(8.dp))
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    ),
+                ) {
+                    Text(
+                        text = "Shift belum dibuka. Buka shift dulu sebelum menerima pembayaran.",
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = onOpenShift,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp)
+                        .testTag("open-shift"),
+                    shape = RoundedCornerShape(12.dp),
+                ) {
+                    Text("Buka Shift", fontWeight = FontWeight.Bold)
+                }
+            }
             Spacer(Modifier.height(12.dp))
             CashierMetric(
                 icon = Icons.AutoMirrored.Outlined.Assignment,
@@ -171,8 +204,9 @@ fun CashierHeader(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .heightIn(min = 52.dp)
             .background(MaterialTheme.colorScheme.primary)
-            .padding(horizontal = 14.dp, vertical = 8.dp),
+            .padding(horizontal = 14.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
@@ -182,7 +216,11 @@ fun CashierHeader(
             modifier = Modifier.size(24.dp),
         )
         Spacer(Modifier.size(8.dp))
-        Column(Modifier.weight(1f)) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(vertical = 1.dp),
+        ) {
             Text(
                 text = title,
                 color = MaterialTheme.colorScheme.onPrimary,
@@ -194,8 +232,13 @@ fun CashierHeader(
                 Text(
                     text = subtitle,
                     color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f),
-                    style = MaterialTheme.typography.labelMedium,
+                    style = MaterialTheme.typography.labelSmall.copy(
+                        fontSize = 11.sp,
+                        lineHeight = 14.sp,
+                    ),
                     maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }

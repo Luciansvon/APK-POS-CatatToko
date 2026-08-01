@@ -10,7 +10,8 @@ Status saat ini:
 - database lokal aktif: Room 2.8.4;
 - satu module aplikasi menghasilkan tiga product flavor;
 - database memakai skema versi 4 dengan migrasi eksplisit dari versi 1, 2, dan 3;
-- katalog, kategori, varian, keranjang persisten, pembayaran, transaksi atomik, stok, pembelian, kas, utang-piutang, tenaga kerja, laporan terlindungi, backup/restore, struk PNG, dan kalkulator sudah diimplementasikan;
+- katalog, kategori, varian, keranjang persisten, pembayaran, transaksi atomik, stok, pembelian, kas, utang-piutang, tenaga kerja, laporan terlindungi, backup/restore, export `.xlsx`, struk PNG, dan kalkulator sudah diimplementasikan;
+- panduan wajib first-run menjelaskan Mode Kasir/Pekerja dan Mode Owner sebelum aplikasi dapat dipakai;
 - kemampuan khusus Grosir dan Kuliner dikendalikan oleh `BusinessCapabilities`;
 - APK debug Retail, Wholesale, dan Culinary dibangun dari shared source;
 - GitHub Actions memverifikasi unit test, kompilasi test instrumentasi, build debug/release, dan lint seluruh flavor;
@@ -106,12 +107,16 @@ Cloud belum menjadi source of truth karena belum termasuk MVP.
 
 ## Akses pengguna dan laporan
 
-Aplikasi selalu mulai dalam Mode Kasir/Pekerja. Operasional, keuangan, laporan, profil, backup, dan restore adalah area Owner yang baru muncul setelah PIN Owner terverifikasi.
+Aplikasi selalu mulai dalam Mode Kasir/Pekerja. Pada first-run, `FirstRunGuide` menahan akses sampai pengguna menekan `Saya Mengerti, Mulai`; dialog tidak dapat dilewati dengan back atau klik di luar. Pekerja dapat membuka shift dari layar kasir agar operasional offline tidak bergantung pada Owner yang sedang memegang HP. Operasional, keuangan, laporan, profil, backup, dan restore tetap menjadi area Owner yang baru muncul setelah PIN Owner terverifikasi.
 
 Aturan yang sudah dikunci:
 
 - pekerja dapat menjalankan flow penjualan serta melihat total transaksi aktif dan stok produk pada layar kasir;
+- pekerja dapat membuka shift dengan nama kasir, modal awal, dan catatan pembuka dari layar kasir;
+- Owner tidak perlu membuka shift untuk masuk ke Operasional, Keuangan, Laporan, profil, backup, restore, atau Export Excel;
+- shift hanya wajib saat kasir menyelesaikan transaksi penjualan; pembukaan dan penutupan shift tetap dicatat terpisah dari akses Mode Owner;
 - pekerja tidak dapat melihat omzet harian, riwayat penjualan, operasional, keuangan, laporan, profil, backup, atau restore;
+- pekerja tidak dapat melihat ringkasan kas, menutup shift, atau membaca riwayat shift;
 - tombol area Owner disembunyikan saat sesi terkunci dan tidak ada tujuan navigasi langsung menuju layar pengelolaan;
 - verifikasi harus bekerja sepenuhnya secara offline;
 - satu PIN Owner membuka seluruh area pengelolaan pada MVP;
@@ -334,6 +339,12 @@ flowchart TD
 Restore gagal tidak boleh meninggalkan data setengah terpasang.
 
 Backup dianggap selesai hanya setelah proses restore diuji pada data nyata pengujian.
+
+## Export Excel
+
+Owner dapat membuat file `.xlsx` langsung dari database lokal tanpa internet. Workbook memakai format OpenXML dan berisi `Info Export`, `Ringkasan`, serta tabel operasional seperti produk, transaksi, pembelian, kas, shift, utang-piutang, stok, dan tenaga kerja. Lebar tiap kolom dihitung dari teks terpanjang dengan batas wajar 10–72 karakter. Draft keranjang serta hash PIN Owner tidak ikut diekspor.
+
+Export hanya tersedia pada area Owner dan file dibagikan melalui mekanisme share Android. Data diekspor sebagai snapshot saat tombol export ditekan; export tidak mengubah transaksi, stok, atau histori finansial. Periode saat ini masih seluruh data offline; filter harian/mingguan/bulanan/tahunan, chart Excel, forecasting Excel, dan analisis laba belum termasuk karena HPP belum dikunci.
 
 ## Cloud fase lanjutan
 
