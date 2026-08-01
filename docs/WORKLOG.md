@@ -717,3 +717,18 @@ Status: Diimplementasikan dan diverifikasi pada dua emulator MuMu serta tiga fla
 - Connected `MainActivitySmokeTest`: Retail, Wholesale, dan Culinary lulus pada `emulator-5554` HP portrait serta `emulator-5556` tablet landscape.
 - Screenshot valid diambil memakai `cmd /c adb exec-out screencap -p` dan diaudit vision untuk katalog, Owner, laporan chart, serta navigasi.
 - Screenshot QA disimpan di `artifacts/ui-qa/` dan dikecualikan dari Git.
+
+---
+
+## 2026-08-01 - Brand CatatToko pada layar awal
+
+Status: Diimplementasikan; menunggu verifikasi build dan visual dua device.
+
+### Perubahan
+
+- Mengganti ikon Material `Storefront` pada layar awal dengan asset launcher HD dari flavor aktif.
+- Menambahkan teks brand `CatatToko` tepat di bawah logo.
+- Memastikan asset tetap flavor-aware: Retail jade, Grosir biru, dan Kuliner orange.
+- Menambahkan assertion AndroidTest untuk logo dan teks brand.
+- APK tetap dipasang setelah patch untuk visual QA dan tidak di-uninstall kecuali diganti patch baru.
+- Packaging final: `CatatToko-Retail.apk` (`E2F05D2C4E020CCCEC1DD6759B304F2C4C1010A1B60EDCCD09A1A4CC7EA7F36A`), `CatatToko-Grosir.apk` (`A41F3A37823389409D5C2F0B40F34C8E89D6BCC22A53272046A2CFCAD4CBBE32`), dan `CatatToko-Kuliner.apk` (`7641E6B3AB481B63BC7D28851A586A721056EA1D433EB205AE869993F6710A59`).

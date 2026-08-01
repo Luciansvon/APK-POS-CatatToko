@@ -39,6 +39,8 @@ class MainActivitySmokeTest {
 
     @Test
     fun catalog_and_calculator_are_accessible() {
+        composeRule.onNodeWithTag("catattoko-brand").assertExists()
+        composeRule.onNodeWithText("CatatToko").assertIsDisplayed()
         composeRule.onNodeWithTag("start-transaction").performScrollTo().performClick()
         composeRule.waitUntil(timeoutMillis = 5_000) {
             composeRule.onAllNodesWithText("Pilih Produk")

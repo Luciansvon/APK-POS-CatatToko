@@ -268,6 +268,37 @@ Test dibuat adaptif: membuka sticky summary bila tersedia, atau langsung memakai
 
 - `app/src/androidTest/java/com/bimacore/usahakecil/MainActivitySmokeTest.kt`
 
+## ERR-035 - Layar awal hanya memakai ikon Material tanpa identitas CatatToko
+
+Tanggal: 2026-08-01
+
+Varian dan versi: Semua flavor, `0.4.1`
+
+### Kondisi/gejala
+
+Layar awal kasir menampilkan ikon `Storefront` generik tanpa logo brand dan teks `CatatToko`.
+
+### Root cause
+
+`CashierLandingScreen` merender ikon Material langsung, sehingga asset launcher HD dan identitas brand tidak pernah dipakai pada layar awal.
+
+### Solusi
+
+Layar awal memakai `ic_launcher_foreground_v2` dari flavor aktif melalui resource merge Android, lalu menampilkan teks `CatatToko` di bawahnya. Dengan begitu Retail, Wholesale, dan Culinary tetap memakai logo serta warna flavor masing-masing tanpa saling tertukar.
+
+### Bukti verifikasi aktual
+
+- AndroidTest memeriksa test tag logo dan teks `CatatToko`.
+- Build setiap flavor memastikan resource `ic_launcher_foreground_v2` ter-resolve ke asset flavor yang tepat.
+- Visual QA wajib mengambil screenshot layar awal pada HP dan tablet serta mengaudit logo, teks, clipping, dan warna.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/ui/CashierLandingScreen.kt`
+- `app/src/main/res/values/strings.xml`
+- `app/src/androidTest/java/com/bimacore/usahakecil/MainActivitySmokeTest.kt`
+- `app/src/*/res/drawable-nodpi/ic_launcher_foreground_v2.png`
+
 ## ERR-005 - Migration test crash karena versi serialization tidak sejajar
 
 Tanggal: 2026-07-30

@@ -10,6 +10,7 @@ Baca dokumen ini sebelum menjalankan connected test. Flow ini sudah dipakai dan 
 - Connected test hanya boleh dijalankan setelah user mengonfirmasi device/emulator.
 - Jalankan satu flavor per perintah sebagai default. Ini menghindari masalah MuMu `RecentTasks` (`ERR-010`). Gunakan `--continue` bila memang perlu melanjutkan flavor berikutnya setelah flavor pertama gagal.
 - Jangan menganggap screenshot setelah connected test sebagai screenshot aplikasi; runner meng-uninstall APK saat cleanup.
+- Setelah patch selesai, APK yang sudah dipasang untuk visual QA harus dibiarkan tetap terpasang. Jangan uninstall APK dari emulator kecuali sedang menggantinya dengan patch baru.
 
 ## 1. Cek ADB dan profil device
 
@@ -94,7 +95,7 @@ Jalankan satu flavor per perintah. Argumen wajib diapit tanda kutip di PowerShel
 .\gradlew.bat connectedCulinaryDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=com.bimacore.usahakecil.MainActivitySmokeTest#owner_mode_covers_all_relevant_screens_and_locks_again' --console=plain
 ```
 
-PIN yang dipakai test adalah fixture instrumentation di `MainActivitySmokeTest.kt`; jangan menjadikannya credential fallback production.
+PIN yang dipakai test adalah fixture instrumentation di `MainActivitySmokeTest.kt`; `2468` hanya dibuat oleh test saat database emulator masih kosong dan jangan menjadikannya credential fallback production. APK baru tidak memiliki PIN Owner bawaan: user pertama membuat PIN sendiri melalui tombol Owner.
 
 Bukti terakhir: perintah Owner di atas lulus `6/6` run pada 2026-08-01 (Retail, Wholesale, Culinary; `emulator-5554` dan `emulator-5556`).
 
