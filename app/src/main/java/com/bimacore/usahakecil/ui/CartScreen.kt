@@ -65,7 +65,6 @@ fun CartScreen(
         topBar = {
             CashierFlowHeader(
                 title = "Keranjang",
-                activeStep = 2,
                 ownerUnlocked = ownerUnlocked,
                 onOwnerAccess = onOwnerAccess,
                 onBack = if (compact) onBack else null,

@@ -31,6 +31,7 @@ import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -57,6 +58,12 @@ import com.bimacore.usahakecil.domain.OrderStatus
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+@Composable
+private fun ownerTopAppBarColors() = TopAppBarDefaults.topAppBarColors(
+    containerColor = MaterialTheme.colorScheme.primary,
+    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -93,7 +100,12 @@ fun OperationsScreen(
     var selectedJobId by remember { mutableStateOf<Long?>(null) }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text(title, fontWeight = FontWeight.Bold) }) },
+        topBar = {
+            TopAppBar(
+                title = { Text(title, fontWeight = FontWeight.Bold) },
+                colors = ownerTopAppBarColors(),
+            )
+        },
     ) { padding ->
         Column(
             Modifier
@@ -459,7 +471,12 @@ fun FinanceScreen(
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text(title, fontWeight = FontWeight.Bold) }) },
+        topBar = {
+            TopAppBar(
+                title = { Text(title, fontWeight = FontWeight.Bold) },
+                colors = ownerTopAppBarColors(),
+            )
+        },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             TabRow(selectedTabIndex = tab) {
@@ -628,7 +645,12 @@ fun ReportsScreen(viewModel: OperationsViewModel) {
     var pin by remember { mutableStateOf("") }
     var showChangePin by remember { mutableStateOf(false) }
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Laporan", fontWeight = FontWeight.Bold) }) },
+        topBar = {
+            TopAppBar(
+                title = { Text("Laporan", fontWeight = FontWeight.Bold) },
+                colors = ownerTopAppBarColors(),
+            )
+        },
     ) { padding ->
         Column(
             Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(20.dp),
@@ -674,7 +696,9 @@ fun ReportsScreen(viewModel: OperationsViewModel) {
                     )
                 }
                 SectionTitle("Penerimaan per metode")
-                requireNotNull(summary).payments.forEach {
+                val reportPayments = requireNotNull(summary).payments
+                PaymentMethodBarChart(reportPayments)
+                reportPayments.forEach {
                     InfoCard(it.paymentMethod, formatRupiah(it.total))
                 }
                 SalesForecastSection(
@@ -741,7 +765,12 @@ fun MoreScreen(
     }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Lainnya", fontWeight = FontWeight.Bold) }) },
+        topBar = {
+            TopAppBar(
+                title = { Text("Lainnya", fontWeight = FontWeight.Bold) },
+                colors = ownerTopAppBarColors(),
+            )
+        },
     ) { padding ->
         Column(
             Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(20.dp),

@@ -56,13 +56,11 @@ Never use serif fonts, Inter, decorative display fonts, or thin text for financi
 - Height approximately `72–80dp`.
 - No gradient, glass effect, or decorative texture.
 
-### Step indicator
+### Cashier flow context
 
-- Four clear stages: `Pilih Produk`, `Keranjang`, `Pembayaran`, `Selesai`.
-- Active stage uses a Jade circle and Jade label.
-- Completed stage uses a check mark.
-- Future stages use Muted Graphite outlines.
-- Keep the line and labels readable at `360dp`; do not wrap or truncate labels.
+- The current screen title and back action identify the active cashier flow.
+- Do not render a four-stage step indicator; it consumes valuable vertical space on HP.
+- Keep the header compact so search, categories, and products remain visible.
 
 ### Buttons
 
@@ -73,15 +71,12 @@ Never use serif fonts, Inter, decorative display fonts, or thin text for financi
 - Active feedback: subtle `0.98` scale or one-pixel downward movement for `120ms`.
 - No outer glow, pill buttons, or excessive shadows.
 
-### Product rows
+### Product grid
 
-- Dense vertical list, not a grid.
-- Product image approximately `64–76dp`.
-- Product name, short description, and price aligned consistently.
-- Add button and quantity stepper stay on the right.
-- Selected row uses Jade Mist.
-- Low stock uses Amber label plus warning icon.
-- Out of stock reduces emphasis, shows `Habis`, and disables add.
+- Use a compact adaptive grid: two columns on a phone and up to three on wider tablet/content areas.
+- Product photos use a rounded-square frame with `1:1` ratio; fallback category icons keep the active flavor theme.
+- Product name, price, stock, and cart badge remain readable inside each card.
+- Selected products use Jade Mist; low stock uses Amber; out of stock reduces emphasis and shows `Habis`.
 
 ### Quantity stepper
 

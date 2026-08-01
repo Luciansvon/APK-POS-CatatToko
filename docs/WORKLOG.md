@@ -694,5 +694,26 @@ Status: Connected test Owner lulus dan panduan MuMu diperbarui.
 - `owner_mode_covers_all_relevant_screens_and_locks_again` lulus `6/6`: Retail, Wholesale, Culinary pada `emulator-5554` ASUS portrait dan `emulator-5556` ALT landscape.
 - Ditemukan dan diperbaiki layout kontrol Laporan Owner yang bertumpuk pada layar kecil/tablet landscape.
 - Dicatat workaround screenshot dan tombol keluar Owner saat snackbar backup aktif di `docs/MUMU_TESTING_GUIDE.md`.
-- Screenshot portrait dan tablet diaudit vision: tiga kontrol laporan lulus tanpa wrap, overlap, atau clipping; temuan sisa status bar dan label `Operasional` dicatat sebagai revisi visual terpisah.
+- Screenshot portrait dan tablet diaudit vision: tiga kontrol laporan lulus tanpa wrap, overlap, atau clipping; temuan sisa kontras status bar dicatat sebagai revisi visual terpisah.
 - `AGENTS.md`, README, dan `docs/ERROR_SOLUTIONS.md` mengacu ke panduan MuMu sebagai flow standar agent.
+
+---
+
+## 2026-08-01 - Adaptive catalog, laporan chart, dan navigasi compact
+
+Status: Diimplementasikan dan diverifikasi pada dua emulator MuMu serta tiga flavor.
+
+### Perubahan
+
+- Mengubah katalog menjadi grid adaptif: dua kolom pada HP dan tiga kolom pada tablet landscape, dengan kartu produk berbentuk persegi rounded.
+- Menghapus indikator empat langkah yang memenuhi layar kasir dan mempertahankan header Mode Kasir/Owner dengan ikon storefront internal.
+- Menambahkan chart batang native Compose untuk penerimaan per metode pembayaran beserta empty state saat belum ada transaksi.
+- Menjaga sesi Owner tetap terbuka sampai aksi kunci manual dan menerapkan tema aktif pada area Owner serta navigasi bawah.
+- Menyesuaikan label `Operasional` agar satu baris pada layar compact tanpa mengubah ukuran label lain.
+
+### Verifikasi aktual
+
+- Unit test, lint, build APK, dan compile AndroidTest tiga flavor: lulus.
+- Connected `MainActivitySmokeTest`: Retail, Wholesale, dan Culinary lulus pada `emulator-5554` HP portrait serta `emulator-5556` tablet landscape.
+- Screenshot valid diambil memakai `cmd /c adb exec-out screencap -p` dan diaudit vision untuk katalog, Owner, laporan chart, serta navigasi.
+- Screenshot QA disimpan di `artifacts/ui-qa/` dan dikecualikan dari Git.

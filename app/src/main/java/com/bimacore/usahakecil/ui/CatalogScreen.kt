@@ -3,9 +3,11 @@ package com.bimacore.usahakecil.ui
 import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -16,9 +18,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items as gridItems
+import androidx.compose.foundation.lazy.items as lazyItems
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -110,7 +115,6 @@ fun CatalogScreen(
         topBar = {
             CashierFlowHeader(
                 title = "Pilih Produk",
-                activeStep = 1,
                 ownerUnlocked = ownerUnlocked,
                 onOwnerAccess = onOwnerAccess,
                 onCalculatorClick = onCalculatorClick,
@@ -155,7 +159,7 @@ fun CatalogScreen(
                 contentPadding = PaddingValues(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                items(snapshot.categories, key = { it.id }) { category ->
+                lazyItems(snapshot.categories, key = { it.id }) { category ->
                     FilterChip(
                         selected = selectedCategoryId == category.id,
                         onClick = { onCategorySelected(category.id) },
@@ -179,35 +183,42 @@ fun CatalogScreen(
                         .weight(1f),
                 )
             } else {
-                LazyColumn(
+                BoxWithConstraints(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f),
-                    contentPadding = PaddingValues(
-                        start = 16.dp,
-                        end = 16.dp,
-                        top = 6.dp,
-                        bottom = if (compact && snapshot.cartItems.isNotEmpty()) 16.dp else 24.dp,
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    items(filteredProducts, key = { it.id }) { product ->
-                        val variantStock = snapshot.variants
-                            .filter { it.productId == product.id }
-                            .sumOf { it.stock }
-                        val availableStock = when {
-                            product.hasVariants -> variantStock
-                            product.stockTrackingEnabled -> product.stock
-                            else -> null
+                    val columns = if (maxWidth >= 600.dp) 3 else 2
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(columns),
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            start = 16.dp,
+                            end = 16.dp,
+                            top = 6.dp,
+                            bottom = if (compact && snapshot.cartItems.isNotEmpty()) 16.dp else 24.dp,
+                        ),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        gridItems(filteredProducts, key = { it.id }) { product ->
+                            val variantStock = snapshot.variants
+                                .filter { it.productId == product.id }
+                                .sumOf { it.stock }
+                            val availableStock = when {
+                                product.hasVariants -> variantStock
+                                product.stockTrackingEnabled -> product.stock
+                                else -> null
+                            }
+                            ProductCard(
+                                product = product,
+                                cartItems = snapshot.cartItems.filter { it.productId == product.id },
+                                quantityInCart = quantities[product.id] ?: 0,
+                                availableStock = availableStock,
+                                onClick = { onProductClick(product) },
+                                onQuantityChange = onQuantityChange,
+                            )
                         }
-                        ProductCard(
-                            product = product,
-                            cartItems = snapshot.cartItems.filter { it.productId == product.id },
-                            quantityInCart = quantities[product.id] ?: 0,
-                            availableStock = availableStock,
-                            onClick = { onProductClick(product) },
-                            onQuantityChange = onQuantityChange,
-                        )
                     }
                 }
             }
@@ -233,7 +244,8 @@ private fun ProductCard(
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         modifier = Modifier
             .fillMaxWidth()
             .testTag("product-${product.id}")
@@ -250,6 +262,10 @@ private fun ProductCard(
             ProductVisual(
                 imageUri = product.imageUri,
                 icon = categoryIconForProduct(product.categoryId),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+                    .clip(RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp)),
             )
             if (quantityInCart > 0) {
                 Badge(
@@ -267,7 +283,7 @@ private fun ProductCard(
             }
         }
         Column(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(10.dp),
             verticalArrangement = Arrangement.spacedBy(5.dp),
         ) {
             Text(

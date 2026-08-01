@@ -18,6 +18,9 @@ import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.printToString
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.bimacore.usahakecil.data.ShiftEntity
+import kotlinx.coroutines.runBlocking
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.Assume.assumeTrue
@@ -28,6 +31,11 @@ import org.junit.runner.RunWith
 class MainActivitySmokeTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<MainActivity>()
+
+    @Before
+    fun lockOwnerSessionForTestIsolation() {
+        (composeRule.activity.application as PosApplication).reportSession.lock()
+    }
 
     @Test
     fun catalog_and_calculator_are_accessible() {
@@ -45,6 +53,7 @@ class MainActivitySmokeTest {
     @Test
     fun cash_sale_shows_change_and_starts_clean_transaction() {
         assumeTrue(BuildConfig.BUSINESS_TYPE == "RETAIL")
+        ensureOpenShift()
         composeRule.onNodeWithTag("start-transaction").performScrollTo().performClick()
         composeRule.waitUntil(timeoutMillis = 5_000) {
             composeRule.onAllNodesWithText("Keripik Singkong")
@@ -52,13 +61,17 @@ class MainActivitySmokeTest {
         }
         composeRule.onNodeWithTag("product-101").performClick()
         composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithTag("continue-payment").fetchSemanticsNodes().isNotEmpty() ||
+                composeRule.onAllNodesWithTag("cart-summary").fetchSemanticsNodes().isNotEmpty()
+        }
+        if (composeRule.onAllNodesWithTag("cart-summary").fetchSemanticsNodes().isNotEmpty()) {
+            composeRule.onNodeWithTag("cart-summary").performClick()
+        }
+        composeRule.waitUntil(timeoutMillis = 5_000) {
             runCatching {
                 composeRule.onNodeWithTag("continue-payment").assertIsEnabled()
                 true
             }.getOrDefault(false)
-        }
-        if (composeRule.onAllNodesWithTag("cart-summary").fetchSemanticsNodes().isNotEmpty()) {
-            composeRule.onNodeWithTag("cart-summary").performClick()
         }
         composeRule.onNodeWithTag("continue-payment").performClick()
         composeRule.waitUntil(timeoutMillis = 5_000) {
@@ -132,6 +145,7 @@ class MainActivitySmokeTest {
         unlockOwner()
         composeRule.onNodeWithText("Laporan").performClick()
         composeRule.onNodeWithText("Omzet hari ini").assertIsDisplayed()
+        composeRule.onNodeWithTag("payment-method-chart").assertExists()
 
         composeRule.onNodeWithText("Lainnya").performClick()
         composeRule.onNodeWithText("Backup & restore").assertIsDisplayed()
@@ -199,7 +213,7 @@ class MainActivitySmokeTest {
         composeRule.onNodeWithText("Offline-first", substring = true).performScrollTo()
         composeRule.waitForIdle()
         composeRule.onNodeWithTag("owner-exit").assertIsDisplayed().performClick()
-        waitForText("Buka Mode Owner")
+        waitForText("Mode Kasir")
     }
 
     private fun unlockOwner() {
@@ -213,6 +227,22 @@ class MainActivitySmokeTest {
         composeRule.waitUntil(timeoutMillis = 5_000) {
             composeRule.onAllNodesWithText("Laporan")
                 .fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    private fun ensureOpenShift() {
+        val application = composeRule.activity.application as PosApplication
+        runBlocking {
+            if (application.database.shiftDao().getOpenShift() == null) {
+                application.database.shiftDao().insertShift(
+                    ShiftEntity(
+                        cashierName = "Kasir QA",
+                        openedAt = System.currentTimeMillis(),
+                        openingCash = 0,
+                        openSlot = 1,
+                    ),
+                )
+            }
         }
     }
 

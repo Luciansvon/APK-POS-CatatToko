@@ -75,6 +75,7 @@ Status: Draft, siap dites sebagai APK debug
 - Menambahkan Buka Shift, Tutup Shift, perhitungan kas seharusnya, selisih kas, dan riwayat shift pada layar Keuangan Owner.
 - Transaksi kasir sekarang ditolak jika belum ada shift aktif; pembayaran tunai dikaitkan ke shift secara atomik.
 - Menambahkan regresi AndroidTest untuk migrasi, kuantitas dasar Grosir, dan penguncian laporan tanpa PIN.
+- Menambahkan katalog grid adaptif HP/tablet, chart batang penerimaan, sesi Owner tanpa auto-lock, serta label navigasi compact satu baris.
 - Menaikkan `versionCode` ke `9` dan `versionName` ke `0.4.0`.
 
 ### Kekurangan yang masih ada
@@ -83,8 +84,8 @@ Status: Draft, siap dites sebagai APK debug
 
 ### Masalah yang diketahui
 
-- Connected smoke test, visual QA, dan uji offline perangkat belum dijalankan karena target emulator/perangkat belum dikonfirmasi.
-- AndroidTest baru dikompilasi; belum dieksekusi pada perangkat.
+- Kontras ikon/jam status bar masih rendah pada latar terang di sebagian emulator.
+- Uji offline manual belum menjadi bagian dari smoke run ini; fungsi inti tetap diverifikasi lewat unit test dan connected flow.
 
 ### Verifikasi
 
@@ -92,7 +93,8 @@ Status: Draft, siap dites sebagai APK debug
 - Lint tiga flavor: `lintRetailDebug lintWholesaleDebug lintCulinaryDebug` - BUILD SUCCESSFUL.
 - Build tiga flavor: `assembleDebug` - BUILD SUCCESSFUL.
 - Compile AndroidTest tiga flavor: `assembleRetailDebugAndroidTest assembleWholesaleDebugAndroidTest assembleCulinaryDebugAndroidTest` - BUILD SUCCESSFUL.
-- Smoke test dan perangkat: Belum dijalankan.
+- Connected smoke test: Retail, Wholesale, dan Culinary lulus pada `emulator-5554` HP portrait serta `emulator-5556` tablet landscape.
+- Visual QA: screenshot katalog, Owner, laporan chart, dan navigasi diaudit vision pada HP dan tablet.
 
 ### APK yang ditimpa
 

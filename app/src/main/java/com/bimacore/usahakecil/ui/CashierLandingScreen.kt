@@ -21,8 +21,8 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Calculate
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.LockOpen
-import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.Button
@@ -205,14 +205,14 @@ fun CashierHeader(
             contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 4.dp),
         ) {
             Icon(
-                imageVector = if (ownerUnlocked) Icons.Outlined.LockOpen else Icons.Outlined.Shield,
+                imageVector = if (ownerUnlocked) Icons.Outlined.LockOpen else Icons.Outlined.Lock,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onPrimary,
                 modifier = Modifier.size(18.dp),
             )
             Spacer(Modifier.size(4.dp))
             Text(
-                text = if (ownerUnlocked) "Mode Owner" else "Buka Mode Owner",
+                text = if (ownerUnlocked) "Mode Owner" else "Mode Kasir",
                 color = MaterialTheme.colorScheme.onPrimary,
                 style = MaterialTheme.typography.labelLarge,
                 maxLines = 1,
@@ -274,7 +274,6 @@ private fun CashierMetric(
 @Composable
 fun CashierFlowHeader(
     title: String,
-    activeStep: Int,
     ownerUnlocked: Boolean,
     onOwnerAccess: () -> Unit,
     onBack: (() -> Unit)? = null,
@@ -297,62 +296,6 @@ fun CashierFlowHeader(
                     contentDescription = "Kembali",
                 )
             }
-        }
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.Top,
-        ) {
-            listOf("Pilih Produk", "Keranjang", "Pembayaran", "Selesai")
-                .forEachIndexed { index, label ->
-                    val step = index + 1
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(28.dp)
-                                .background(
-                                    if (step == activeStep) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
-                                        MaterialTheme.colorScheme.surface
-                                    },
-                                    CircleShape,
-                                ),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                step.toString(),
-                                color = if (step == activeStep) {
-                                    MaterialTheme.colorScheme.onPrimary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                },
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                            )
-                        }
-                        Spacer(Modifier.height(2.dp))
-                        Text(
-                            label,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (step == activeStep) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                            fontWeight = if (step == activeStep) {
-                                FontWeight.Bold
-                            } else {
-                                FontWeight.Normal
-                            },
-                            textAlign = TextAlign.Center,
-                        )
-                    }
-                }
         }
     }
 }

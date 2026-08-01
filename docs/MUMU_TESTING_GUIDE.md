@@ -155,7 +155,7 @@ Ambil screenshot minimal untuk setiap kombinasi flavor-device. Simpan bukti di f
 - Jangan mengulang connected test dari sub-agent; test sudah dijalankan Gradle pada dua serial.
 - Catat perbedaan portrait `1080x1920` dan tablet landscape `1600x900`; jangan menganggap hasil HP mewakili tablet.
 
-Bukti audit terakhir (2026-08-01): kontrol `Muat ulang`, `Ganti PIN`, dan `Kunci Mode Owner` lulus visual di kedua device; tidak wrap, overlap, atau clipping. Temuan terpisah yang tetap harus dicatat bila muncul: kontras ikon/jam status bar terlalu rendah pada latar terang, serta label `Operasional` dapat wrap dua baris di ASUS portrait.
+Bukti audit terakhir (2026-08-01): kontrol `Muat ulang`, `Ganti PIN`, dan `Kunci Mode Owner` lulus visual di kedua device; tidak wrap, overlap, atau clipping. Label `Operasional` sudah diperbaiki agar tetap satu baris di ASUS portrait. Temuan visual yang masih tercatat: kontras ikon/jam status bar terlalu rendah pada latar terang.
 
 ## 8. Troubleshooting dan bukti
 

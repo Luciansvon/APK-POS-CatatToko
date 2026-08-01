@@ -939,6 +939,34 @@ Menyelaraskan `DATABASE_SCHEMA_VERSION` menjadi `4`, serta menambahkan migrasi b
 - `app/src/main/java/com/bimacore/usahakecil/ui/CashierLandingScreen.kt`
 - `app/src/androidTest/java/com/bimacore/usahakecil/MainActivitySmokeTest.kt`
 
+## ERR-034 - Label Operasional terpotong dua baris pada navigasi HP
+
+Tanggal: 2026-08-01
+
+Varian dan versi: Semua flavor, `0.4.0`
+
+### Kondisi/gejala
+
+Pada layar HP, label navigasi `Operasional` membungkus menjadi `Operasion` dan `al` karena lima item navigasi berbagi lebar layar yang sempit.
+
+### Root cause
+
+Label navigasi memakai ukuran teks bawaan tanpa aturan satu baris atau penyesuaian untuk lebar layar compact.
+
+### Solusi
+
+Pada layar di bawah `600dp`, label `Operasional` memakai ukuran compact `10sp`, `maxLines = 1`, dan `softWrap = false`. Tablet tetap memakai ukuran label normal.
+
+### Bukti verifikasi aktual
+
+- `assembleDebug` lulus untuk Retail, Wholesale, dan Culinary.
+- Screenshot + audit vision pada HP menunjukkan `Operasional` tampil utuh dalam satu baris.
+- Screenshot + audit vision pada tablet menunjukkan label tetap utuh tanpa perubahan ukuran yang tidak perlu.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/ui/HomeScreen.kt`
+
 ## ERR-024 - Update stok pembelian menimpa nilai saat beberapa baris menunjuk produk/varian sama (CON-001)
 
 Tanggal: 2026-08-01
@@ -1163,10 +1191,72 @@ Mengubah kontrol Laporan Owner menjadi `Column` dengan tombol lebar penuh dan me
 
 - Owner connected test lulus `6/6` pada Retail, Wholesale, dan Culinary di `emulator-5554` portrait serta `emulator-5556` landscape.
 - Screenshot manual portrait dan tablet yang diaudit vision menunjukkan tiga kontrol laporan utuh, satu baris per tombol, tanpa overlap atau clipping.
-- Temuan terpisah dari audit: kontras ikon/jam status bar rendah pada latar terang; label `Operasional` wrap dua baris di ASUS portrait. Keduanya bukan bagian dari fix ini.
+- Temuan terpisah dari audit: kontras ikon/jam status bar rendah pada latar terang. Label `Operasional` kemudian diperbaiki pada ERR-034.
 
 ### File terdampak
 
 - `app/src/main/java/com/bimacore/usahakecil/ui/ManagementScreens.kt`
 - `app/src/androidTest/java/com/bimacore/usahakecil/MainActivitySmokeTest.kt`
 - `docs/MUMU_TESTING_GUIDE.md`
+
+## ERR-032 - Grafik analisis laporan belum dirender pada APK
+
+Tanggal: 2026-08-01
+
+Varian dan versi: Semua flavor, `0.4.0`
+
+### Kondisi/gejala
+
+Layar Laporan Owner hanya menampilkan angka ringkasan dan daftar metode pembayaran. Grafik analisis tidak terlihat di APK.
+
+### Root cause
+
+Data agregat metode pembayaran sudah tersedia melalui `ReportSummary.payments`, tetapi `ReportsScreen` belum memanggil komponen chart. Implementasi forecast memiliki bar chart terpisah, namun tidak mewakili ringkasan laporan Owner.
+
+### Solusi
+
+Menambahkan vertical bar chart native Compose untuk membandingkan nominal penerimaan per metode pembayaran. Chart memakai data laporan lokal yang sudah ada, mengikuti warna flavor aktif, dan tidak menambah dependency chart atau library Python.
+
+### Bukti verifikasi aktual
+
+- Compile Kotlin semua flavor lulus.
+- Android Lint semua flavor lulus.
+- Connected smoke test `MainActivitySmokeTest` lulus pada `emulator-5554` (HP portrait) dan `emulator-5556` (tablet landscape) untuk Retail, Wholesale, dan Culinary.
+- Screenshot + audit vision pada HP dan tablet mengonfirmasi card grafik tetap terlihat saat data kosong dan menampilkan pesan `Belum ada penerimaan pada periode ini.`; ketika data tersedia, komponen memakai vertical bar chart native Compose.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/ui/ManagementScreens.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/ReportCharts.kt`
+
+## ERR-033 - Sesi Owner terkunci ulang saat aplikasi kehilangan fokus
+
+Tanggal: 2026-08-01
+
+Varian dan versi: Semua flavor, `0.4.0`
+
+### Kondisi/gejala
+
+Owner harus memasukkan PIN berulang kali setelah berpindah layar atau aplikasi kehilangan fokus. Saat sesi terkunci, header juga menampilkan ajakan membuka Owner alih-alih status `Mode Kasir` dengan gembok.
+
+### Root cause
+
+`MainActivity.onStop()` selalu memanggil `ReportSession.lockUnlessExternalOwnerFlow()`, sehingga lifecycle Android diperlakukan sebagai timeout Owner.
+
+### Solusi
+
+Menghapus auto-lock dari lifecycle Activity. Sesi Owner sekarang tetap terbuka selama proses aplikasi berjalan dan hanya berakhir melalui aksi manual `Kunci Mode Owner` atau `Keluar Mode Owner`. Header kasir memakai ikon gembok dan label `Mode Kasir` saat terkunci, serta ikon buka dan `Mode Owner` saat terbuka.
+
+### Bukti verifikasi aktual
+
+- Unit test sesi Owner diperbarui untuk memastikan sesi tetap terbuka sampai `lock()` eksplisit.
+- Connected smoke test diperbarui untuk memverifikasi status kembali ke `Mode Kasir` setelah Owner dikunci manual.
+- Build seluruh APK dan connected smoke test lulus pada `emulator-5554` (HP portrait) serta `emulator-5556` (tablet landscape) untuk semua flavor.
+- Screenshot + audit vision mengonfirmasi status `Mode Owner` tetap terbuka saat berpindah layar dan `Mode Kasir` menampilkan ikon gembok saat terkunci.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/MainActivity.kt`
+- `app/src/main/java/com/bimacore/usahakecil/security/ReportSession.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/CashierLandingScreen.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/MainActivitySmokeTest.kt`

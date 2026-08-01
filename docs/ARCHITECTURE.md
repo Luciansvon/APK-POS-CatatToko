@@ -116,7 +116,7 @@ Aturan yang sudah dikunci:
 - verifikasi harus bekerja sepenuhnya secara offline;
 - satu PIN Owner membuka seluruh area pengelolaan pada MVP;
 - PIN tidak boleh disimpan dalam bentuk plaintext;
-- sesi Owner dikunci kembali saat aplikasi masuk background atau Owner menekan `Keluar Mode Owner`;
+- sesi Owner tetap terbuka selama proses aplikasi berjalan dan hanya dikunci saat Owner menekan `Keluar Mode Owner` atau `Kunci Mode Owner`;
 - repository laporan tetap menolak pembacaan saat sesi Owner terkunci.
 
 PIN digunakan sebagai mekanisme utama MVP karena sederhana dan tidak bergantung pada sensor HP. Biometrik dapat menjadi jalan pintas tambahan nanti, tetapi tidak menggantikan PIN.
@@ -400,7 +400,8 @@ Usaha Kecil Suite dan MAUCAFE adalah project berbeda.
 - Penjualan memperbarui snapshot transaksi, stok atau bahan, kas, dan piutang secara atomik.
 - Laporan memeriksa sesi PIN pada repository, bukan hanya pada tampilan.
 - PIN memakai PBKDF2 dengan salt dan tidak disimpan sebagai teks asli.
-- Sesi laporan dikunci ketika aplikasi masuk background.
+- Sesi laporan tidak memakai timeout atau auto-lock saat aplikasi kehilangan fokus; Owner menguncinya secara manual.
+- Setelah proses aplikasi dihentikan dan dibuat ulang, aplikasi tetap mulai dalam Mode Kasir/Pekerja dan PIN Owner perlu diverifikasi lagi.
 - Backup melakukan WAL checkpoint, menyimpan manifest dan hash SHA-256, lalu restore membuat backup pengaman sebelum mengganti database.
 - Grosir mengubah satuan jual ke satuan dasar sebelum mengurangi stok.
 - Kuliner menyimpan topping/catatan sebagai snapshot dan mengurangi bahan resep ketika checkout.

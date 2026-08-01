@@ -89,7 +89,7 @@ Disarankan menambah:
 - `Mulai Transaksi` membuka katalog.
 - `Lihat Stok` membuka katalog dengan fokus/filter stok, bukan area operasional Owner.
 - Setelah `Transaksi Baru`, kembali ke landing kasir sesuai desain.
-- Gunakan shared component untuk header Jade, progress empat tahap, product row, quantity stepper, status card, dan sticky bottom action.
+- Gunakan shared component untuk header Jade, compact product grid, quantity stepper, status card, dan sticky bottom action.
 - Retail menjadi acuan struktur. Wholesale dan Culinary mempertahankan warna serta kemampuan flavor masing-masing.
 - Jangan menghapus dukungan varian, multi-satuan Grosir, topping Kuliner, QRIS, Transfer, Piutang, atau kalkulator yang sudah ada.
 
