@@ -580,7 +580,7 @@ Status: Diimplementasikan pada domain shared core (`antigravity/forecasting-foun
 - `testRetailDebugUnitTest`, `testWholesaleDebugUnitTest`, `testCulinaryDebugUnitTest`: LULUS 100% (8/8 skenario SalesForecastEngineTest + seluruh unit test repo lulus).
 - `lintRetailDebug`, `lintWholesaleDebug`, `lintCulinaryDebug`: BUILD SUCCESSFUL.
 - `assembleDebug`: BUILD SUCCESSFUL.
-- connected test dan visual QA belum diperlukan sampai integrasi UI dibuat.
+- **Pengujian MuMuPlayer**: Ketiga varian APK (`Retail`, `Wholesale`, `Culinary`) dipasang, diluncurkan, dan diambil screenshot secara sukses di emulator (`127.0.0.1:7555`), aplikasi berjalan mulus tanpa crash.
 
 ### File
 
