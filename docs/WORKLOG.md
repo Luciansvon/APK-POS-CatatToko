@@ -560,3 +560,32 @@ Menerapkan perbaikan bug P0 & P1 dari dokumen audit konsolidasi `docs/AUDIT_2026
   - `Kasir-Kuliner-PKL.apk` | SHA256 `79F2DBC48528FB04911FED93D36D289FCC9FF03A2B6788AB1ECA19BE024BDFEF`
 - **Pengujian MuMuPlayer**: Ketiga varian APK dipasang, diluncurkan, dan diambil screenshot secara sukses di emulator (`127.0.0.1:7555`).
 - **Dokumentasi**: Memperbarui `docs/AUDIT_2026-07-31.md`, `docs/RELEASE_NOTES.md` (v0.3.2), `docs/ERROR_SOLUTIONS.md` (ERR-024 s/d ERR-029), `docs/WORKLOG.md`, dan `walkthrough.md`.
+
+---
+
+## 2026-08-01 - Fondasi forecasting penjualan tervalidasi
+
+Status: Diimplementasikan pada domain shared core (`antigravity/forecasting-foundation-0.3.3`); integrasi Room dan UI belum dilakukan.
+
+### Hasil
+
+- menambahkan moving average, simple exponential smoothing, Holt linear, Holt-Winters additive, dan Croston-SBA;
+- memilih kandidat melalui rolling-origin one-step backtesting;
+- mencatat MAE, RMSE, sMAPE, WAPE, dan bias;
+- menambahkan validasi histori, normalisasi tanggal kosong, serta batas komputasi;
+- menambahkan unit test untuk pola stabil, tren, musiman, intermittent, data nol, gap, duplikat, input negatif, dan histori kurang.
+
+### Verifikasi aktual
+
+- `testRetailDebugUnitTest`, `testWholesaleDebugUnitTest`, `testCulinaryDebugUnitTest`: LULUS 100% (8/8 skenario SalesForecastEngineTest + seluruh unit test repo lulus).
+- `lintRetailDebug`, `lintWholesaleDebug`, `lintCulinaryDebug`: BUILD SUCCESSFUL.
+- `assembleDebug`: BUILD SUCCESSFUL.
+- connected test dan visual QA belum diperlukan sampai integrasi UI dibuat.
+
+### File
+
+- `app/src/main/java/com/bimacore/usahakecil/domain/forecast/SalesForecastEngine.kt`
+- `app/src/test/java/com/bimacore/usahakecil/domain/forecast/SalesForecastEngineTest.kt`
+- `docs/superpowers/specs/2026-08-01-sales-forecasting-foundation.md`
+- `docs/handoffs/ANTIGRAVITY_FORECASTING_FOUNDATION_2026-08-01.md`
+
