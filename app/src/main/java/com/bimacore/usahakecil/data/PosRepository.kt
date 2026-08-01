@@ -334,6 +334,9 @@ class PosRepository(
                 val saleId = database.withTransaction {
                     val existing = cartDao.getDraft()?.completedSaleId
                     if (existing != null) return@withTransaction existing
+                    val activeShift = requireNotNull(database.shiftDao().getOpenShift()) {
+                        "Buka shift terlebih dahulu sebelum menerima transaksi"
+                    }
 
                     val lines = cartDao.getLines()
                     require(lines.isNotEmpty()) { "Keranjang masih kosong" }
@@ -552,6 +555,7 @@ class PosRepository(
                                 "COMPLETED"
                             },
                             updatedAt = now,
+                            shiftId = activeShift.id,
                         ),
                     )
                     val saleItemIds = saleDao.insertItems(
@@ -566,6 +570,7 @@ class PosRepository(
                                 unitPrice = it.unitPrice,
                                 quantity = it.cart.quantity,
                                 subtotal = it.subtotal,
+                                baseQuantity = it.baseQuantity,
                                 unitLabel = it.unitLabel,
                                 note = it.note,
                             )
@@ -662,6 +667,7 @@ class PosRepository(
                             referenceType = "SALE",
                             referenceId = saleId,
                             createdAt = now,
+                            shiftId = activeShift.id,
                             ),
                         )
                     }

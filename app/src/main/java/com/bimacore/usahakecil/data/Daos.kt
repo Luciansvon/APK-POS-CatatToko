@@ -15,6 +15,9 @@ interface CatalogDao {
     @Query("SELECT * FROM products ORDER BY sortOrder, name")
     fun observeProducts(): Flow<List<ProductEntity>>
 
+    @Query("SELECT * FROM products WHERE isActive = 1 ORDER BY sortOrder, name")
+    suspend fun getActiveProducts(): List<ProductEntity>
+
     @Query("SELECT * FROM product_variants ORDER BY sortOrder, label")
     fun observeVariants(): Flow<List<ProductVariantEntity>>
 
@@ -119,6 +122,9 @@ interface SaleDao {
 
     @Query("SELECT * FROM sales WHERE createdAt BETWEEN :fromInclusive AND :toInclusive ORDER BY createdAt DESC")
     suspend fun getSalesBetween(fromInclusive: Long, toInclusive: Long): List<SaleEntity>
+
+    @Query("SELECT * FROM sales WHERE shiftId = :shiftId ORDER BY createdAt, id")
+    suspend fun getSalesForShift(shiftId: Long): List<SaleEntity>
 
     @Update
     suspend fun updateSale(sale: SaleEntity)

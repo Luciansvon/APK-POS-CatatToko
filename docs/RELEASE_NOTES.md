@@ -58,6 +58,88 @@ Status: Draft / Siap dites / Siap dibagikan
 - Kuliner:
 ```
 
+## Versi 0.4.0 - 2026-08-01
+
+Status: Draft, siap dites sebagai APK debug
+
+### Kenapa versi ini dibuat
+
+- Menghubungkan forecasting penjualan offline ke histori transaksi nyata dan layar Laporan Owner.
+
+### Perubahan
+
+- Menambahkan migrasi Room skema 2 ke 3 untuk menyimpan snapshot `baseQuantity` pada item transaksi.
+- Menambahkan migrasi Room skema 3 ke 4 untuk shift, `shiftId` transaksi/kas, dan unique guard satu shift aktif.
+- Forecasting membaca transaksi lokal, memakai kuantitas dasar untuk Grosir, dan berjalan di background thread.
+- Menambahkan kartu forecasting 7 hari pada Laporan Owner untuk maksimal lima produk dengan histori yang cukup.
+- Menambahkan Buka Shift, Tutup Shift, perhitungan kas seharusnya, selisih kas, dan riwayat shift pada layar Keuangan Owner.
+- Transaksi kasir sekarang ditolak jika belum ada shift aktif; pembayaran tunai dikaitkan ke shift secara atomik.
+- Menambahkan regresi AndroidTest untuk migrasi, kuantitas dasar Grosir, dan penguncian laporan tanpa PIN.
+- Menambahkan katalog grid adaptif HP/tablet, chart batang penerimaan, sesi Owner tanpa auto-lock, serta label navigasi compact satu baris.
+- Menaikkan `versionCode` ke `9` dan `versionName` ke `0.4.0`.
+
+### Kekurangan yang masih ada
+
+- Forecasting restock, retur/refund, void, HPP/laba, Excel, notifikasi, dan sinkronisasi cloud belum diimplementasikan.
+
+### Masalah yang diketahui
+
+- Kontras ikon/jam status bar masih rendah pada latar terang di sebagian emulator.
+- Uji offline manual belum menjadi bagian dari smoke run ini; fungsi inti tetap diverifikasi lewat unit test dan connected flow.
+
+### Verifikasi
+
+- Unit test tiga flavor: `testRetailDebugUnitTest testWholesaleDebugUnitTest testCulinaryDebugUnitTest` - BUILD SUCCESSFUL.
+- Lint tiga flavor: `lintRetailDebug lintWholesaleDebug lintCulinaryDebug` - BUILD SUCCESSFUL.
+- Build tiga flavor: `assembleDebug` - BUILD SUCCESSFUL.
+- Compile AndroidTest tiga flavor: `assembleRetailDebugAndroidTest assembleWholesaleDebugAndroidTest assembleCulinaryDebugAndroidTest` - BUILD SUCCESSFUL.
+- Connected smoke test: Retail, Wholesale, dan Culinary lulus pada `emulator-5554` HP portrait serta `emulator-5556` tablet landscape.
+- Visual QA: screenshot katalog, Owner, laporan chart, dan navigasi diaudit vision pada HP dan tablet.
+
+### APK yang ditimpa
+
+- Belum dipaketkan; `scripts/package-apks.ps1` belum dijalankan.
+
+## Versi 0.3.3 - 2026-08-01
+
+Status: Siap dites sebagai APK debug
+
+### Kenapa versi ini dibuat
+
+- Menyatukan fondasi forecasting offline dan perbaikan layout katalog kasir setelah branch disinkronkan dengan `origin/main`.
+
+### Perubahan
+
+- **Fondasi forecasting penjualan**: Menambahkan engine pure Kotlin pada shared core dengan moving average, simple exponential smoothing, Holt linear, Holt-Winters additive, Croston-SBA, dan rolling-origin backtesting.
+- **Perbaikan katalog kasir (ERR-030)**: Merapikan header, spacing, dan pembagian tinggi `LazyColumn` agar daftar produk tidak terpotong pada layar dengan tinggi terbatas di tiga flavor.
+- **Pembersihan workflow**: Menghapus kembali dua workflow bootstrap audit sementara yang ikut muncul saat sinkronisasi branch.
+- Menaikkan `versionCode` ke `8` dan `versionName` ke `0.3.3`.
+
+### Kekurangan yang masih ada
+
+- Forecasting masih berupa fondasi domain; belum terhubung ke Room, ViewModel, navigasi, atau UI Owner.
+- Void, retur, refund, HPP/laba, enkripsi backup, dan sinkronisasi cloud tetap di luar patch ini.
+
+### Masalah yang diketahui
+
+- Connected smoke test dan visual QA untuk APK hasil build `0.3.3` belum dijalankan pada turn ini.
+
+### Verifikasi
+
+- Unit test: `.\gradlew.bat testRetailDebugUnitTest testWholesaleDebugUnitTest testCulinaryDebugUnitTest` — BUILD SUCCESSFUL.
+- Lint: `.\gradlew.bat lintRetailDebug lintWholesaleDebug lintCulinaryDebug` — BUILD SUCCESSFUL.
+- Build: `.\gradlew.bat assembleDebug` — BUILD SUCCESSFUL.
+- Compile androidTest: `.\gradlew.bat assembleRetailDebugAndroidTest assembleWholesaleDebugAndroidTest assembleCulinaryDebugAndroidTest` — BUILD SUCCESSFUL.
+- Smoke test: belum dijalankan karena target emulator/perangkat belum dikonfirmasi.
+- HP/emulator: Belum dijalankan untuk APK `0.3.3`.
+- Kondisi offline: Belum diuji ulang untuk APK `0.3.3`.
+
+### APK yang ditimpa
+
+- Retail: `dist/debug/Kasir-Retail-UMKM.apk` | SHA256 `5055D73729E95A6E2A25EBFE83C8441F8D21E9220F0B2632FCD14C921C22A753`
+- Grosir: `dist/debug/Kasir-Grosir-Agen.apk` | SHA256 `276AA52CECD9EE91785476610C3630DE90FE8EA5A5EF30CDC4C582CA247ED8F9`
+- Kuliner: `dist/debug/Kasir-Kuliner-PKL.apk` | SHA256 `3E8B55F4B39860CD1D971C8BF7FA6526C8C29117F52D5BFCBBF7EEB58120A6B6`
+
 ## Versi 0.3.2 - 2026-08-01
 
 Status: Siap dites dan dikemas sebagai APK debug

@@ -1,8 +1,15 @@
 package com.bimacore.usahakecil.data
 
+import com.bimacore.usahakecil.domain.forecast.DailySales
+import com.bimacore.usahakecil.domain.forecast.SalesForecastEngine
+import com.bimacore.usahakecil.domain.forecast.SalesForecastResult
 import com.bimacore.usahakecil.security.PinHashRecord
 import com.bimacore.usahakecil.security.PinHasher
 import com.bimacore.usahakecil.security.ReportSession
+import java.util.Calendar
+import java.util.TimeZone
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class ReportLockedException : IllegalStateException("Laporan masih terkunci")
 
@@ -18,6 +25,19 @@ data class ReportSummary(
     val netCash: Long,
     val outstandingPayables: Long,
     val outstandingReceivables: Long,
+)
+
+data class ProductForecast(
+    val productId: Long,
+    val productName: String,
+    val unitLabel: String,
+    val result: SalesForecastResult?,
+)
+
+data class ProductForecastReport(
+    val fromInclusive: Long,
+    val toInclusive: Long,
+    val products: List<ProductForecast>,
 )
 
 class ReportRepository(
@@ -91,6 +111,42 @@ class ReportRepository(
         )
     }
 
+    suspend fun readProductForecasts(
+        fromInclusive: Long = clock() - FORECAST_HISTORY_MILLIS,
+        toInclusive: Long = clock(),
+    ): ProductForecastReport {
+        ensureUnlocked()
+        require(fromInclusive <= toInclusive) { "Rentang tanggal prediksi tidak valid" }
+
+        return withContext(Dispatchers.Default) {
+            val activeProducts = database.catalogDao().getActiveProducts()
+            val rows = reportDao.forecastSales(fromInclusive, toInclusive)
+            val rowsByProduct = rows.groupBy { it.productId }
+            val products = activeProducts.map { product ->
+                val history = rowsByProduct[product.id]
+                    .orEmpty()
+                    .map { row ->
+                        DailySales(
+                            epochDay = toBusinessEpochDay(row.createdAt),
+                            quantity = row.baseQuantity.toLong(),
+                        )
+                    }
+                ProductForecast(
+                    productId = product.id,
+                    productName = product.name,
+                    unitLabel = product.unitLabel,
+                    result = history.takeIf { it.isNotEmpty() }
+                        ?.let { runCatching { SalesForecastEngine.forecast(it) }.getOrNull() },
+                )
+            }
+            ProductForecastReport(
+                fromInclusive = fromInclusive,
+                toInclusive = toInclusive,
+                products = products,
+            )
+        }
+    }
+
     private suspend fun savePin(pin: String) {
         val record = PinHasher.create(pin)
         securityDao.saveReportSecurity(
@@ -108,6 +164,9 @@ class ReportRepository(
     }
 
     companion object {
+        private const val MILLIS_PER_DAY = 86_400_000L
+        private const val FORECAST_HISTORY_MILLIS = 730L * MILLIS_PER_DAY
+
         private val CASH_IN_TYPES = setOf("SALE_IN", "CASH_IN", "RECEIVABLE_IN")
         private val CASH_OUT_TYPES = setOf(
             "PURCHASE_OUT",
@@ -116,6 +175,22 @@ class ReportRepository(
             "PAYABLE_OUT",
             "WAGE_OUT",
         )
+    }
+
+    private fun toBusinessEpochDay(timestamp: Long): Long {
+        val local = Calendar.getInstance().apply { timeInMillis = timestamp }
+        val utcDate = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+            clear()
+            set(
+                local.get(Calendar.YEAR),
+                local.get(Calendar.MONTH),
+                local.get(Calendar.DAY_OF_MONTH),
+                0,
+                0,
+                0,
+            )
+        }
+        return Math.floorDiv(utcDate.timeInMillis, MILLIS_PER_DAY)
     }
 }
 

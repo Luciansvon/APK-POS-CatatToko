@@ -9,6 +9,7 @@ import com.bimacore.usahakecil.domain.BusinessType
 import com.bimacore.usahakecil.domain.CheckoutResult
 import com.bimacore.usahakecil.domain.PaymentMethod
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -34,6 +35,16 @@ class PosRepositoryTest {
             businessName = "Retail Test",
             clock = { 1_700_000_000_000L },
         )
+        runBlocking {
+            database.shiftDao().insertShift(
+                ShiftEntity(
+                    cashierName = "Kasir Test",
+                    openedAt = 0,
+                    openingCash = 0,
+                    openSlot = 1,
+                ),
+            )
+        }
     }
 
     @After
@@ -57,6 +68,10 @@ class PosRepositoryTest {
         val firstReceipt = (first as CheckoutResult.Success).receipt
         assertEquals(12_000L, firstReceipt.total)
         assertEquals(8_000L, firstReceipt.changeAmount)
+        assertEquals(
+            database.shiftDao().getOpenShift()?.id,
+            database.saleDao().getSale(firstReceipt.saleId)?.shiftId,
+        )
         val movements = database.stockDao().getMovementsForSale(firstReceipt.saleId)
         assertEquals(1, movements.size)
         assertEquals(-1, movements.single().quantityDelta)
@@ -73,5 +88,27 @@ class PosRepositoryTest {
 
         repository.newTransaction()
         assertTrue(repository.snapshot.first().cartItems.isEmpty())
+    }
+
+    @Test
+    fun sale_requires_an_open_shift() = runTest {
+        repository.seedIfNeeded()
+        val openShift = requireNotNull(database.shiftDao().getOpenShift())
+        database.shiftDao().updateShift(
+            openShift.copy(
+                status = ShiftStatus.CLOSED.name,
+                closedAt = 1_700_000_000_001L,
+                closingCash = 0,
+                openSlot = null,
+            ),
+        )
+        assertEquals(AddToCartResult.Added, repository.addProduct(101))
+
+        val result = repository.completeSale(
+            CheckoutRequest(PaymentMethod.CASH, 20_000, false),
+        )
+
+        assertTrue(result is CheckoutResult.Error)
+        assertTrue((result as CheckoutResult.Error).message.contains("Buka shift"))
     }
 }

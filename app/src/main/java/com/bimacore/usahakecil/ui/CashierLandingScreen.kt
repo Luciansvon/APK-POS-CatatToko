@@ -18,10 +18,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Assignment
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Calculate
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.LockOpen
-import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.Button
@@ -150,22 +151,23 @@ fun CashierHeader(
     subtitle: String? = "Mode Kasir",
     ownerUnlocked: Boolean,
     onOwnerAccess: () -> Unit,
+    onCalculatorClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.primary)
-            .padding(horizontal = 14.dp, vertical = 10.dp),
+            .padding(horizontal = 14.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
             imageVector = Icons.Outlined.Storefront,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onPrimary,
-            modifier = Modifier.size(26.dp),
+            modifier = Modifier.size(24.dp),
         )
-        Spacer(Modifier.size(10.dp))
+        Spacer(Modifier.size(8.dp))
         Column(Modifier.weight(1f)) {
             Text(
                 text = title,
@@ -183,6 +185,19 @@ fun CashierHeader(
                 )
             }
         }
+        if (onCalculatorClick != null) {
+            IconButton(
+                onClick = onCalculatorClick,
+                modifier = Modifier.testTag("calculator-button"),
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Calculate,
+                    contentDescription = "Buka kalkulator",
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                )
+            }
+            Spacer(Modifier.size(4.dp))
+        }
         OutlinedButton(
             onClick = onOwnerAccess,
             modifier = Modifier.testTag("owner-access"),
@@ -190,14 +205,14 @@ fun CashierHeader(
             contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 4.dp),
         ) {
             Icon(
-                imageVector = if (ownerUnlocked) Icons.Outlined.LockOpen else Icons.Outlined.Shield,
+                imageVector = if (ownerUnlocked) Icons.Outlined.LockOpen else Icons.Outlined.Lock,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onPrimary,
                 modifier = Modifier.size(18.dp),
             )
             Spacer(Modifier.size(4.dp))
             Text(
-                text = if (ownerUnlocked) "Mode Owner" else "Buka Mode Owner",
+                text = if (ownerUnlocked) "Mode Owner" else "Mode Kasir",
                 color = MaterialTheme.colorScheme.onPrimary,
                 style = MaterialTheme.typography.labelLarge,
                 maxLines = 1,
@@ -259,82 +274,28 @@ private fun CashierMetric(
 @Composable
 fun CashierFlowHeader(
     title: String,
-    activeStep: Int,
     ownerUnlocked: Boolean,
     onOwnerAccess: () -> Unit,
     onBack: (() -> Unit)? = null,
+    onCalculatorClick: (() -> Unit)? = null,
 ) {
     Column {
         CashierHeader(
             title = title,
             ownerUnlocked = ownerUnlocked,
             onOwnerAccess = onOwnerAccess,
+            onCalculatorClick = onCalculatorClick,
         )
         if (onBack != null) {
             IconButton(
                 onClick = onBack,
-                modifier = Modifier.padding(start = 8.dp, top = 4.dp),
+                modifier = Modifier.padding(start = 8.dp, top = 2.dp),
             ) {
                 Icon(
                     Icons.AutoMirrored.Outlined.ArrowBack,
                     contentDescription = "Kembali",
                 )
             }
-        }
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 18.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.Top,
-        ) {
-            listOf("Pilih Produk", "Keranjang", "Pembayaran", "Selesai")
-                .forEachIndexed { index, label ->
-                    val step = index + 1
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(34.dp)
-                                .background(
-                                    if (step == activeStep) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
-                                        MaterialTheme.colorScheme.surface
-                                    },
-                                    CircleShape,
-                                ),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                step.toString(),
-                                color = if (step == activeStep) {
-                                    MaterialTheme.colorScheme.onPrimary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                },
-                                fontWeight = FontWeight.Bold,
-                            )
-                        }
-                        Spacer(Modifier.height(5.dp))
-                        Text(
-                            label,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (step == activeStep) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                            fontWeight = if (step == activeStep) {
-                                FontWeight.Bold
-                            } else {
-                                FontWeight.Normal
-                            },
-                            textAlign = TextAlign.Center,
-                        )
-                    }
-                }
         }
     }
 }

@@ -89,7 +89,6 @@ fun PaymentScreen(
         topBar = {
             CashierFlowHeader(
                 title = "Pembayaran",
-                activeStep = 3,
                 ownerUnlocked = ownerUnlocked,
                 onOwnerAccess = onOwnerAccess,
                 onBack = if (isSaving) null else onBack,

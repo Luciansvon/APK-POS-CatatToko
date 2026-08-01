@@ -105,6 +105,9 @@ interface OperationsDao {
         toInclusive: Long,
     ): List<CashEntryEntity>
 
+    @Query("SELECT * FROM cash_entries WHERE shiftId = :shiftId ORDER BY createdAt, id")
+    suspend fun getCashEntriesForShift(shiftId: Long): List<CashEntryEntity>
+
     @Insert
     suspend fun insertCashEntry(entry: CashEntryEntity): Long
 
@@ -125,6 +128,21 @@ interface OperationsDao {
 
     @Insert
     suspend fun insertDebtPayment(payment: DebtPaymentEntity): Long
+}
+
+@Dao
+interface ShiftDao {
+    @Query("SELECT * FROM shifts ORDER BY openedAt DESC, id DESC")
+    fun observeShifts(): Flow<List<ShiftEntity>>
+
+    @Query("SELECT * FROM shifts WHERE status = 'OPEN' ORDER BY openedAt DESC, id DESC LIMIT 1")
+    suspend fun getOpenShift(): ShiftEntity?
+
+    @Insert
+    suspend fun insertShift(shift: ShiftEntity): Long
+
+    @Update
+    suspend fun updateShift(shift: ShiftEntity)
 }
 
 @Dao
@@ -277,8 +295,37 @@ data class CashAggregate(
     val total: Long,
 )
 
+data class ForecastSalesRow(
+    val productId: Long,
+    val productName: String,
+    val unitLabel: String,
+    val quantity: Int,
+    val baseQuantity: Int,
+    val createdAt: Long,
+)
+
 @Dao
 interface ReportDao {
+    @Query(
+        """
+        SELECT sale_items.productId AS productId,
+               sale_items.productName AS productName,
+               sale_items.unitLabel AS unitLabel,
+               sale_items.quantity AS quantity,
+               sale_items.baseQuantity AS baseQuantity,
+               sales.createdAt AS createdAt
+        FROM sale_items
+        INNER JOIN sales ON sales.id = sale_items.saleId
+        WHERE sales.createdAt BETWEEN :fromInclusive AND :toInclusive
+          AND sales.orderStatus IN ('COMPLETED', 'NEW', 'PROCESSING', 'READY')
+        ORDER BY sales.createdAt, sale_items.id
+        """,
+    )
+    suspend fun forecastSales(
+        fromInclusive: Long,
+        toInclusive: Long,
+    ): List<ForecastSalesRow>
+
     @Query(
         """
         SELECT COUNT(*) AS transactionCount, COALESCE(SUM(total), 0) AS totalSales

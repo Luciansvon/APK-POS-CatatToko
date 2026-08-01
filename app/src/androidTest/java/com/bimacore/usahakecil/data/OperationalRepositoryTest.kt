@@ -86,6 +86,86 @@ class OperationalRepositoryTest {
     }
 
     @Test
+    fun shift_open_close_calculates_expected_cash_and_preserves_history() = runBlocking {
+        var now = 1_700_000_000_000L
+        val operations = OperationsRepository(database, clock = { now })
+
+        val shiftId = operations.openShift("Kasir Pagi", 100_000, "Modal awal")
+        database.saleDao().insertSale(
+            SaleEntity(
+                receiptNumber = "SHIFT-CASH",
+                businessName = "Tes Shift",
+                createdAt = now + 10,
+                paymentMethod = PaymentMethod.CASH.name,
+                total = 50_000,
+                amountReceived = 50_000,
+                changeAmount = 0,
+                updatedAt = now + 10,
+                shiftId = shiftId,
+            ),
+        )
+        database.operationsDao().insertCashEntry(
+            CashEntryEntity(
+                type = "CASH_IN",
+                amount = 25_000,
+                category = "Modal tambahan",
+                note = "",
+                paymentMethod = PaymentMethod.CASH.name,
+                referenceType = null,
+                referenceId = null,
+                createdAt = now + 20,
+                shiftId = shiftId,
+            ),
+        )
+        database.operationsDao().insertCashEntry(
+            CashEntryEntity(
+                type = "EXPENSE",
+                amount = 10_000,
+                category = "Parkir",
+                note = "",
+                paymentMethod = PaymentMethod.CASH.name,
+                referenceType = null,
+                referenceId = null,
+                createdAt = now + 30,
+                shiftId = shiftId,
+            ),
+        )
+
+        now += 100
+        val closed = operations.closeShift(160_000, "Selisih dicatat")
+
+        assertEquals(50_000L, closed.cashSales)
+        assertEquals(25_000L, closed.otherCashIn)
+        assertEquals(10_000L, closed.cashOut)
+        assertEquals(165_000L, closed.expectedCash)
+        assertEquals(-5_000L, closed.cashDifference)
+        assertEquals(ShiftStatus.CLOSED.name, closed.shift.status)
+        assertTrue(operations.readOpenShiftSummary() == null)
+        assertEquals(1, operations.shifts.first().size)
+    }
+
+    @Test
+    fun shift_history_requires_owner_session_when_repository_is_production_bound() = runBlocking {
+        val session = ReportSession()
+        val operations = OperationsRepository(database, ownerSession = session)
+
+        assertTrue(operations.shifts.first().isEmpty())
+        assertTrue(runCatching { operations.openShift("Kasir", 0, "") }.isFailure)
+
+        session.unlock()
+        operations.openShift("Kasir", 0, "")
+        assertEquals(1, operations.shifts.first().size)
+    }
+
+    @Test
+    fun shift_does_not_allow_two_open_shifts() = runBlocking {
+        val operations = OperationsRepository(database)
+        operations.openShift("Kasir", 0, "")
+
+        assertTrue(runCatching { operations.openShift("Kasir 2", 0, "") }.isFailure)
+    }
+
+    @Test
     fun wholesale_unit_deducts_base_stock_and_applies_tier_price() = runBlocking {
         val capabilities = BusinessCapabilities.forType(BusinessType.WHOLESALE)
         val inventory = InventoryRepository(database, capabilities)
@@ -104,6 +184,7 @@ class OperationalRepositoryTest {
         val unitId = inventory.saveUnit(null, productId, "dus", 12, 110_000)
         inventory.savePriceTier(null, productId, 12, 8_000)
         val pos = PosRepository(database, BusinessType.WHOLESALE, "Tes Grosir")
+        openTestShift()
 
         pos.addProduct(productId, unitId = unitId)
         val result = pos.completeSale(
@@ -146,6 +227,7 @@ class OperationalRepositoryTest {
         culinary.saveRecipeIngredient(menuId, ingredientId, 2)
         val toppingId = culinary.saveTopping(null, menuId, "Telur", 5_000)
         val pos = PosRepository(database, BusinessType.CULINARY, "Tes Kuliner")
+        openTestShift()
         pos.addProduct(menuId)
         val line = database.cartDao().getLines().single()
         pos.setCartCustomization(line.id, "Tidak pedas", mapOf(toppingId to 1))
@@ -187,6 +269,86 @@ class OperationalRepositoryTest {
         assertTrue(!reports.unlock("1234"))
         assertTrue(reports.unlock("5678"))
         assertEquals(0, reports.readSummary(0, 20).transactionCount)
+    }
+
+    @Test
+    fun wholesale_forecast_uses_base_quantity_snapshot_from_room_history() = runBlocking {
+        val inventory = InventoryRepository(
+            database,
+            BusinessCapabilities.forType(BusinessType.WHOLESALE),
+        )
+        val categoryId = inventory.saveCategory(CategoryDraft(name = "Grosir"))
+        val productId = inventory.saveProduct(
+            ProductDraft(
+                categoryId = categoryId,
+                name = "Minuman",
+                basePrice = 10_000,
+                openingStock = 252,
+                stockTrackingEnabled = true,
+                lowStockThreshold = 12,
+                unitLabel = "pcs",
+            ),
+        )
+        val firstSaleAt = 1_700_000_000_000L
+        val dayMillis = 86_400_000L
+        repeat(21) { day ->
+            val createdAt = firstSaleAt + day * dayMillis
+            val saleId = database.saleDao().insertSale(
+                SaleEntity(
+                    receiptNumber = "FORECAST-${day + 1}",
+                    businessName = "Tes Grosir",
+                    createdAt = createdAt,
+                    paymentMethod = PaymentMethod.CASH.name,
+                    total = 110_000,
+                    amountReceived = 110_000,
+                    changeAmount = 0,
+                    updatedAt = createdAt,
+                ),
+            )
+            database.saleDao().insertItems(
+                listOf(
+                    SaleItemEntity(
+                        saleId = saleId,
+                        productId = productId,
+                        variantId = null,
+                        productName = "Minuman",
+                        variantName = null,
+                        categoryName = "Grosir",
+                        unitPrice = 110_000,
+                        quantity = 1,
+                        subtotal = 110_000,
+                        baseQuantity = 12,
+                        unitLabel = "dus",
+                    ),
+                ),
+            )
+        }
+        val lastSaleAt = firstSaleAt + 20 * dayMillis
+        val reports = ReportRepository(database, ReportSession(), clock = { lastSaleAt })
+        reports.createPin("1234")
+
+        val productForecast = reports.readProductForecasts(
+            fromInclusive = firstSaleAt,
+            toInclusive = lastSaleAt,
+        ).products.single { it.productId == productId }
+        val result = requireNotNull(productForecast.result)
+
+        assertEquals("pcs", productForecast.unitLabel)
+        assertEquals(21, result.normalizedHistoryDays)
+        result.forecast.forEach { point ->
+            assertEquals(12.0, point.expectedQuantity, 0.000001)
+        }
+    }
+
+    @Test
+    fun product_forecast_is_blocked_while_owner_session_is_locked() = runBlocking {
+        val reports = ReportRepository(database, ReportSession(), clock = { 10L })
+
+        val result = runCatching {
+            reports.readProductForecasts(fromInclusive = 0, toInclusive = 20)
+        }
+
+        assertTrue(result.exceptionOrNull() is ReportLockedException)
     }
 
     @Test
@@ -620,6 +782,7 @@ class OperationalRepositoryTest {
             ),
         )
         val pos = PosRepository(database, BusinessType.RETAIL, "Tes Retail")
+        openTestShift()
 
         // Deactivate product
         inventory.setProductActive(productId, false)
@@ -642,7 +805,15 @@ class OperationalRepositoryTest {
         assertTrue(checkoutResult is CheckoutResult.Error)
         assertTrue((checkoutResult as CheckoutResult.Error).message.contains("tidak aktif"))
     }
+
+    private suspend fun openTestShift() {
+        database.shiftDao().insertShift(
+            ShiftEntity(
+                cashierName = "Kasir Test",
+                openedAt = 0,
+                openingCash = 0,
+                openSlot = 1,
+            ),
+        )
+    }
 }
-
-
-

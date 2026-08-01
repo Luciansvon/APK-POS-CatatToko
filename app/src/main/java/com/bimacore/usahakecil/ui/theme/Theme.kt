@@ -10,6 +10,8 @@ import com.bimacore.usahakecil.BuildConfig
 object BrandColors {
     val Warning = Color(0xFFA15C00)
     val Success = Color(0xFF2E7D32)
+    val NavigationBackground = Color(0xFFF7F1FA)
+    val NavigationIndicator = Color(0xFFE9DBFA)
 }
 
 private val RetailColors = lightColorScheme(

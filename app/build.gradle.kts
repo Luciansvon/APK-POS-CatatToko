@@ -15,8 +15,8 @@ android {
         applicationId = "com.bimacore.usahakecil"
         minSdk = 23
         targetSdk = 36
-        versionCode = 7
-        versionName = "0.3.2"
+        versionCode = 9
+        versionName = "0.4.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true

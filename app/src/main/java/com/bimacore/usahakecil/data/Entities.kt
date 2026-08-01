@@ -71,7 +71,7 @@ data class CartLineEntity(
 
 @Entity(
     tableName = "sales",
-    indices = [Index(value = ["receiptNumber"], unique = true)],
+    indices = [Index(value = ["receiptNumber"], unique = true), Index("shiftId")],
 )
 data class SaleEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -87,6 +87,7 @@ data class SaleEntity(
     @ColumnInfo(defaultValue = "'COMPLETED'") val orderStatus: String = "COMPLETED",
     @ColumnInfo(defaultValue = "''") val note: String = "",
     @ColumnInfo(defaultValue = "0") val updatedAt: Long = 0,
+    val shiftId: Long? = null,
 )
 
 @Entity(
@@ -104,6 +105,7 @@ data class SaleItemEntity(
     val unitPrice: Long,
     val quantity: Int,
     val subtotal: Long,
+    @ColumnInfo(defaultValue = "1") val baseQuantity: Int = quantity,
     @ColumnInfo(defaultValue = "'pcs'") val unitLabel: String = "pcs",
     @ColumnInfo(defaultValue = "''") val note: String = "",
 )

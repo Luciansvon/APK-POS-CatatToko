@@ -9,12 +9,14 @@ Status saat ini:
 - framework aktif: Kotlin 2.3.0 dan Jetpack Compose;
 - database lokal aktif: Room 2.8.4;
 - satu module aplikasi menghasilkan tiga product flavor;
-- database memakai skema versi 2 dengan migrasi eksplisit dari versi 1;
+- database memakai skema versi 4 dengan migrasi eksplisit dari versi 1, 2, dan 3;
 - katalog, kategori, varian, keranjang persisten, pembayaran, transaksi atomik, stok, pembelian, kas, utang-piutang, tenaga kerja, laporan terlindungi, backup/restore, struk PNG, dan kalkulator sudah diimplementasikan;
 - kemampuan khusus Grosir dan Kuliner dikendalikan oleh `BusinessCapabilities`;
 - APK debug Retail, Wholesale, dan Culinary dibangun dari shared source;
 - GitHub Actions memverifikasi unit test, kompilasi test instrumentasi, build debug/release, dan lint seluruh flavor;
-- cloud, pajak otomatis, HPP/laba, payroll formal, printer, marketplace, payment gateway, serta multi-device belum diimplementasikan.
+- forecasting penjualan offline sudah dihitung dari histori transaksi pada layar Laporan Owner;
+- shift kasir menyimpan `shiftId` pada transaksi dan jurnal kas, membatasi satu shift aktif, serta menyimpan snapshot saat ditutup;
+- forecasting restock, retur/refund, cloud, pajak otomatis, HPP/laba, payroll formal, printer, marketplace, payment gateway, serta multi-device belum diimplementasikan.
 
 ## Tujuan sistem
 
@@ -114,7 +116,7 @@ Aturan yang sudah dikunci:
 - verifikasi harus bekerja sepenuhnya secara offline;
 - satu PIN Owner membuka seluruh area pengelolaan pada MVP;
 - PIN tidak boleh disimpan dalam bentuk plaintext;
-- sesi Owner dikunci kembali saat aplikasi masuk background atau Owner menekan `Keluar Mode Owner`;
+- sesi Owner tetap terbuka selama proses aplikasi berjalan dan hanya dikunci saat Owner menekan `Keluar Mode Owner` atau `Kunci Mode Owner`;
 - repository laporan tetap menolak pembacaan saat sesi Owner terkunci.
 
 PIN digunakan sebagai mekanisme utama MVP karena sederhana dan tidak bergantung pada sensor HP. Biometrik dapat menjadi jalan pintas tambahan nanti, tetapi tidak menggantikan PIN.
@@ -398,7 +400,8 @@ Usaha Kecil Suite dan MAUCAFE adalah project berbeda.
 - Penjualan memperbarui snapshot transaksi, stok atau bahan, kas, dan piutang secara atomik.
 - Laporan memeriksa sesi PIN pada repository, bukan hanya pada tampilan.
 - PIN memakai PBKDF2 dengan salt dan tidak disimpan sebagai teks asli.
-- Sesi laporan dikunci ketika aplikasi masuk background.
+- Sesi laporan tidak memakai timeout atau auto-lock saat aplikasi kehilangan fokus; Owner menguncinya secara manual.
+- Setelah proses aplikasi dihentikan dan dibuat ulang, aplikasi tetap mulai dalam Mode Kasir/Pekerja dan PIN Owner perlu diverifikasi lagi.
 - Backup melakukan WAL checkpoint, menyimpan manifest dan hash SHA-256, lalu restore membuat backup pengaman sebelum mengganti database.
 - Grosir mengubah satuan jual ke satuan dasar sebelum mengurangi stok.
 - Kuliner menyimpan topping/catatan sebagai snapshot dan mengurangi bahan resep ketika checkout.

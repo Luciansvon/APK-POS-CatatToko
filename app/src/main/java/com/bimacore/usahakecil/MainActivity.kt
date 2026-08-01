@@ -33,9 +33,4 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
-
-    override fun onStop() {
-        (application as PosApplication).reportSession.lockUnlessExternalOwnerFlow()
-        super.onStop()
-    }
 }

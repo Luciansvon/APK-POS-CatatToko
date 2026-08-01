@@ -59,7 +59,6 @@ fun ReceiptScreen(
         item {
             CashierFlowHeader(
                 title = "Transaksi Selesai",
-                activeStep = 4,
                 ownerUnlocked = ownerUnlocked,
                 onOwnerAccess = onOwnerAccess,
             )

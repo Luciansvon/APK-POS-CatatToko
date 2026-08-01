@@ -344,3 +344,48 @@ val MIGRATION_1_2 = object : Migration(1, 2) {
         )
     }
 }
+
+val MIGRATION_2_3 = object : Migration(2, 3) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL(
+            "ALTER TABLE sale_items ADD COLUMN baseQuantity INTEGER NOT NULL DEFAULT 1",
+        )
+        database.execSQL("UPDATE sale_items SET baseQuantity = quantity")
+    }
+}
+
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(database: SupportSQLiteDatabase) {
+        database.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS shifts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                cashierName TEXT NOT NULL,
+                openedAt INTEGER NOT NULL,
+                openingCash INTEGER NOT NULL,
+                openingNote TEXT NOT NULL DEFAULT '',
+                status TEXT NOT NULL DEFAULT 'OPEN',
+                closedAt INTEGER,
+                closingCash INTEGER,
+                closingNote TEXT NOT NULL DEFAULT '',
+                totalSales INTEGER NOT NULL DEFAULT 0,
+                cashSales INTEGER NOT NULL DEFAULT 0,
+                nonCashSales INTEGER NOT NULL DEFAULT 0,
+                otherCashIn INTEGER NOT NULL DEFAULT 0,
+                cashOut INTEGER NOT NULL DEFAULT 0,
+                refundAmount INTEGER NOT NULL DEFAULT 0,
+                expectedCash INTEGER,
+                cashDifference INTEGER,
+                openSlot INTEGER
+            )
+            """.trimIndent(),
+        )
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_shifts_status ON shifts(status)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_shifts_openedAt ON shifts(openedAt)")
+        database.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_shifts_openSlot ON shifts(openSlot)")
+        database.execSQL("ALTER TABLE sales ADD COLUMN shiftId INTEGER")
+        database.execSQL("ALTER TABLE cash_entries ADD COLUMN shiftId INTEGER")
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_sales_shiftId ON sales(shiftId)")
+        database.execSQL("CREATE INDEX IF NOT EXISTS index_cash_entries_shiftId ON cash_entries(shiftId)")
+    }
+}

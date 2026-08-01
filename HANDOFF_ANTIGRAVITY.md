@@ -1,5 +1,7 @@
 # Handoff Antigravity — Implementasi UI Kasir Stitch
 
+> Dokumen ini adalah handoff historis untuk redesign Stitch. Status aktif repository berada di branch `antigravity/forecasting-foundation-0.3.3`; gunakan `docs/WORKLOG.md`, `docs/handoffs/ANTIGRAVITY_FORECASTING_FOUNDATION_2026-08-01.md`, dan `docs/RELEASE_NOTES.md` sebagai rujukan terbaru.
+
 ## Tujuan
 
 Implementasikan tujuh layar kasir Retail dari desain Stitch ke aplikasi Android native Jetpack Compose tanpa mengubah behavior transaksi, keamanan Owner, histori stok, atau fungsi offline.
@@ -87,7 +89,7 @@ Disarankan menambah:
 - `Mulai Transaksi` membuka katalog.
 - `Lihat Stok` membuka katalog dengan fokus/filter stok, bukan area operasional Owner.
 - Setelah `Transaksi Baru`, kembali ke landing kasir sesuai desain.
-- Gunakan shared component untuk header Jade, progress empat tahap, product row, quantity stepper, status card, dan sticky bottom action.
+- Gunakan shared component untuk header Jade, compact product grid, quantity stepper, status card, dan sticky bottom action.
 - Retail menjadi acuan struktur. Wholesale dan Culinary mempertahankan warna serta kemampuan flavor masing-masing.
 - Jangan menghapus dukungan varian, multi-satuan Grosir, topping Kuliner, QRIS, Transfer, Piutang, atau kalkulator yang sudah ada.
 

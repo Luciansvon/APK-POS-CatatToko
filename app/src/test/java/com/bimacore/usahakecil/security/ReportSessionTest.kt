@@ -6,17 +6,16 @@ import org.junit.Test
 
 class ReportSessionTest {
     @Test
-    fun external_owner_flow_prevents_automatic_lock_until_it_finishes() {
+    fun owner_session_stays_open_until_explicit_lock() {
         val session = ReportSession()
         session.unlock()
 
         session.beginExternalOwnerFlow()
-        session.lockUnlessExternalOwnerFlow()
+        session.endExternalOwnerFlow()
 
         assertTrue(session.isUnlocked)
 
-        session.endExternalOwnerFlow()
-        session.lockUnlessExternalOwnerFlow()
+        session.lock()
 
         assertFalse(session.isUnlocked)
     }

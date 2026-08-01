@@ -25,6 +25,24 @@ Worklog bukan pengganti:
 
 ---
 
+## 2026-08-01 - Standarisasi flow test MuMu dua device
+
+Status: Selesai untuk dokumentasi; hasil connected test dan audit Owner dicatat terpisah sesuai bukti aktual.
+
+### Hasil
+
+- `docs/MUMU_TESTING_GUIDE.md` diperbarui sebagai prosedur wajib agent untuk ADB, dua serial MuMu, tiga flavor, targeted Owner test, install ulang setelah runner uninstall, screenshot PNG binary-safe, dan audit vision.
+- Profil device yang terverifikasi: ASUS AI2205 portrait `1080x1920` dan ALT AL10 landscape efektif `1600x900`.
+- `README.md` dan `AGENTS.md` sekarang menunjuk langsung ke panduan MuMu agar agent tidak mengulang trial-and-error.
+
+### File
+
+- `docs/MUMU_TESTING_GUIDE.md`
+- `README.md`
+- `AGENTS.md`
+
+---
+
 ## 2026-07-29 - Inisialisasi wadah project
 
 Status: Selesai.
@@ -560,3 +578,142 @@ Menerapkan perbaikan bug P0 & P1 dari dokumen audit konsolidasi `docs/AUDIT_2026
   - `Kasir-Kuliner-PKL.apk` | SHA256 `79F2DBC48528FB04911FED93D36D289FCC9FF03A2B6788AB1ECA19BE024BDFEF`
 - **Pengujian MuMuPlayer**: Ketiga varian APK dipasang, diluncurkan, dan diambil screenshot secara sukses di emulator (`127.0.0.1:7555`).
 - **Dokumentasi**: Memperbarui `docs/AUDIT_2026-07-31.md`, `docs/RELEASE_NOTES.md` (v0.3.2), `docs/ERROR_SOLUTIONS.md` (ERR-024 s/d ERR-029), `docs/WORKLOG.md`, dan `walkthrough.md`.
+
+---
+
+## 2026-08-01 - Fondasi forecasting penjualan tervalidasi
+
+Status: Diimplementasikan pada domain shared core (`antigravity/forecasting-foundation-0.3.3`); integrasi Room dan UI belum dilakukan.
+
+### Hasil
+
+- menambahkan moving average, simple exponential smoothing, Holt linear, Holt-Winters additive, dan Croston-SBA;
+- memilih kandidat melalui rolling-origin one-step backtesting;
+- mencatat MAE, RMSE, sMAPE, WAPE, dan bias;
+- menambahkan validasi histori, normalisasi tanggal kosong, serta batas komputasi;
+- menambahkan unit test untuk pola stabil, tren, musiman, intermittent, data nol, gap, duplikat, input negatif, dan histori kurang.
+
+### Verifikasi aktual
+
+- `testRetailDebugUnitTest`, `testWholesaleDebugUnitTest`, `testCulinaryDebugUnitTest`: LULUS 100% (8/8 skenario SalesForecastEngineTest + seluruh unit test repo lulus).
+- `lintRetailDebug`, `lintWholesaleDebug`, `lintCulinaryDebug`: BUILD SUCCESSFUL.
+- `assembleDebug`: BUILD SUCCESSFUL.
+- **Pengujian MuMuPlayer**: Ketiga varian APK (`Retail`, `Wholesale`, `Culinary`) dipasang, diluncurkan, dan diambil screenshot secara sukses di emulator (`127.0.0.1:7555`), aplikasi berjalan mulus tanpa crash.
+
+### File
+
+- `app/src/main/java/com/bimacore/usahakecil/domain/forecast/SalesForecastEngine.kt`
+- `app/src/test/java/com/bimacore/usahakecil/domain/forecast/SalesForecastEngineTest.kt`
+- `docs/superpowers/specs/2026-08-01-sales-forecasting-foundation.md`
+- `docs/handoffs/ANTIGRAVITY_FORECASTING_FOUNDATION_2026-08-01.md`
+
+---
+
+## 2026-08-01 - Perbaikan Bug Tampilan Katalog Kasir Terpotong (3 Varian APK)
+
+Status: Selesai, diuji pada 3 varian APK, dipaketkan di `dist/debug/`.
+
+### Hasil
+
+- **Merampingkan Header Kasir & Menyatukan Tombol Kalkulator (ERR-030)**: Memindahkan tombol kalkulator ke dalam header topBar di samping tombol Mode Owner untuk menghemat 48dp tinggi vertikal.
+- **Mengoptimalkan Spacing & Layout Weight**: Merampingkan padding langkah transaksi (6dp) dan spacing pencarian/kategori (4dp) serta mengunci `LazyColumn` dengan `Modifier.weight(1f)` agar daftar barang selalu tampil utuh dan bisa di-scroll lancar pada orientasi landscape/HP/Tablet di 3 APK.
+
+### Verifikasi aktual
+
+- `testRetailDebugUnitTest`, `testWholesaleDebugUnitTest`, `testCulinaryDebugUnitTest`: LULUS 100%.
+- `lintRetailDebug`, `lintWholesaleDebug`, `lintCulinaryDebug`: BUILD SUCCESSFUL.
+- `assembleDebug`: BUILD SUCCESSFUL.
+- **Packaging APK**: `scripts/package-apks.ps1` memperbarui 3 APK di `dist/debug/`.
+- **Pengujian MuMuPlayer**: Ketiga varian APK (`Retail`, `Wholesale`, `Culinary`) dipasang, diluncurkan, dan diambil screenshot secara sukses di emulator (`127.0.0.1:7555`), tampilan katalog tidak lagi terpotong.
+
+---
+
+## 2026-08-01 - Integrasi forecasting penjualan ke transaksi dan Laporan Owner (Versi 0.4.0)
+
+Status: Diimplementasikan dan diverifikasi lewat test, lint, build, serta kompilasi AndroidTest tiga flavor.
+
+### Perubahan
+
+- Menambah kolom snapshot `sale_items.baseQuantity` melalui migrasi Room 2 ke 3; transaksi lama mengisi nilai awal dari `quantity`.
+- Menambah tabel shift melalui migrasi Room 3 ke 4, `shiftId` pada sales dan jurnal kas, serta unique index untuk satu shift aktif.
+- Menghubungkan `ReportRepository` ke histori transaksi lokal dan `SalesForecastEngine` dengan kuantitas dasar untuk konversi satuan Grosir.
+- Menampilkan perkiraan tujuh hari di Laporan Owner setelah PIN terbuka; data forecast dibersihkan saat Owner mengunci laporan.
+- Menambahkan alur Owner Buka Shift/Tutup Shift, snapshot kas seharusnya, uang fisik, selisih, dan riwayat.
+- Checkout wajib memiliki shift aktif; transaksi lama tetap memiliki `shiftId = null` dan tidak ditebak masuk shift baru.
+- Menambah regresi AndroidTest untuk migrasi, forecast Grosir, dan akses laporan saat terkunci.
+- Menaikkan metadata menjadi `versionCode 9` dan `versionName 0.4.0`.
+
+### Verifikasi aktual
+
+- Unit test tiga flavor: `BUILD SUCCESSFUL`.
+- Lint tiga flavor: `BUILD SUCCESSFUL`.
+- `assembleDebug`: `BUILD SUCCESSFUL`.
+- Kompilasi AndroidTest tiga flavor: `BUILD SUCCESSFUL`.
+- Backup manifest diselaraskan ke schema database `4`.
+- Connected test, visual QA, dan uji offline perangkat: belum dijalankan karena target perangkat belum dikonfirmasi.
+
+### Batas fitur
+
+- Forecasting restock, retur/refund, void, HPP/laba, Excel, notifikasi, dan cloud masih belum diimplementasikan.
+
+---
+
+## 2026-08-01 - Sinkronisasi branch dan release identity 0.3.3
+
+Status: Source sudah disinkronkan dengan `origin/main`; APK debug `0.3.3` sudah dibuild dan dipaketkan dari HEAD terbaru.
+
+### Perubahan
+
+- Menggabungkan update `origin/main` ke branch `antigravity/forecasting-foundation-0.3.3` tanpa menulis ulang tiga commit lokal forecasting/UI.
+- Menghapus kembali workflow bootstrap audit sementara yang muncul dari merge dan tidak dipakai untuk CI aktif.
+- Menyamakan `versionCode`, `versionName`, README, release notes, dan handoff forecasting ke `0.3.3` / `8`.
+
+### Batas status
+
+- Unit test, lint, build, dan compile androidTest seluruh flavor lulus.
+- Packaging tiga APK `0.3.3` lulus dan hash dicatat di release notes.
+- Connected smoke test, visual QA, dan uji offline perangkat belum dijalankan.
+
+### Verifikasi aktual
+
+- Unit test tiga flavor: `BUILD SUCCESSFUL`.
+- Lint tiga flavor: `BUILD SUCCESSFUL`.
+- `assembleDebug`: `BUILD SUCCESSFUL`.
+- Compile androidTest tiga flavor: `BUILD SUCCESSFUL`.
+- `scripts/package-apks.ps1`: sukses memperbarui tiga APK debug.
+- Connected test dan visual QA: belum dijalankan karena target emulator/perangkat belum dikonfirmasi.
+
+---
+
+## 2026-08-01 - Owner QA dua device dan standardisasi MuMu
+
+Status: Connected test Owner lulus dan panduan MuMu diperbarui.
+
+### Verifikasi aktual
+
+- `owner_mode_covers_all_relevant_screens_and_locks_again` lulus `6/6`: Retail, Wholesale, Culinary pada `emulator-5554` ASUS portrait dan `emulator-5556` ALT landscape.
+- Ditemukan dan diperbaiki layout kontrol Laporan Owner yang bertumpuk pada layar kecil/tablet landscape.
+- Dicatat workaround screenshot dan tombol keluar Owner saat snackbar backup aktif di `docs/MUMU_TESTING_GUIDE.md`.
+- Screenshot portrait dan tablet diaudit vision: tiga kontrol laporan lulus tanpa wrap, overlap, atau clipping; temuan sisa kontras status bar dicatat sebagai revisi visual terpisah.
+- `AGENTS.md`, README, dan `docs/ERROR_SOLUTIONS.md` mengacu ke panduan MuMu sebagai flow standar agent.
+
+---
+
+## 2026-08-01 - Adaptive catalog, laporan chart, dan navigasi compact
+
+Status: Diimplementasikan dan diverifikasi pada dua emulator MuMu serta tiga flavor.
+
+### Perubahan
+
+- Mengubah katalog menjadi grid adaptif: dua kolom pada HP dan tiga kolom pada tablet landscape, dengan kartu produk berbentuk persegi rounded.
+- Menghapus indikator empat langkah yang memenuhi layar kasir dan mempertahankan header Mode Kasir/Owner dengan ikon storefront internal.
+- Menambahkan chart batang native Compose untuk penerimaan per metode pembayaran beserta empty state saat belum ada transaksi.
+- Menjaga sesi Owner tetap terbuka sampai aksi kunci manual dan menerapkan tema aktif pada area Owner serta navigasi bawah.
+- Menyesuaikan label `Operasional` agar satu baris pada layar compact tanpa mengubah ukuran label lain.
+
+### Verifikasi aktual
+
+- Unit test, lint, build APK, dan compile AndroidTest tiga flavor: lulus.
+- Connected `MainActivitySmokeTest`: Retail, Wholesale, dan Culinary lulus pada `emulator-5554` HP portrait serta `emulator-5556` tablet landscape.
+- Screenshot valid diambil memakai `cmd /c adb exec-out screencap -p` dan diaudit vision untuk katalog, Owner, laporan chart, serta navigasi.
+- Screenshot QA disimpan di `artifacts/ui-qa/` dan dikecualikan dari Git.
