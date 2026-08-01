@@ -908,6 +908,34 @@ Varian dan versi: Semua flavor, `0.3.1`
 ### File terdampak
 
 - `app/src/main/java/com/bimacore/usahakecil/ui/CatalogScreen.kt`
+
+## ERR-031 - Metadata backup tertinggal dari versi schema database
+
+Tanggal: 2026-08-01
+
+Varian dan versi: Semua flavor, `0.4.0`
+
+### Kondisi/gejala
+
+Database aplikasi sudah naik ke schema 4, tetapi `BackupManager` masih menulis `schemaVersion=2` pada manifest backup.
+
+### Root cause
+
+Konstanta schema pada `BackupManager` tidak ikut dinaikkan saat migrasi Room 2 ke 3 dan 3 ke 4 ditambahkan.
+
+### Solusi
+
+Menyelaraskan `DATABASE_SCHEMA_VERSION` menjadi `4`, serta menambahkan migrasi backup test ke seluruh migrasi aktif.
+
+### Bukti verifikasi aktual
+
+- `assembleRetailDebugAndroidTest assembleWholesaleDebugAndroidTest assembleCulinaryDebugAndroidTest` - BUILD SUCCESSFUL.
+- Runtime backup/restore pada perangkat belum dijalankan karena target perangkat belum dikonfirmasi.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/backup/BackupManager.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/backup/BackupRestoreTest.kt`
 - `app/src/main/java/com/bimacore/usahakecil/ui/CashierLandingScreen.kt`
 - `app/src/androidTest/java/com/bimacore/usahakecil/MainActivitySmokeTest.kt`
 
@@ -1113,6 +1141,32 @@ Pada layar katalog kasir (orientasi landscape atau layar HP/Tablet dengan tinggi
 - `app/src/main/java/com/bimacore/usahakecil/ui/CashierLandingScreen.kt`
 - `app/src/main/java/com/bimacore/usahakecil/ui/CatalogScreen.kt`
 
+## ERR-031 - Kontrol laporan Owner bertumpuk dan tombol keluar tertutup snackbar pada tablet landscape (CON-008)
 
+Tanggal: 2026-08-01
 
+Varian dan versi: Semua flavor, `0.4.0`
 
+### Kondisi/gejala
+
+Pada layar Laporan Owner, tiga aksi laporan dipaksa berada dalam satu baris. Di tablet landscape, teks `Kunci Mode Owner` membungkus menjadi tombol sangat tinggi. Setelah backup lokal dibuat, snackbar `Backup siap dibagikan` juga dapat menutup area tombol `Keluar Mode Owner`.
+
+### Root cause
+
+Kontrol laporan memakai `Row` tanpa pembagian lebar responsif, sementara layar Lainnya memakai scroll vertikal dan tombol keluar berada di batas bawah viewport ketika snackbar aktif.
+
+### Solusi
+
+Mengubah kontrol Laporan Owner menjadi `Column` dengan tombol lebar penuh dan menambahkan test tag stabil untuk aksi perubahan PIN, penguncian laporan, dan keluar Owner. Panduan MuMu mencatat urutan scroll ke teks `Offline-first` sebelum menekan tombol keluar setelah backup.
+
+### Bukti verifikasi aktual
+
+- Owner connected test lulus `6/6` pada Retail, Wholesale, dan Culinary di `emulator-5554` portrait serta `emulator-5556` landscape.
+- Screenshot manual portrait dan tablet yang diaudit vision menunjukkan tiga kontrol laporan utuh, satu baris per tombol, tanpa overlap atau clipping.
+- Temuan terpisah dari audit: kontras ikon/jam status bar rendah pada latar terang; label `Operasional` wrap dua baris di ASUS portrait. Keduanya bukan bagian dari fix ini.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/ui/ManagementScreens.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/MainActivitySmokeTest.kt`
+- `docs/MUMU_TESTING_GUIDE.md`

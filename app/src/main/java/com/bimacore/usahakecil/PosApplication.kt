@@ -39,7 +39,7 @@ class PosApplication : Application() {
 
     fun newInventoryRepository() = InventoryRepository(database, capabilities)
 
-    fun newOperationsRepository() = OperationsRepository(database)
+    fun newOperationsRepository() = OperationsRepository(database, ownerSession = reportSession)
 
     fun newWorkforceRepository() = WorkforceRepository(database)
 

@@ -9,12 +9,14 @@ Status saat ini:
 - framework aktif: Kotlin 2.3.0 dan Jetpack Compose;
 - database lokal aktif: Room 2.8.4;
 - satu module aplikasi menghasilkan tiga product flavor;
-- database memakai skema versi 2 dengan migrasi eksplisit dari versi 1;
+- database memakai skema versi 4 dengan migrasi eksplisit dari versi 1, 2, dan 3;
 - katalog, kategori, varian, keranjang persisten, pembayaran, transaksi atomik, stok, pembelian, kas, utang-piutang, tenaga kerja, laporan terlindungi, backup/restore, struk PNG, dan kalkulator sudah diimplementasikan;
 - kemampuan khusus Grosir dan Kuliner dikendalikan oleh `BusinessCapabilities`;
 - APK debug Retail, Wholesale, dan Culinary dibangun dari shared source;
 - GitHub Actions memverifikasi unit test, kompilasi test instrumentasi, build debug/release, dan lint seluruh flavor;
-- cloud, pajak otomatis, HPP/laba, payroll formal, printer, marketplace, payment gateway, serta multi-device belum diimplementasikan.
+- forecasting penjualan offline sudah dihitung dari histori transaksi pada layar Laporan Owner;
+- shift kasir menyimpan `shiftId` pada transaksi dan jurnal kas, membatasi satu shift aktif, serta menyimpan snapshot saat ditutup;
+- forecasting restock, retur/refund, cloud, pajak otomatis, HPP/laba, payroll formal, printer, marketplace, payment gateway, serta multi-device belum diimplementasikan.
 
 ## Tujuan sistem
 

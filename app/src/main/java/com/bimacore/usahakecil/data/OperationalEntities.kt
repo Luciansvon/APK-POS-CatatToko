@@ -1,5 +1,6 @@
 package com.bimacore.usahakecil.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -95,7 +96,7 @@ data class PurchaseItemEntity(
 
 @Entity(
     tableName = "cash_entries",
-    indices = [Index("type"), Index("referenceType"), Index("referenceId")],
+    indices = [Index("type"), Index("referenceType"), Index("referenceId"), Index("shiftId")],
 )
 data class CashEntryEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -107,6 +108,36 @@ data class CashEntryEntity(
     val referenceType: String?,
     val referenceId: Long?,
     val createdAt: Long,
+    val shiftId: Long? = null,
+)
+
+@Entity(
+    tableName = "shifts",
+    indices = [
+        Index("status"),
+        Index("openedAt"),
+        Index(value = ["openSlot"], unique = true),
+    ],
+)
+data class ShiftEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val cashierName: String,
+    val openedAt: Long,
+    val openingCash: Long,
+    @ColumnInfo(defaultValue = "''") val openingNote: String = "",
+    @ColumnInfo(defaultValue = "'OPEN'") val status: String = "OPEN",
+    val closedAt: Long? = null,
+    val closingCash: Long? = null,
+    @ColumnInfo(defaultValue = "''") val closingNote: String = "",
+    @ColumnInfo(defaultValue = "0") val totalSales: Long = 0,
+    @ColumnInfo(defaultValue = "0") val cashSales: Long = 0,
+    @ColumnInfo(defaultValue = "0") val nonCashSales: Long = 0,
+    @ColumnInfo(defaultValue = "0") val otherCashIn: Long = 0,
+    @ColumnInfo(defaultValue = "0") val cashOut: Long = 0,
+    @ColumnInfo(defaultValue = "0") val refundAmount: Long = 0,
+    val expectedCash: Long? = null,
+    val cashDifference: Long? = null,
+    val openSlot: Int? = null,
 )
 
 @Entity(

@@ -34,12 +34,14 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -437,6 +439,9 @@ fun FinanceScreen(
     title: String = "Keuangan",
 ) {
     val cash by viewModel.cashEntries.collectAsState()
+    val shifts by viewModel.shifts.collectAsState()
+    val shiftSummary by viewModel.shiftSummary.collectAsState()
+    val shiftLoading by viewModel.shiftLoading.collectAsState()
     val debts by viewModel.debts.collectAsState()
     val suppliers by viewModel.suppliers.collectAsState()
     val customers by viewModel.customers.collectAsState()
@@ -448,6 +453,10 @@ fun FinanceScreen(
     }
     var dialog by remember { mutableStateOf<String?>(null) }
     var debtToPay by remember { mutableStateOf<DebtEntity?>(null) }
+
+    LaunchedEffect(shifts, cash, sales) {
+        viewModel.refreshShiftSummary()
+    }
 
     Scaffold(
         topBar = { TopAppBar(title = { Text(title, fontWeight = FontWeight.Bold) }) },
@@ -464,6 +473,14 @@ fun FinanceScreen(
             ) {
                 when (tab) {
                     0 -> {
+                        ShiftSection(
+                            shifts = shifts,
+                            summary = shiftSummary,
+                            isLoading = shiftLoading,
+                            onOpenRequest = { dialog = "open_shift" },
+                            onCloseRequest = { dialog = "close_shift" },
+                        )
+                        SectionTitle("Catatan kas")
                         ActionRow("Tambah catatan kas" to { dialog = "cash" })
                         cash.forEach {
                             InfoCard(
@@ -511,6 +528,18 @@ fun FinanceScreen(
     }
 
     when (dialog) {
+        "open_shift" -> ShiftOpenDialog(
+            onDismiss = { dialog = null },
+        ) { cashierName, openingCash, note ->
+            viewModel.openShift(cashierName, openingCash, note)
+            dialog = null
+        }
+        "close_shift" -> ShiftCloseDialog(
+            onDismiss = { dialog = null },
+        ) { closingCash, note ->
+            viewModel.closeShift(closingCash, note)
+            dialog = null
+        }
         "cash" -> CashDialog(
             onDismiss = { dialog = null },
         ) { type, amount, category, note ->
@@ -593,6 +622,9 @@ fun FinanceScreen(
 fun ReportsScreen(viewModel: OperationsViewModel) {
     val hasPin by viewModel.reportHasPin.collectAsState()
     val summary by viewModel.reportSummary.collectAsState()
+    val forecastReport by viewModel.forecastReport.collectAsState()
+    val forecastLoading by viewModel.forecastLoading.collectAsState()
+    val forecastError by viewModel.forecastError.collectAsState()
     var pin by remember { mutableStateOf("") }
     var showChangePin by remember { mutableStateOf(false) }
     Scaffold(
@@ -645,14 +677,35 @@ fun ReportsScreen(viewModel: OperationsViewModel) {
                 requireNotNull(summary).payments.forEach {
                     InfoCard(it.paymentMethod, formatRupiah(it.total))
                 }
+                SalesForecastSection(
+                    report = forecastReport,
+                    isLoading = forecastLoading,
+                    error = forecastError,
+                )
                 Text(
                     "Laba belum dihitung karena metode HPP belum ditentukan.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = viewModel::refreshReport) { Text("Muat ulang") }
-                    OutlinedButton(onClick = { showChangePin = true }) { Text("Ganti PIN") }
-                    Button(onClick = viewModel::lockReport) { Text("Kunci Mode Owner") }
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    OutlinedButton(
+                        onClick = viewModel::refreshReport,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text("Muat ulang") }
+                    OutlinedButton(
+                        onClick = { showChangePin = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("report-change-pin"),
+                    ) { Text("Ganti PIN") }
+                    Button(
+                        onClick = viewModel::lockReport,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("report-lock"),
+                    ) { Text("Kunci Mode Owner") }
                 }
             }
         }
@@ -744,7 +797,9 @@ fun MoreScreen(
             SectionTitle("Aplikasi")
             OutlinedButton(
                 onClick = onExitOwner,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("owner-exit"),
             ) {
                 Text("Keluar Mode Owner")
             }
@@ -798,12 +853,12 @@ private fun ActionRow(vararg actions: Pair<String, () -> Unit>) {
 }
 
 @Composable
-private fun SectionTitle(text: String) {
+fun SectionTitle(text: String) {
     Text(text, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
 }
 
 @Composable
-private fun InfoCard(title: String, subtitle: String) {
+fun InfoCard(title: String, subtitle: String) {
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         modifier = Modifier.fillMaxWidth(),

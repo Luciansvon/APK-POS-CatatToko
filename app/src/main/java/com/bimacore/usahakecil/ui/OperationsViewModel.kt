@@ -19,12 +19,14 @@ import com.bimacore.usahakecil.data.OperationsRepository
 import com.bimacore.usahakecil.data.PartyKind
 import com.bimacore.usahakecil.data.PosDatabase
 import com.bimacore.usahakecil.data.ProductDraft
+import com.bimacore.usahakecil.data.ProductForecastReport
 import com.bimacore.usahakecil.data.PurchaseDraft
 import com.bimacore.usahakecil.data.PurchaseLineDraft
 import com.bimacore.usahakecil.data.ReportRepository
 import com.bimacore.usahakecil.data.ReportSummary
 import com.bimacore.usahakecil.data.SaleEntity
 import com.bimacore.usahakecil.data.SaleItemEntity
+import com.bimacore.usahakecil.data.ShiftSummary
 import com.bimacore.usahakecil.data.VariantDraft
 import com.bimacore.usahakecil.data.WorkerScheme
 import com.bimacore.usahakecil.data.WorkforceRepository
@@ -98,6 +100,11 @@ class OperationsViewModel(
         SharingStarted.WhileSubscribed(5_000),
         emptyList(),
     )
+    val shifts = operations.shifts.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        emptyList(),
+    )
     val debts = operations.debts.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
@@ -135,6 +142,12 @@ class OperationsViewModel(
     val busy = _busy.asStateFlow()
     private val _reportSummary = MutableStateFlow<ReportSummary?>(null)
     val reportSummary = _reportSummary.asStateFlow()
+    private val _forecastReport = MutableStateFlow<ProductForecastReport?>(null)
+    val forecastReport = _forecastReport.asStateFlow()
+    private val _forecastLoading = MutableStateFlow(false)
+    val forecastLoading = _forecastLoading.asStateFlow()
+    private val _forecastError = MutableStateFlow<String?>(null)
+    val forecastError = _forecastError.asStateFlow()
     private val _reportHasPin = MutableStateFlow<Boolean?>(null)
     val reportHasPin = _reportHasPin.asStateFlow()
     val ownerUnlocked = reports.session.unlocked
@@ -146,9 +159,14 @@ class OperationsViewModel(
     val restoreCompleted = _restoreCompleted.asStateFlow()
     private val _saleDetail = MutableStateFlow<SaleDetail?>(null)
     val saleDetail = _saleDetail.asStateFlow()
+    private val _shiftSummary = MutableStateFlow<ShiftSummary?>(null)
+    val shiftSummary = _shiftSummary.asStateFlow()
+    private val _shiftLoading = MutableStateFlow(false)
+    val shiftLoading = _shiftLoading.asStateFlow()
 
     init {
         refreshPinState()
+        refreshShiftSummary()
     }
 
     fun consumeMessage() {
@@ -308,6 +326,32 @@ class OperationsViewModel(
         operations.addManualCashEntry(type, amount, category, note)
     }
 
+    fun openShift(
+        cashierName: String,
+        openingCash: Long,
+        openingNote: String,
+    ) = execute("Shift dibuka") {
+        operations.openShift(cashierName, openingCash, openingNote)
+        loadShiftSummary()
+    }
+
+    fun closeShift(
+        closingCash: Long,
+        closingNote: String,
+    ) = execute("Shift ditutup") {
+        operations.closeShift(closingCash, closingNote)
+        _shiftSummary.value = null
+    }
+
+    fun refreshShiftSummary() {
+        if (!reports.session.isUnlocked) {
+            _shiftSummary.value = null
+            return
+        }
+        if (_shiftLoading.value) return
+        viewModelScope.launch { loadShiftSummary() }
+    }
+
     fun createDebt(
         kind: DebtKind,
         partyId: Long,
@@ -412,6 +456,8 @@ class OperationsViewModel(
     fun lockReport() {
         reports.lock()
         _reportSummary.value = null
+        _forecastReport.value = null
+        _forecastError.value = null
         _message.value = "Mode Owner dikunci"
     }
 
@@ -501,6 +547,29 @@ class OperationsViewModel(
     private suspend fun loadReport() {
         val now = System.currentTimeMillis()
         _reportSummary.value = reports.readSummary(startOfToday(), now)
+        _forecastLoading.value = true
+        _forecastError.value = null
+        try {
+            _forecastReport.value = reports.readProductForecasts(toInclusive = now)
+        } catch (_: Exception) {
+            _forecastReport.value = null
+            _forecastError.value = "Prediksi belum dapat dimuat sekarang"
+        } finally {
+            _forecastLoading.value = false
+        }
+    }
+
+    private suspend fun loadShiftSummary() {
+        if (!reports.session.isUnlocked) {
+            _shiftSummary.value = null
+            return
+        }
+        _shiftLoading.value = true
+        try {
+            _shiftSummary.value = operations.readOpenShiftSummary()
+        } finally {
+            _shiftLoading.value = false
+        }
     }
 
     private fun execute(

@@ -220,7 +220,7 @@ class BackupManager(
 
     companion object {
         private const val DEFAULT_DATABASE_NAME = "usaha-kecil-pos.db"
-        private const val DATABASE_SCHEMA_VERSION = 2
+        private const val DATABASE_SCHEMA_VERSION = 4
         private const val BACKUP_DIRECTORY = "backups"
         private const val MANIFEST_ENTRY = "manifest.txt"
         private const val DATABASE_ENTRY = "database.db"

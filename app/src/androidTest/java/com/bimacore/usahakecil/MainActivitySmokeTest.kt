@@ -138,6 +138,70 @@ class MainActivitySmokeTest {
         composeRule.onNodeWithText("Buat backup lokal").assertIsDisplayed()
     }
 
+    @Test
+    fun owner_mode_covers_all_relevant_screens_and_locks_again() {
+        composeRule.onNodeWithText("Laporan").assertDoesNotExist()
+        unlockOwner()
+
+        val operationsLabel = when (BuildConfig.BUSINESS_TYPE) {
+            "WHOLESALE" -> "Grosir"
+            "CULINARY" -> "Pesanan"
+            else -> "Operasional"
+        }
+        val financeLabel = if (BuildConfig.BUSINESS_TYPE == "RETAIL") "Piutang" else "Keuangan"
+
+        composeRule.onNodeWithText(operationsLabel).performClick()
+        when (BuildConfig.BUSINESS_TYPE) {
+            "WHOLESALE" -> {
+                waitForText("Multi-satuan dan harga bertingkat", substring = true)
+                composeRule.onAllNodesWithText("Produk")[0].performClick()
+            }
+
+            "CULINARY" -> {
+                waitForText("Atur topping/resep")
+                composeRule.onAllNodesWithText("Produk")[0].performClick()
+            }
+        }
+        waitForText("Tambah produk")
+        composeRule.onAllNodesWithText("Stok")[0].performClick()
+        waitForText("Riwayat terbaru")
+        composeRule.onAllNodesWithText("Pembelian")[0].performClick()
+        waitForText("Catat pembelian")
+        composeRule.onAllNodesWithText("Pekerja")[0].performClick()
+        waitForText("Tambah pekerja")
+
+        composeRule.onNodeWithText(financeLabel).performClick()
+        if (BuildConfig.BUSINESS_TYPE != "RETAIL") {
+            waitForText("Shift kasir")
+        }
+        composeRule.onAllNodesWithText("Utang & Piutang")[0].performClick()
+        waitForText("Tambah utang")
+        if (BuildConfig.BUSINESS_TYPE != "CULINARY") {
+            waitForText("Tambah piutang")
+            waitForText("Tambah pelanggan")
+        }
+        composeRule.onAllNodesWithText("Transaksi")[0].performClick()
+        composeRule.onAllNodesWithText("Kas")[0].performClick()
+        waitForText("Shift kasir")
+
+        composeRule.onNodeWithText("Laporan").performClick()
+        waitForText("Omzet hari ini")
+        waitForText("Perkiraan penjualan")
+        waitForText("Ganti PIN")
+
+        composeRule.onNodeWithText("Lainnya").performClick()
+        waitForText("Profil usaha")
+        waitForText("Ubah nama usaha")
+        waitForText("Backup & restore")
+        waitForText("Buat backup lokal")
+        waitForText("Pilih file untuk restore")
+        waitForText("Keluar Mode Owner")
+        composeRule.onNodeWithText("Offline-first", substring = true).performScrollTo()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("owner-exit").assertIsDisplayed().performClick()
+        waitForText("Buka Mode Owner")
+    }
+
     private fun unlockOwner() {
         composeRule.onNodeWithTag("owner-access").performClick()
         composeRule.waitUntil(timeoutMillis = 5_000) {
@@ -149,6 +213,21 @@ class MainActivitySmokeTest {
         composeRule.waitUntil(timeoutMillis = 5_000) {
             composeRule.onAllNodesWithText("Laporan")
                 .fetchSemanticsNodes().isNotEmpty()
+        }
+    }
+
+    private fun waitForText(text: String, substring: Boolean = false) {
+        try {
+            composeRule.waitUntil(timeoutMillis = 5_000) {
+                composeRule.onAllNodesWithText(text, substring = substring)
+                    .fetchSemanticsNodes()
+                    .isNotEmpty()
+            }
+        } catch (error: Throwable) {
+            throw AssertionError(
+                "Gagal menunggu teks '$text'. Layar saat gagal:\n${composeRule.onRoot().printToString()}",
+                error,
+            )
         }
     }
 }

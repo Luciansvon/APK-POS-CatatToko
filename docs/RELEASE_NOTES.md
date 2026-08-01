@@ -58,6 +58,46 @@ Status: Draft / Siap dites / Siap dibagikan
 - Kuliner:
 ```
 
+## Versi 0.4.0 - 2026-08-01
+
+Status: Draft, siap dites sebagai APK debug
+
+### Kenapa versi ini dibuat
+
+- Menghubungkan forecasting penjualan offline ke histori transaksi nyata dan layar Laporan Owner.
+
+### Perubahan
+
+- Menambahkan migrasi Room skema 2 ke 3 untuk menyimpan snapshot `baseQuantity` pada item transaksi.
+- Menambahkan migrasi Room skema 3 ke 4 untuk shift, `shiftId` transaksi/kas, dan unique guard satu shift aktif.
+- Forecasting membaca transaksi lokal, memakai kuantitas dasar untuk Grosir, dan berjalan di background thread.
+- Menambahkan kartu forecasting 7 hari pada Laporan Owner untuk maksimal lima produk dengan histori yang cukup.
+- Menambahkan Buka Shift, Tutup Shift, perhitungan kas seharusnya, selisih kas, dan riwayat shift pada layar Keuangan Owner.
+- Transaksi kasir sekarang ditolak jika belum ada shift aktif; pembayaran tunai dikaitkan ke shift secara atomik.
+- Menambahkan regresi AndroidTest untuk migrasi, kuantitas dasar Grosir, dan penguncian laporan tanpa PIN.
+- Menaikkan `versionCode` ke `9` dan `versionName` ke `0.4.0`.
+
+### Kekurangan yang masih ada
+
+- Forecasting restock, retur/refund, void, HPP/laba, Excel, notifikasi, dan sinkronisasi cloud belum diimplementasikan.
+
+### Masalah yang diketahui
+
+- Connected smoke test, visual QA, dan uji offline perangkat belum dijalankan karena target emulator/perangkat belum dikonfirmasi.
+- AndroidTest baru dikompilasi; belum dieksekusi pada perangkat.
+
+### Verifikasi
+
+- Unit test tiga flavor: `testRetailDebugUnitTest testWholesaleDebugUnitTest testCulinaryDebugUnitTest` - BUILD SUCCESSFUL.
+- Lint tiga flavor: `lintRetailDebug lintWholesaleDebug lintCulinaryDebug` - BUILD SUCCESSFUL.
+- Build tiga flavor: `assembleDebug` - BUILD SUCCESSFUL.
+- Compile AndroidTest tiga flavor: `assembleRetailDebugAndroidTest assembleWholesaleDebugAndroidTest assembleCulinaryDebugAndroidTest` - BUILD SUCCESSFUL.
+- Smoke test dan perangkat: Belum dijalankan.
+
+### APK yang ditimpa
+
+- Belum dipaketkan; `scripts/package-apks.ps1` belum dijalankan.
+
 ## Versi 0.3.3 - 2026-08-01
 
 Status: Siap dites sebagai APK debug

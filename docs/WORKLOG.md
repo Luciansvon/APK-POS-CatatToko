@@ -25,6 +25,24 @@ Worklog bukan pengganti:
 
 ---
 
+## 2026-08-01 - Standarisasi flow test MuMu dua device
+
+Status: Selesai untuk dokumentasi; hasil connected test dan audit Owner dicatat terpisah sesuai bukti aktual.
+
+### Hasil
+
+- `docs/MUMU_TESTING_GUIDE.md` diperbarui sebagai prosedur wajib agent untuk ADB, dua serial MuMu, tiga flavor, targeted Owner test, install ulang setelah runner uninstall, screenshot PNG binary-safe, dan audit vision.
+- Profil device yang terverifikasi: ASUS AI2205 portrait `1080x1920` dan ALT AL10 landscape efektif `1600x900`.
+- `README.md` dan `AGENTS.md` sekarang menunjuk langsung ke panduan MuMu agar agent tidak mengulang trial-and-error.
+
+### File
+
+- `docs/MUMU_TESTING_GUIDE.md`
+- `README.md`
+- `AGENTS.md`
+
+---
+
 ## 2026-07-29 - Inisialisasi wadah project
 
 Status: Selesai.
@@ -610,6 +628,36 @@ Status: Selesai, diuji pada 3 varian APK, dipaketkan di `dist/debug/`.
 
 ---
 
+## 2026-08-01 - Integrasi forecasting penjualan ke transaksi dan Laporan Owner (Versi 0.4.0)
+
+Status: Diimplementasikan dan diverifikasi lewat test, lint, build, serta kompilasi AndroidTest tiga flavor.
+
+### Perubahan
+
+- Menambah kolom snapshot `sale_items.baseQuantity` melalui migrasi Room 2 ke 3; transaksi lama mengisi nilai awal dari `quantity`.
+- Menambah tabel shift melalui migrasi Room 3 ke 4, `shiftId` pada sales dan jurnal kas, serta unique index untuk satu shift aktif.
+- Menghubungkan `ReportRepository` ke histori transaksi lokal dan `SalesForecastEngine` dengan kuantitas dasar untuk konversi satuan Grosir.
+- Menampilkan perkiraan tujuh hari di Laporan Owner setelah PIN terbuka; data forecast dibersihkan saat Owner mengunci laporan.
+- Menambahkan alur Owner Buka Shift/Tutup Shift, snapshot kas seharusnya, uang fisik, selisih, dan riwayat.
+- Checkout wajib memiliki shift aktif; transaksi lama tetap memiliki `shiftId = null` dan tidak ditebak masuk shift baru.
+- Menambah regresi AndroidTest untuk migrasi, forecast Grosir, dan akses laporan saat terkunci.
+- Menaikkan metadata menjadi `versionCode 9` dan `versionName 0.4.0`.
+
+### Verifikasi aktual
+
+- Unit test tiga flavor: `BUILD SUCCESSFUL`.
+- Lint tiga flavor: `BUILD SUCCESSFUL`.
+- `assembleDebug`: `BUILD SUCCESSFUL`.
+- Kompilasi AndroidTest tiga flavor: `BUILD SUCCESSFUL`.
+- Backup manifest diselaraskan ke schema database `4`.
+- Connected test, visual QA, dan uji offline perangkat: belum dijalankan karena target perangkat belum dikonfirmasi.
+
+### Batas fitur
+
+- Forecasting restock, retur/refund, void, HPP/laba, Excel, notifikasi, dan cloud masih belum diimplementasikan.
+
+---
+
 ## 2026-08-01 - Sinkronisasi branch dan release identity 0.3.3
 
 Status: Source sudah disinkronkan dengan `origin/main`; APK debug `0.3.3` sudah dibuild dan dipaketkan dari HEAD terbaru.
@@ -634,3 +682,17 @@ Status: Source sudah disinkronkan dengan `origin/main`; APK debug `0.3.3` sudah 
 - Compile androidTest tiga flavor: `BUILD SUCCESSFUL`.
 - `scripts/package-apks.ps1`: sukses memperbarui tiga APK debug.
 - Connected test dan visual QA: belum dijalankan karena target emulator/perangkat belum dikonfirmasi.
+
+---
+
+## 2026-08-01 - Owner QA dua device dan standardisasi MuMu
+
+Status: Connected test Owner lulus dan panduan MuMu diperbarui.
+
+### Verifikasi aktual
+
+- `owner_mode_covers_all_relevant_screens_and_locks_again` lulus `6/6`: Retail, Wholesale, Culinary pada `emulator-5554` ASUS portrait dan `emulator-5556` ALT landscape.
+- Ditemukan dan diperbaiki layout kontrol Laporan Owner yang bertumpuk pada layar kecil/tablet landscape.
+- Dicatat workaround screenshot dan tombol keluar Owner saat snackbar backup aktif di `docs/MUMU_TESTING_GUIDE.md`.
+- Screenshot portrait dan tablet diaudit vision: tiga kontrol laporan lulus tanpa wrap, overlap, atau clipping; temuan sisa status bar dan label `Operasional` dicatat sebagai revisi visual terpisah.
+- `AGENTS.md`, README, dan `docs/ERROR_SOLUTIONS.md` mengacu ke panduan MuMu sebagai flow standar agent.

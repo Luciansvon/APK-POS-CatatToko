@@ -22,6 +22,7 @@ import androidx.room.RoomDatabase
         PurchaseEntity::class,
         PurchaseItemEntity::class,
         CashEntryEntity::class,
+        ShiftEntity::class,
         DebtEntity::class,
         DebtPaymentEntity::class,
         EmployeeEntity::class,
@@ -36,7 +37,7 @@ import androidx.room.RoomDatabase
         SaleItemToppingEntity::class,
         ReportSecurityEntity::class,
     ],
-    version = 2,
+    version = 4,
     exportSchema = true,
 )
 abstract class PosDatabase : RoomDatabase() {
@@ -47,6 +48,7 @@ abstract class PosDatabase : RoomDatabase() {
     abstract fun profileDao(): ProfileDao
     abstract fun inventoryAdminDao(): InventoryAdminDao
     abstract fun operationsDao(): OperationsDao
+    abstract fun shiftDao(): ShiftDao
     abstract fun workforceDao(): WorkforceDao
     abstract fun culinaryDao(): CulinaryDao
     abstract fun securityDao(): SecurityDao
@@ -59,7 +61,7 @@ abstract class PosDatabase : RoomDatabase() {
                 PosDatabase::class.java,
                 "usaha-kecil-pos.db",
             )
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .build()
     }
 }

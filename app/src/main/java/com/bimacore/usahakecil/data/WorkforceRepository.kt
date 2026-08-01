@@ -188,6 +188,7 @@ class WorkforceRepository(
                     referenceType = "ATTENDANCE",
                     referenceId = attendance.id,
                     createdAt = now,
+                    shiftId = database.shiftDao().getOpenShift()?.id,
                 ),
             )
         }
@@ -264,6 +265,7 @@ class WorkforceRepository(
                 referenceType = "FREELANCE_JOB",
                 referenceId = job.id,
                 createdAt = now,
+                shiftId = database.shiftDao().getOpenShift()?.id,
             ),
         )
     }

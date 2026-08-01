@@ -5,6 +5,7 @@ import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -19,7 +20,7 @@ class DatabaseMigrationTest {
     )
 
     @Test
-    fun migration_1_2_preserves_existing_catalog_and_sales() {
+    fun migration_1_4_preserves_existing_catalog_sales_and_creates_shift_table() {
         helper.createDatabase(TEST_DATABASE, 1).apply {
             execSQL(
                 """
@@ -43,14 +44,24 @@ class DatabaseMigrationTest {
                 ) VALUES (1, 'INV-LAMA', 'Warung Lama', 1000, 'CASH', 25000, 30000, 5000)
                 """.trimIndent(),
             )
+            execSQL(
+                """
+                INSERT INTO sale_items (
+                    id, saleId, productId, variantId, productName, variantName,
+                    categoryName, unitPrice, quantity, subtotal
+                ) VALUES (1, 1, 1, NULL, 'Beras Lama', NULL, 'Sembako', 25000, 3, 75000)
+                """.trimIndent(),
+            )
             close()
         }
 
         val migrated = helper.runMigrationsAndValidate(
             TEST_DATABASE,
-            2,
+            4,
             true,
             MIGRATION_1_2,
+            MIGRATION_2_3,
+            MIGRATION_3_4,
         )
 
         migrated.query("SELECT name, stock FROM products WHERE id = 1").use {
@@ -63,10 +74,23 @@ class DatabaseMigrationTest {
             assertEquals("INV-LAMA", it.getString(0))
             assertEquals(25_000L, it.getLong(1))
         }
+        migrated.query("SELECT shiftId FROM sales WHERE id = 1").use {
+            it.moveToFirst()
+            assertTrue(it.isNull(0))
+        }
+        migrated.query("SELECT quantity, baseQuantity FROM sale_items WHERE id = 1").use {
+            it.moveToFirst()
+            assertEquals(3, it.getInt(0))
+            assertEquals(3, it.getInt(1))
+        }
+        migrated.query("SELECT COUNT(*) FROM shifts").use {
+            it.moveToFirst()
+            assertEquals(0, it.getInt(0))
+        }
         migrated.close()
     }
 
     companion object {
-        private const val TEST_DATABASE = "migration-1-2-test"
+        private const val TEST_DATABASE = "migration-1-4-test"
     }
 }

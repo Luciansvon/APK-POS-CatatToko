@@ -7,6 +7,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.bimacore.usahakecil.data.BusinessProfileEntity
 import com.bimacore.usahakecil.data.CategoryEntity
 import com.bimacore.usahakecil.data.MIGRATION_1_2
+import com.bimacore.usahakecil.data.MIGRATION_2_3
+import com.bimacore.usahakecil.data.MIGRATION_3_4
 import com.bimacore.usahakecil.data.PosDatabase
 import com.bimacore.usahakecil.data.ProductEntity
 import java.io.FileOutputStream
@@ -123,6 +125,6 @@ class BackupRestoreTest {
 
     private fun openDatabase(): PosDatabase =
         Room.databaseBuilder(context, PosDatabase::class.java, databaseName)
-            .addMigrations(MIGRATION_1_2)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
             .build()
 }

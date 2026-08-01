@@ -5,6 +5,8 @@ import com.bimacore.usahakecil.domain.InventoryRules
 import com.bimacore.usahakecil.domain.LedgerLine
 import com.bimacore.usahakecil.domain.LedgerRules
 import com.bimacore.usahakecil.domain.MoneyMath
+import com.bimacore.usahakecil.security.ReportSession
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.Flow
 
 enum class PartyKind {
@@ -40,18 +42,43 @@ data class PurchaseDraft(
     val lines: List<PurchaseLineDraft>,
 )
 
+enum class ShiftStatus {
+    OPEN,
+    CLOSED,
+}
+
+data class ShiftSummary(
+    val shift: ShiftEntity,
+    val totalSales: Long,
+    val cashSales: Long,
+    val nonCashSales: Long,
+    val otherCashIn: Long,
+    val cashOut: Long,
+    val refundAmount: Long,
+    val expectedCash: Long,
+    val physicalCash: Long? = shift.closingCash,
+    val cashDifference: Long? = shift.cashDifference,
+)
+
 class OperationsRepository(
     private val database: PosDatabase,
     private val clock: () -> Long = System::currentTimeMillis,
+    private val ownerSession: ReportSession? = null,
 ) {
     private val operationsDao = database.operationsDao()
     private val catalogDao = database.catalogDao()
+    private val shiftDao = database.shiftDao()
 
     val suppliers: Flow<List<PartyEntity>> = operationsDao.observeParties(PartyKind.SUPPLIER.name)
     val customers: Flow<List<PartyEntity>> = operationsDao.observeParties(PartyKind.CUSTOMER.name)
     val purchases: Flow<List<PurchaseEntity>> = operationsDao.observePurchases()
     val cashEntries: Flow<List<CashEntryEntity>> = operationsDao.observeCashEntries()
     val debts: Flow<List<DebtEntity>> = operationsDao.observeDebts()
+    val shifts: Flow<List<ShiftEntity>> = ownerSession?.let { session ->
+        combine(shiftDao.observeShifts(), session.unlocked) { shifts, unlocked ->
+            if (unlocked) shifts else emptyList()
+        }
+    } ?: shiftDao.observeShifts()
 
     suspend fun saveParty(
         id: Long?,
@@ -220,6 +247,7 @@ class OperationsRepository(
                     referenceType = "PURCHASE",
                     referenceId = purchaseId,
                     createdAt = now,
+                    shiftId = shiftDao.getOpenShift()?.id,
                 ),
             )
         }
@@ -274,7 +302,68 @@ class OperationsRepository(
                 referenceType = null,
                 referenceId = null,
                 createdAt = clock(),
+                shiftId = if (paymentMethod == "CASH") shiftDao.getOpenShift()?.id else null,
             ),
+        )
+    }
+
+    suspend fun openShift(
+        cashierName: String,
+        openingCash: Long,
+        openingNote: String,
+    ): Long = database.withTransaction {
+        requireOwnerForShift()
+        val normalizedCashier = cashierName.trim()
+        require(normalizedCashier.isNotBlank()) { "Nama kasir wajib diisi" }
+        require(openingCash in 0..MoneyMath.MAX_MONEY) { "Modal awal tidak valid" }
+        require(shiftDao.getOpenShift() == null) { "Masih ada shift yang aktif" }
+        shiftDao.insertShift(
+            ShiftEntity(
+                cashierName = normalizedCashier,
+                openedAt = clock(),
+                openingCash = openingCash,
+                openingNote = openingNote.trim(),
+                openSlot = 1,
+            ),
+        )
+    }
+
+    suspend fun readOpenShiftSummary(): ShiftSummary? {
+        requireOwnerForShift()
+        val shift = shiftDao.getOpenShift() ?: return null
+        return calculateShiftSummary(shift)
+    }
+
+    suspend fun closeShift(
+        closingCash: Long,
+        closingNote: String,
+    ): ShiftSummary = database.withTransaction {
+        requireOwnerForShift()
+        require(closingCash in 0..MoneyMath.MAX_MONEY) { "Uang fisik tidak valid" }
+        val shift = requireNotNull(shiftDao.getOpenShift()) { "Belum ada shift aktif" }
+        val closedAt = clock()
+        val summary = calculateShiftSummary(shift)
+        val cashDifference = Math.subtractExact(closingCash, summary.expectedCash)
+        val closedShift = shift.copy(
+            status = ShiftStatus.CLOSED.name,
+            closedAt = closedAt,
+            closingCash = closingCash,
+            closingNote = closingNote.trim(),
+            totalSales = summary.totalSales,
+            cashSales = summary.cashSales,
+            nonCashSales = summary.nonCashSales,
+            otherCashIn = summary.otherCashIn,
+            cashOut = summary.cashOut,
+            refundAmount = summary.refundAmount,
+            expectedCash = summary.expectedCash,
+            cashDifference = cashDifference,
+            openSlot = null,
+        )
+        shiftDao.updateShift(closedShift)
+        summary.copy(
+            shift = closedShift,
+            physicalCash = closingCash,
+            cashDifference = cashDifference,
         )
     }
 
@@ -334,6 +423,7 @@ class OperationsRepository(
                     referenceType = "DEBT",
                     referenceId = debtId,
                     createdAt = now,
+                    shiftId = if (initialPayment > 0) shiftDao.getOpenShift()?.id else null,
                 ),
             )
         }
@@ -382,6 +472,7 @@ class OperationsRepository(
                 referenceType = "DEBT",
                 referenceId = debt.id,
                 createdAt = now,
+                shiftId = if (paymentMethod == "CASH") shiftDao.getOpenShift()?.id else null,
             ),
         )
     }
@@ -393,4 +484,59 @@ class OperationsRepository(
         val baseQuantity: Int,
         val subtotal: Long,
     )
+
+    private suspend fun calculateShiftSummary(shift: ShiftEntity): ShiftSummary {
+        val sales = database.saleDao().getSalesForShift(shift.id)
+        val cashEntries = operationsDao.getCashEntriesForShift(shift.id)
+        val totalSales = sales.sumAmounts { it.total }
+        val cashSales = sales
+            .filter { it.paymentMethod == "CASH" }
+            .sumAmounts { it.total }
+        val nonCashSales = sales
+            .filter { it.paymentMethod != "CASH" }
+            .sumAmounts { it.total }
+        val otherCashIn = cashEntries
+            .filter { it.paymentMethod == "CASH" && it.type in OTHER_CASH_IN_TYPES }
+            .sumAmounts { it.amount }
+        val cashOut = cashEntries
+            .filter { it.paymentMethod == "CASH" && it.type in CASH_OUT_TYPES }
+            .sumAmounts { it.amount }
+        val refundAmount = cashEntries
+            .filter { it.paymentMethod == "CASH" && it.type == REFUND_CASH_OUT_TYPE }
+            .sumAmounts { it.amount }
+        val expectedCash = Math.subtractExact(
+            Math.addExact(Math.addExact(shift.openingCash, cashSales), otherCashIn),
+            Math.addExact(cashOut, refundAmount),
+        )
+        return ShiftSummary(
+            shift = shift,
+            totalSales = totalSales,
+            cashSales = cashSales,
+            nonCashSales = nonCashSales,
+            otherCashIn = otherCashIn,
+            cashOut = cashOut,
+            refundAmount = refundAmount,
+            expectedCash = expectedCash,
+        )
+    }
+
+    private fun requireOwnerForShift() {
+        ownerSession?.requireOwner()
+    }
+
+    private companion object {
+        val OTHER_CASH_IN_TYPES = setOf("CASH_IN", "RECEIVABLE_IN")
+        val CASH_OUT_TYPES = setOf(
+            "PURCHASE_OUT",
+            "CASH_OUT",
+            "EXPENSE",
+            "PAYABLE_OUT",
+            "WAGE_OUT",
+        )
+        const val REFUND_CASH_OUT_TYPE = "REFUND_OUT"
+    }
+}
+
+private fun <T> Iterable<T>.sumAmounts(selector: (T) -> Long): Long = fold(0L) { total, item ->
+    Math.addExact(total, selector(item))
 }

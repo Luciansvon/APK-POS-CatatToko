@@ -257,6 +257,8 @@ Connected test hanya boleh dijalankan setelah target device/emulator dikonfirmas
 .\gradlew.bat connectedRetailDebugAndroidTest
 ```
 
+Untuk flow MuMu dua device, baca `docs/MUMU_TESTING_GUIDE.md` sebelum mencoba perintah atau mengambil screenshot. Dokumen itu adalah panduan standar agar agent tidak mengulang trial-and-error ADB, runner, orientasi, dan capture PNG.
+
 ## Rilis dan patch APK
 
 - APK distribusi memakai nama tetap dan build baru menimpa file lama.

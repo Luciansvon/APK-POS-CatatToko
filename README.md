@@ -6,7 +6,7 @@ Satu source Android offline-first untuk tiga APK operasional:
 - Grosir dan Agen;
 - Kuliner dan Pedagang Kaki Lima.
 
-Versi fitur saat ini: `0.3.3` (`versionCode 8`). Semua fungsi utama berjalan lokal di HP owner tanpa akun, server, atau internet.
+Versi fitur saat ini: `0.4.0` (`versionCode 9`). Semua fungsi utama berjalan lokal di HP owner tanpa akun, server, atau internet.
 
 Aplikasi selalu mulai dalam Mode Kasir/Pekerja. Pekerja hanya dapat memakai kasir serta melihat stok produk dan total transaksi aktif. Operasional, keuangan, laporan, profil, backup, dan restore baru muncul setelah PIN Owner benar.
 
@@ -71,3 +71,4 @@ dist/debug/Kasir-Kuliner-PKL.apk
 - `docs/ERROR_SOLUTIONS.md`: gejala, root cause, solusi, dan bukti bugfix.
 - `docs/RELEASE_NOTES.md`: riwayat versi APK.
 - `docs/UI_UX_REQUIREMENTS.md`: backlog desain visual yang sengaja ditunda.
+- `docs/MUMU_TESTING_GUIDE.md`: flow standar MuMu dua device, Owner test, screenshot binary-safe, dan audit vision.
