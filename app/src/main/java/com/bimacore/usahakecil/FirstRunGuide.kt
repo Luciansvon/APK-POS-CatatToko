@@ -92,7 +92,7 @@ fun FirstRunGuide(
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text("Catatan penting", fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(6.dp))
-                        Text("Data tersimpan offline di HP ini. Mode Kasir tetap menjadi mode awal setiap kali aplikasi dibuka.")
+                        Text("Data tersimpan offline di HP ini. Mode yang sedang aktif akan diingat saat aplikasi dibuka lagi. Tekan Kunci Mode Owner jika ingin kembali ke Mode Kasir.")
                     }
                 }
 

@@ -3,21 +3,30 @@ package com.bimacore.usahakecil.security
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-class ReportSession {
+class ReportSession(
+    initiallyUnlocked: Boolean = false,
+    private val onStateChanged: (Boolean) -> Unit = {},
+) {
     private val _unlocked = MutableStateFlow(false)
     val unlocked = _unlocked.asStateFlow()
 
     val isUnlocked: Boolean
         get() = _unlocked.value
 
+    init {
+        _unlocked.value = initiallyUnlocked
+    }
+
     @Synchronized
     fun unlock() {
         _unlocked.value = true
+        onStateChanged(true)
     }
 
     @Synchronized
     fun lock() {
         _unlocked.value = false
+        onStateChanged(false)
     }
 
     @Synchronized
