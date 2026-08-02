@@ -24,6 +24,41 @@ Source aplikasi sudah dibuat. Entri di bawah mencatat error build dan pengujian 
 - Jika pengujian perangkat fisik belum dilakukan, nyatakan batas verifikasinya.
 - Jangan menghapus entri lama. Perbarui status atau tambahkan entri lanjutan.
 
+## ERR-051 - Sesi Owner kembali ke Mode Kasir setelah APK dibuka ulang
+
+Tanggal: 2026-08-02
+
+Varian dan versi: semua varian; perubahan pada sesi Owner bersama
+
+### Kondisi/gejala
+
+Owner sudah membuka Mode Owner, tetapi setelah keluar atau membuka ulang APK, aplikasi kembali ke Mode Kasir.
+
+### Root cause
+
+Status sesi Owner hanya disimpan di RAM melalui ReportSession. Saat proses aplikasi dibuat ulang, status selalu kembali terkunci.
+
+### Solusi
+
+Menyimpan status Mode Owner aktif di preferensi lokal dan memulihkannya saat PosApplication dibuat lagi. Status hanya kembali ke Kasir setelah owner menekan Kunci Mode Owner.
+
+### Perlindungan regresi
+
+Menambah unit test untuk pemulihan sesi Owner dan kunci eksplisit.
+
+### Bukti verifikasi aktual
+
+- Test: ReportSessionTest
+- Build: assembleDebug akan dijalankan setelah perubahan ini.
+- Perangkat: belum connected test.
+
+### File terdampak
+
+- app/src/main/java/com/bimacore/usahakecil/security/ReportSession.kt
+- app/src/main/java/com/bimacore/usahakecil/PosApplication.kt
+- app/src/main/java/com/bimacore/usahakecil/FirstRunGuide.kt
+- app/src/test/java/com/bimacore/usahakecil/security/ReportSessionTest.kt
+
 ## ERR-050 - Tombol refresh laporan tersembunyi di rincian
 
 Tanggal: 2026-08-02

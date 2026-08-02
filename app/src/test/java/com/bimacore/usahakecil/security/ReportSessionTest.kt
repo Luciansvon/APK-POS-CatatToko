@@ -19,4 +19,23 @@ class ReportSessionTest {
 
         assertFalse(session.isUnlocked)
     }
+
+    @Test
+    fun owner_session_can_be_restored_until_explicit_lock() {
+        var persisted = false
+        val session = ReportSession(
+            initiallyUnlocked = persisted,
+            onStateChanged = { persisted = it },
+        )
+
+        session.unlock()
+        val reopened = ReportSession(
+            initiallyUnlocked = persisted,
+            onStateChanged = { persisted = it },
+        )
+
+        assertTrue(reopened.isUnlocked)
+        reopened.lock()
+        assertFalse(persisted)
+    }
 }

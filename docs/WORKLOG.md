@@ -25,6 +25,17 @@ Worklog bukan pengganti:
 
 ---
 
+## 2026-08-02 - Mode Owner dipertahankan saat APK dibuka ulang
+
+Status: Source diperbaiki; build debug sedang diverifikasi.
+
+- Status Owner sekarang disimpan lokal setelah PIN berhasil diverifikasi.
+- Membuka ulang APK tetap berada di Mode Owner.
+- Owner hanya kembali ke Mode Kasir setelah menekan Kunci Mode Owner.
+- Menambahkan unit test untuk pemulihan sesi Owner.
+
+---
+
 ## 2026-08-02 - Tombol refresh laporan dipindahkan ke area utama
 
 Status: Selesai di source dan APK debug lokal.
