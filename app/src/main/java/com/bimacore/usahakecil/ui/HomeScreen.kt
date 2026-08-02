@@ -49,7 +49,9 @@ fun HomeScreen(
     val presentation = remember(businessType) {
         navigationPresentationFor(businessType)
     }
-    var destination by remember { mutableStateOf(AppDestination.POS) }
+    var destination by remember {
+        mutableStateOf(if (ownerUnlocked) AppDestination.REPORTS else AppDestination.POS)
+    }
     var showOwnerAccess by remember { mutableStateOf(false) }
     var showShiftOpen by remember { mutableStateOf(false) }
     val hasOwnerPin by operationsViewModel.reportHasPin.collectAsState()
@@ -68,7 +70,7 @@ fun HomeScreen(
         if (restoreCompleted) onRecreate()
     }
     LaunchedEffect(ownerUnlocked) {
-        if (!ownerUnlocked) destination = AppDestination.POS
+        destination = if (ownerUnlocked) AppDestination.REPORTS else AppDestination.POS
     }
 
     Scaffold(

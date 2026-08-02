@@ -36,6 +36,12 @@ class PosApplication : Application() {
         )
     }
 
+    fun restoreOwnerModeDefaultIfUnset(hasPin: Boolean) {
+        if (hasPin && !ownerModePreferences.contains(OWNER_MODE_ACTIVE)) {
+            reportSession.unlock()
+        }
+    }
+
     @Volatile
     private var databaseInstance: PosDatabase? = null
 
