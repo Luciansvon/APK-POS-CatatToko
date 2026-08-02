@@ -24,6 +24,39 @@ Source aplikasi sudah dibuat. Entri di bawah mencatat error build dan pengujian 
 - Jika pengujian perangkat fisik belum dilakukan, nyatakan batas verifikasinya.
 - Jangan menghapus entri lama. Perbarui status atau tambahkan entri lanjutan.
 
+## ERR-050 - Tombol refresh laporan tersembunyi di rincian
+
+Tanggal: 2026-08-02
+
+Varian dan versi: semua varian; diverifikasi pada debug terbaru
+
+### Kondisi/gejala
+
+Tombol Muat ulang hanya muncul setelah pengguna membuka rincian lengkap laporan. Pengguna dapat mengira laporan selalu ter-update otomatis setelah transaksi baru.
+
+### Root cause
+
+Aksi refresh ditempatkan di akhir konten rincian lengkap, sehingga tidak terlihat pada tampilan ringkas laporan.
+
+### Solusi
+
+Memindahkan tombol ke bawah pilihan periode di bagian atas laporan, menambahkan ikon refresh, label Muat ulang laporan, dan keterangan bahwa laporan perlu dimuat ulang setelah ada transaksi baru.
+
+### Perlindungan regresi
+
+Smoke test memeriksa tag report-refresh sebelum rincian lengkap dibuka.
+
+### Bukti verifikasi aktual
+
+- Build: assembleDebug lulus untuk Retail, Wholesale, dan Culinary.
+- Compile test: assembleRetailDebugAndroidTest lulus.
+- Perangkat: belum dilakukan connected test; perubahan diverifikasi melalui compile/build.
+
+### File terdampak
+
+- app/src/main/java/com/bimacore/usahakecil/ui/ManagementScreens.kt
+- app/src/androidTest/java/com/bimacore/usahakecil/MainActivitySmokeTest.kt
+
 ## ERR-049 - Header kolom Excel tidak terbaca dan lebar tabel terasa sempit
 
 Tanggal: 2026-08-02

@@ -21,6 +21,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.TableView
 import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -930,6 +931,23 @@ fun ReportsScreen(viewModel: OperationsViewModel) {
                     selected = reportPeriod,
                     onSelected = viewModel::selectReportPeriod,
                 )
+                OutlinedButton(
+                    onClick = viewModel::refreshReport,
+                    enabled = !busy,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 52.dp)
+                        .testTag("report-refresh"),
+                ) {
+                    Icon(Icons.Outlined.Refresh, contentDescription = null)
+                    Spacer(Modifier.width(10.dp))
+                    Text("Muat ulang laporan")
+                }
+                Text(
+                    "Setelah ada transaksi baru, tekan tombol ini untuk mengambil data laporan terbaru.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall,
+                )
                 Button(
                     onClick = viewModel::createExcelExport,
                     enabled = !busy,
@@ -1054,12 +1072,6 @@ fun ReportsScreen(viewModel: OperationsViewModel) {
                         title = "Laba belum dihitung",
                         message = "Metode HPP belum ditentukan, jadi angka omzet tidak boleh dianggap sebagai laba.",
                     )
-                    OutlinedButton(
-                        onClick = viewModel::refreshReport,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 48.dp),
-                    ) { Text("Muat ulang") }
                 }
             }
         }
