@@ -23,6 +23,12 @@ object ExcelWorkbookExporter {
     private const val PACKAGE_RELATIONSHIPS_NAMESPACE = "http://schemas.openxmlformats.org/package/2006/relationships"
     private const val MIN_COLUMN_WIDTH = 10
     private const val MAX_COLUMN_WIDTH = 72
+    private const val COLUMN_WIDTH_PADDING = 3
+    private const val TITLE_ROW_HEIGHT = 24
+    private const val SUBTITLE_ROW_HEIGHT = 18
+    private const val HEADER_ROW_HEIGHT = 32
+    private const val EMPTY_ROW_HEIGHT = 8
+    private const val DATA_ROW_HEIGHT = 18
 
     fun toByteArray(workbook: ExcelWorkbook): ByteArray = ByteArrayOutputStream().use { output ->
         write(workbook, output)
@@ -92,11 +98,11 @@ object ExcelWorkbookExporter {
     private fun stylesXml(): String =
         "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>" +
             "<styleSheet xmlns=\"$MAIN_NAMESPACE\">" +
-            "<fonts count=\"4\"><font><sz val=\"11\"/><name val=\"Aptos\"/></font><font><b/><color rgb=\"FFFFFFFF\"/><sz val=\"11\"/><name val=\"Aptos\"/></font><font><b/><color rgb=\"FF0B6B61\"/><sz val=\"16\"/><name val=\"Aptos Display\"/></font><font><color rgb=\"FF667085\"/><sz val=\"10\"/><name val=\"Aptos\"/></font></fonts>" +
+            "<fonts count=\"4\"><font><sz val=\"11\"/><name val=\"Aptos\"/></font><font><b/><color rgb=\"FF0B6B61\"/><sz val=\"11\"/><name val=\"Aptos\"/></font><font><b/><color rgb=\"FF0B6B61\"/><sz val=\"16\"/><name val=\"Aptos Display\"/></font><font><color rgb=\"FF667085\"/><sz val=\"10\"/><name val=\"Aptos\"/></font></fonts>" +
             "<fills count=\"3\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"solid\"><fgColor rgb=\"FF0B6B61\"/><bgColor indexed=\"64\"/></patternFill></fill><fill><patternFill patternType=\"solid\"><fgColor rgb=\"FFE5F3F0\"/><bgColor indexed=\"64\"/></patternFill></fill></fills>" +
             "<borders count=\"1\"><border><left/><right/><top/><bottom/><diagonal/></border></borders>" +
             "<cellStyleXfs count=\"1\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/></cellStyleXfs>" +
-            "<cellXfs count=\"4\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/><xf numFmtId=\"0\" fontId=\"1\" fillId=\"1\" borderId=\"0\" applyFont=\"1\" applyFill=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\" wrapText=\"1\"/></xf><xf numFmtId=\"0\" fontId=\"2\" fillId=\"0\" borderId=\"0\" applyFont=\"1\"/><xf numFmtId=\"0\" fontId=\"3\" fillId=\"0\" borderId=\"0\" applyFont=\"1\"/></cellXfs>" +
+            "<cellXfs count=\"4\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/><xf numFmtId=\"0\" fontId=\"1\" fillId=\"2\" borderId=\"0\" applyFont=\"1\" applyFill=\"1\" applyAlignment=\"1\"><alignment horizontal=\"center\" vertical=\"center\" wrapText=\"1\"/></xf><xf numFmtId=\"0\" fontId=\"2\" fillId=\"0\" borderId=\"0\" applyFont=\"1\"/><xf numFmtId=\"0\" fontId=\"3\" fillId=\"0\" borderId=\"0\" applyFont=\"1\"/></cellXfs>" +
             "<cellStyles count=\"1\"><cellStyle name=\"Normal\" xfId=\"0\" builtinId=\"0\"/></cellStyles>" +
             "</styleSheet>"
 
@@ -117,7 +123,14 @@ object ExcelWorkbookExporter {
         append("</cols>")
         append("<sheetData>")
         rows.forEachIndexed { rowIndex, row ->
-            append("<row r=\"${rowIndex + 1}\">")
+            val rowHeight = when {
+                rowIndex in sheet.titleRows -> TITLE_ROW_HEIGHT
+                rowIndex in sheet.subtitleRows -> SUBTITLE_ROW_HEIGHT
+                rowIndex in sheet.headerRows -> HEADER_ROW_HEIGHT
+                row.isEmpty() -> EMPTY_ROW_HEIGHT
+                else -> DATA_ROW_HEIGHT
+            }
+            append("<row r=\"${rowIndex + 1}\" ht=\"$rowHeight\" customHeight=\"1\">")
             row.forEachIndexed { columnIndex, value ->
                 val cellReference = "${columnName(columnIndex + 1)}${rowIndex + 1}"
                 val style = when {
@@ -153,7 +166,7 @@ object ExcelWorkbookExporter {
             .flatMap { value -> value.lineSequence() }
             .maxOfOrNull(String::length)
             ?: 0
-        longest.coerceIn(MIN_COLUMN_WIDTH, MAX_COLUMN_WIDTH)
+        (longest + COLUMN_WIDTH_PADDING).coerceIn(MIN_COLUMN_WIDTH, MAX_COLUMN_WIDTH)
     }
 
     private fun uniqueSheetNames(sheets: List<ExcelSheet>): List<ExcelSheet> {
