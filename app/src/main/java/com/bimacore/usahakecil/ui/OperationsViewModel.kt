@@ -52,6 +52,7 @@ data class SaleDetail(
 )
 
 class OperationsViewModel(
+    private val application: PosApplication,
     val capabilities: BusinessCapabilities,
     private val database: PosDatabase,
     private val inventory: InventoryRepository,
@@ -636,7 +637,12 @@ class OperationsViewModel(
 
     private fun refreshPinState() {
         viewModelScope.launch {
-            _reportHasPin.value = reports.hasPin()
+            val hasPin = reports.hasPin()
+            _reportHasPin.value = hasPin
+            application.restoreOwnerModeDefaultIfUnset(hasPin)
+            if (hasPin && reports.session.isUnlocked) {
+                loadReport()
+            }
         }
     }
 
@@ -714,6 +720,7 @@ class OperationsViewModel(
         @Suppress("UNCHECKED_CAST")
         override fun <T : ViewModel> create(modelClass: Class<T>): T =
             OperationsViewModel(
+                application = application,
                 capabilities = application.capabilities,
                 database = application.database,
                 inventory = application.newInventoryRepository(),

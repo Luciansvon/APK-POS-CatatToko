@@ -128,6 +128,7 @@ class MainActivitySmokeTest {
         }
 
         composeRule.waitForIdle()
+        composeRule.onNodeWithText("Kasir").performClick()
         composeRule.onNodeWithTag("start-transaction").performScrollTo()
         composeRule.waitForIdle()
         composeRule.onNodeWithTag("start-transaction").performClick()
