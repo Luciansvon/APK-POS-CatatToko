@@ -25,6 +25,18 @@ Worklog bukan pengganti:
 
 ---
 
+## 2026-08-02 - Tombol refresh laporan dipindahkan ke area utama
+
+Status: Selesai di source dan APK debug lokal.
+
+- Tombol Muat ulang laporan sekarang langsung terlihat setelah pilihan periode.
+- Ditambahkan ikon refresh dan keterangan bahwa laporan tidak otomatis mengambil transaksi baru.
+- Build assembleDebug lulus untuk tiga flavor.
+- Semua APK debug sudah dipackage ulang ke dist/debug.
+- Connected test tidak dijalankan sesuai scope cepat perubahan ini.
+
+---
+
 ## 2026-08-02 - Perbaikan kontras header dan ukuran kolom export Excel
 
 Status: Selesai dan diverifikasi pada APK Retail debug 0.4.8; tidak mengganti APK distribusi.

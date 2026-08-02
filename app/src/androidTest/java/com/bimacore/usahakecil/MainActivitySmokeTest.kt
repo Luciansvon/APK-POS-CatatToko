@@ -277,6 +277,7 @@ class MainActivitySmokeTest {
         composeRule.onNodeWithText("Laporan").performClick()
         composeRule.onNodeWithText("Omzet hari ini").assertIsDisplayed()
         composeRule.onNodeWithTag("report-period-selector").assertIsDisplayed()
+        composeRule.onNodeWithTag("report-refresh").assertIsDisplayed()
         composeRule.onNodeWithTag("report-period-selector").performClick()
         listOf("DAY", "WEEK", "MONTH", "YEAR").forEach { period ->
             composeRule.onNodeWithTag("report-period-option-$period").assertIsDisplayed()
