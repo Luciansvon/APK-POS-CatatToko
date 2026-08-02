@@ -25,6 +25,64 @@ Worklog bukan pengganti:
 
 ---
 
+## 2026-08-02 - Perbaikan kontras header dan ukuran kolom export Excel
+
+Status: Selesai dan diverifikasi pada APK Retail debug 0.4.8; tidak mengganti APK distribusi.
+
+### Hasil
+
+- Header tabel export sekarang memakai latar mint terang dengan teks teal gelap tebal agar terbaca di Excel desktop.
+- Tinggi baris dibuat eksplisit: header 32pt, data 18pt, judul 24pt, dan subjudul 18pt.
+- Lebar kolom diberi padding 3 karakter dengan batas 10 sampai 72 karakter supaya teks panjang tidak terlalu mepet.
+
+### Bukti aktual
+
+- testRetailDebugUnitTest --tests com.bimacore.usahakecil.export.ExcelWorkbookExporterTest lulus.
+- Test unit Retail, Wholesale, dan Culinary, build debug, serta compile test APK tiga flavor lulus.
+- APK Retail dan test APK dipasang pada emulator-5556; AnnualSalesExportTest menghasilkan workbook ulang dan lulus OK (1 test).
+- Workbook terbaru ditarik dari folder Download APK ke artifacts/annual-demo/catattoko-demo-penjualan-tahun-2026.xlsx.
+- Inspect workbook menemukan 20 sheet, 1.434 transaksi, 10 produk terjual, dan scan formula/error menemukan 0 entri.
+- Render visual sheet Penjualan dan Produk Terjual menunjukkan header terbaca, tidak terpotong, dan kolom nomor struk memiliki ruang.
+
+### File
+
+- app/src/main/java/com/bimacore/usahakecil/export/ExcelWorkbookExporter.kt
+- app/src/test/java/com/bimacore/usahakecil/export/ExcelWorkbookExporterTest.kt
+- docs/ERROR_SOLUTIONS.md
+- artifacts/annual-demo/catattoko-demo-penjualan-tahun-2026.xlsx
+
+---
+
+## 2026-08-02 - Fixture demo penjualan tahunan untuk audit export APK
+
+Status: Selesai untuk validasi Retail; bukan perubahan fitur production dan tidak menaikkan versi APK.
+
+### Hasil
+
+- Menambahkan `AnnualSalesExportTest` yang membuat data penjualan Retail dari awal tahun berjalan sampai waktu test di database sementara APK.
+- Pola data memakai kalender dan keranjang belanja deterministik: akhir pekan lebih ramai, Senin lebih sepi, periode musim sekolah menaikkan alat tulis, pakaian hanya muncul sebagai pembelian sesekali, dan pembayaran memakai campuran tunai, QRIS, transfer, serta piutang.
+- Export dipanggil melalui `ExcelExportManager` milik APK, bukan generator workbook eksternal.
+- File hasil ditarik dari emulator `emulator-5556` ke `artifacts/annual-demo/catattoko-demo-penjualan-tahun-2026.xlsx`.
+
+### Bukti aktual
+
+- Compile test Android Retail lulus.
+- APK Retail dan test APK terpasang; `AnnualSalesExportTest` lulus `1/1` melalui Android instrumentation.
+- Workbook hasil APK berisi periode `Tahun ini`, `1.434` transaksi, omzet `Rp38.876.500`, serta 10 produk terjual.
+- Inspect workbook menemukan 20 sheet dan scan formula/error mencocokkan `0` entri error.
+- Render visual 20 sheet selesai; sheet panjang memakai rentang tampilan terbatas karena render penuh melebihi batas tinggi renderer.
+
+### Batasan
+
+- Data demo dibuat di database sementara test agar database utama emulator tidak dihapus. File Excel sudah nyata dari jalur export APK, tetapi data demo tidak ditinggal sebagai data permanen di database aplikasi setelah test.
+
+### File
+
+- `app/src/androidTest/java/com/bimacore/usahakecil/report/AnnualSalesExportTest.kt`
+- `artifacts/annual-demo/catattoko-demo-penjualan-tahun-2026.xlsx`
+
+---
+
 ## 2026-08-02 - Redesign area Owner untuk pengguna UMKM
 
 Status: Selesai dan siap diaudit sebagai APK debug `0.4.8`.

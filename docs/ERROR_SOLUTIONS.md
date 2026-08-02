@@ -24,6 +24,54 @@ Source aplikasi sudah dibuat. Entri di bawah mencatat error build dan pengujian 
 - Jika pengujian perangkat fisik belum dilakukan, nyatakan batas verifikasinya.
 - Jangan menghapus entri lama. Perbarui status atau tambahkan entri lanjutan.
 
+## ERR-049 - Header kolom Excel tidak terbaca dan lebar tabel terasa sempit
+
+Tanggal: 2026-08-02
+
+Varian dan versi: semua varian yang memakai export laporan; diverifikasi pada Retail debug 0.4.8
+
+### Kondisi/gejala
+
+Pada file Excel hasil export APK, judul tiap kolom laporan sulit dibaca. Di Excel desktop, sebagian teks header terlihat hilang karena kombinasi warna header dan tinggi baris yang tidak cukup. Kolom dengan teks panjang seperti Nomor Struk juga terasa terlalu rapat.
+
+### Cara reproduksi
+
+1. Jalankan export laporan penjualan tahunan dari APK Retail.
+2. Buka file .xlsx hasil export di Excel desktop.
+3. Lihat baris judul kolom dan kolom berisi nomor struk.
+
+Hasil aktual: kontras header rendah pada tampilan Excel yang diuji, teks header terpotong oleh tinggi baris, dan lebar kolom tidak memiliki ruang tambahan.
+
+Hasil yang diharapkan: teks header terbaca jelas, teks panjang dapat membungkus dengan tinggi baris yang cukup, dan lebar kolom memiliki ruang napas.
+
+### Root cause
+
+Style header memakai latar teal gelap dengan teks putih, tetapi kombinasi tersebut tidak terbaca baik pada tampilan Excel yang digunakan. Selain itu, wrapText sudah aktif tetapi tinggi baris masih mengikuti default Excel, dan lebar kolom dihitung tepat dari panjang teks tanpa padding.
+
+### Solusi
+
+- Mengganti header menjadi latar mint terang #E5F3F0 dengan teks teal gelap #0B6B61 tebal.
+- Menetapkan tinggi baris eksplisit: header 32pt, data 18pt, judul 24pt, dan subjudul 18pt.
+- Menambahkan padding 3 karakter pada lebar kolom, dengan batas minimum 10 dan maksimum 72.
+
+### Perlindungan regresi
+
+Menambah regression test untuk warna style header, tinggi baris header/data, wrapText, dan padding lebar kolom.
+
+### Bukti verifikasi aktual
+
+- Test: testRetailDebugUnitTest --tests com.bimacore.usahakecil.export.ExcelWorkbookExporterTest
+- Build: seluruh unit test flavor dan compile test APK Retail/Wholesale/Culinary lulus.
+- Smoke test: AnnualSalesExportTest menghasilkan ulang workbook dari jalur export APK.
+- Perangkat: emulator-5556.
+- Kondisi offline/online: export memakai database sementara dan jalur lokal APK; tidak memerlukan koneksi internet.
+- Pemeriksaan data: workbook hasil APK di-inspect dan dirender; tidak ada formula/error yang terdeteksi.
+
+### File terdampak
+
+- app/src/main/java/com/bimacore/usahakecil/export/ExcelWorkbookExporter.kt
+- app/src/test/java/com/bimacore/usahakecil/export/ExcelWorkbookExporterTest.kt
+
 ## Penomoran
 
 Gunakan format berurutan:
