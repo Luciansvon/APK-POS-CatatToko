@@ -36,6 +36,7 @@ class PosApplication : Application() {
             database = database,
             businessType = businessType,
             businessName = getString(R.string.business_label),
+            ownerSession = reportSession,
         )
 
     fun newInventoryRepository() = InventoryRepository(database, capabilities)

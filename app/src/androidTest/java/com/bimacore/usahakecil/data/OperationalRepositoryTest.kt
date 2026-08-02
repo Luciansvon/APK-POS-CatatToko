@@ -86,6 +86,45 @@ class OperationalRepositoryTest {
     }
 
     @Test
+    fun product_photo_uri_is_saved_and_preserved_when_editing() = runBlocking {
+        val inventory = InventoryRepository(
+            database,
+            BusinessCapabilities.forType(BusinessType.RETAIL),
+        )
+        val categoryId = inventory.saveCategory(CategoryDraft(name = "Menu"))
+        val firstUri = "content://demo/menu-first.jpg"
+        val productId = inventory.saveProduct(
+            ProductDraft(
+                categoryId = categoryId,
+                name = "Menu foto",
+                basePrice = 20_000,
+                openingStock = 5,
+                stockTrackingEnabled = true,
+                lowStockThreshold = 1,
+                unitLabel = "pcs",
+                imageUri = firstUri,
+            ),
+        )
+
+        assertEquals(firstUri, database.catalogDao().getProduct(productId)?.imageUri)
+
+        inventory.saveProduct(
+            ProductDraft(
+                id = productId,
+                categoryId = categoryId,
+                name = "Menu foto edit",
+                basePrice = 22_000,
+                openingStock = 0,
+                stockTrackingEnabled = true,
+                lowStockThreshold = 1,
+                unitLabel = "pcs",
+            ),
+        )
+
+        assertEquals(firstUri, database.catalogDao().getProduct(productId)?.imageUri)
+    }
+
+    @Test
     fun shift_open_close_calculates_expected_cash_and_preserves_history() = runBlocking {
         var now = 1_700_000_000_000L
         val operations = OperationsRepository(database, clock = { now })

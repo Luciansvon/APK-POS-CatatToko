@@ -479,7 +479,7 @@ fun OwnerAccessDialog(
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Text(
                             if (hasPin == false) {
-                                "Buat 4–8 angka. PIN ini dipakai owner untuk membuka semua data pengelolaan."
+                                "Buat 4-8 angka. PIN ini dipakai owner untuk membuka semua data pengelolaan."
                             } else {
                                 "Masukkan PIN Owner untuk membuka operasional, keuangan, laporan, dan pengaturan."
                             },

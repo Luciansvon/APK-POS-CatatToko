@@ -310,6 +310,18 @@ Aturan flow tunai:
 - jika salah satu penyimpanan gagal, jangan kurangi stok atau membuat catatan keuangan setengah jadi;
 - setelah berhasil, tampilkan nominal kembalian dengan ukuran besar.
 
+## Laporan dan analisis
+
+Laporan Owner dihitung dari database Room lokal setelah sesi PIN terverifikasi. Ringkasan memakai periode aktif `Hari ini`, `Minggu ini`, `Bulan ini`, atau `Tahun ini`; perbandingan KPI memakai durasi berjalan yang sama pada periode sebelumnya, bukan membandingkan hari berjalan dengan satu periode lama yang sudah lengkap. Omzet, transaksi, kas masuk, dan selisih kas menilai kenaikan sebagai positif. Kas keluar dan pengeluaran menilai penurunan sebagai positif. Saldo utang/piutang ditampilkan sebagai saldo berjalan sampai tersedia histori saldo pembanding.
+
+Grafik utama memakai `ReportTrendReport` dengan bucket tetap agar periode tanpa transaksi tetap memiliki sumbu dan nilai nol:
+
+- `Arus kas`: kas masuk dan kas keluar berpasangan serta detail selisih per bucket;
+- `Penjualan`: omzet dan jumlah transaksi per bucket;
+- `Produk`: seri semua produk atau produk teratas dengan metrik omzet atau jumlah terjual.
+
+Granularitas grafik independen dari periode ringkasan/export: harian 14 bucket, mingguan 8 bucket, bulanan 12 bucket, dan tahunan 5 bucket. Query mengambil baris transaksi/kas mentah lalu repository mengagregasikannya ke bucket kalender lokal. Grafik metode pembayaran tetap menjadi rincian sekunder dan forecast tetap menjadi analisis stok.
+
 ## Backup dan restore
 
 ### Backup
@@ -344,7 +356,7 @@ Backup dianggap selesai hanya setelah proses restore diuji pada data nyata pengu
 
 Owner dapat membuat file `.xlsx` langsung dari database lokal tanpa internet. Workbook memakai format OpenXML dan berisi `Info Export`, `Ringkasan`, serta tabel operasional seperti produk, transaksi, pembelian, kas, shift, utang-piutang, stok, dan tenaga kerja. Lebar tiap kolom dihitung dari teks terpanjang dengan batas wajar 10–72 karakter. Draft keranjang serta hash PIN Owner tidak ikut diekspor.
 
-Export hanya tersedia pada area Owner dan file dibagikan melalui mekanisme share Android. Data diekspor sebagai snapshot saat tombol export ditekan; export tidak mengubah transaksi, stok, atau histori finansial. Periode saat ini masih seluruh data offline; filter harian/mingguan/bulanan/tahunan, chart Excel, forecasting Excel, dan analisis laba belum termasuk karena HPP belum dikunci.
+Export hanya tersedia pada area Owner dan file dibagikan melalui mekanisme share Android dari halaman Laporan. Owner memilih periode `Hari ini`, `Minggu ini`, `Bulan ini`, atau `Tahun ini`; ringkasan dan sheet event Excel memakai rentang waktu yang sama. Sheet katalog/master tetap berupa snapshot kondisi saat export agar nama produk, kategori, supplier, dan tenaga kerja tetap tersedia sebagai konteks. Data diekspor saat tombol export ditekan; export tidak mengubah transaksi, stok, atau histori finansial. Chart dan forecast belum menjadi sheet Excel, sedangkan analisis laba belum tersedia karena HPP belum dikunci.
 
 ## Cloud fase lanjutan
 

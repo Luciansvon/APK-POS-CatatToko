@@ -115,7 +115,7 @@ fun CashierLandingScreen(
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onBackground,
             )
-            if (activeShift == null) {
+            if (activeShift == null && !ownerUnlocked) {
                 Spacer(Modifier.height(8.dp))
                 Card(
                     modifier = Modifier.fillMaxWidth(),

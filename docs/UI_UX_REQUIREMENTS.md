@@ -15,6 +15,15 @@ Desain pertama memakai varian **Retail dan UMKM** sebagai acuan. Setelah style d
 - Checklist kosong di dokumen ini berarti desain visualnya belum disetujui, bukan berarti fungsi tersebut selalu belum ada.
 - Laporan laba/HPP, pekerja bulanan, jadwal/shift, pajak, dan pengaturan struk tetap di luar scope sampai requirement-nya disetujui.
 
+## Status 2 Agustus 2026 - Area Owner
+
+- [x] Arah `Laporan` opsi 2 disetujui: pemilih periode, omzet utama, metrik ringkas, grafik pergerakan penjualan, dan rincian lanjutan.
+- [x] Tombol `Simpan Laporan Excel` memakai ikon dan tulisan lengkap, lebar penuh, serta ditempatkan di bagian atas `Laporan`.
+- [x] Sistem visual Owner dipakai pada Stok, Pembelian, Pekerja, Kas, Utang & Piutang, Transaksi, dan Lainnya: tab ringkas, angka utama, aksi bertulisan jelas, daftar, dan kondisi kosong.
+- [x] Label navigasi Retail `Piutang` diganti menjadi `Keuangan` karena halaman tersebut juga berisi kas dan transaksi.
+- [x] Kasir dan isi halaman Produk tetap dipertahankan sesuai keputusan user.
+- [ ] Visual form tambah/edit rinci masih mengikuti komponen dasar lama dan dapat diaudit pada tahap berikutnya.
+
 ## Format desain yang diterima
 
 - screenshot, gambar PNG/JPG, file Figma, atau sketsa yang terbaca jelas;

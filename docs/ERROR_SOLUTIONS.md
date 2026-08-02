@@ -1322,6 +1322,239 @@ Mengubah kontrol Laporan Owner menjadi `Column` dengan tombol lebar penuh dan me
 
 - `app/src/main/java/com/bimacore/usahakecil/ui/ManagementScreens.kt`
 - `app/src/androidTest/java/com/bimacore/usahakecil/MainActivitySmokeTest.kt`
+
+## ERR-048 - Rentang tanggal laporan tampil sebagai karakter asing
+
+Tanggal: 2026-08-02
+
+Varian dan versi: Semua flavor, `0.4.8`
+
+### Kondisi/gejala
+
+Menu periode Laporan menampilkan rentang seperti `27 Julâ€“2 Agu 2026` dan `1 Janâ€“2 Agu 2026`, sehingga terlihat seperti bahasa asing bagi pengguna.
+
+### Root cause
+
+Pemisah rentang tanggal pada source sudah tersimpan sebagai karakter mojibake `â€“`, bukan tanda rentang yang aman.
+
+### Solusi
+
+Mengganti pemisah dengan teks ASCII berjarak ` - `, memeriksa source dari sisa karakter mojibake, dan menambah regression check pada `ReportDemoTest`.
+
+### Bukti verifikasi aktual
+
+- Tampilan final menunjukkan `27 Jul - 2 Agu 2026` dan `1 Jan - 2 Agu 2026` pada HP portrait serta tablet landscape.
+- `ReportDemoTest` menolak karakter `\u00E2` dan memastikan minimal tiga label rentang memakai ` - `.
+- Connected matrix tiga flavor lulus pada kedua perangkat tanpa kegagalan.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/ui/ReportDashboardComponents.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/report/ReportDemoTest.kt`
+
+## ERR-047 - Area Owner sulit dipindai dan tombol Excel kurang mudah dikenali
+
+Tanggal: 2026-08-02
+
+Varian dan versi: Semua flavor, `0.4.8`
+
+### Kondisi/gejala
+
+Laporan menampilkan banyak kontrol teknis sebelum angka yang dibutuhkan Owner. Aksi export mudah terlewat bila hanya mengandalkan ikon atau posisi. Halaman Stok, Pembelian, Pekerja, Keuangan, Transaksi, dan Lainnya memakai susunan generik tanpa hierarki angka utama, aksi utama, atau petunjuk saat data kosong. Perbandingan laporan juga dapat membandingkan waktu berjalan dengan periode lama yang sudah lengkap.
+
+### Root cause
+
+Komponen Owner dibuat per layar tanpa sistem hierarki bersama. Kontrol laporan berkembang bertahap mengikuti fitur, bukan mengikuti urutan keputusan pengguna. Batas periode sebelumnya memakai akhir kalender penuh, bukan waktu berjalan yang setara.
+
+### Solusi
+
+Menambahkan komponen Owner bersama untuk tab, kartu angka utama, metrik ringkas, daftar, aksi bertulisan, dan kondisi kosong. Laporan memakai periode, tombol `Simpan Laporan Excel` lebar penuh, omzet utama, grafik penjualan, serta rincian lanjutan. Batas pembanding digeser sesuai durasi berjalan, dan agregasi `Semua produk` hanya memakai omzet agar unit berbeda tidak dijumlahkan sebagai satu angka jumlah barang. Kata asing yang tidak diperlukan pada area baru diganti dengan istilah berbahasa Indonesia.
+
+### Bukti verifikasi aktual
+
+- `ReportPeriodTest` memeriksa hari, minggu, bulan, dan tahun terhadap waktu berjalan yang sama.
+- Unit test tiga flavor dan compile AndroidTest Retail lulus.
+- Connected `ReportDemoTest` lulus di `emulator-5554` dan `emulator-5556`, termasuk tombol rincian, empat periode, grafik, pembatasan `Semua produk`, forecast, serta workbook Excel.
+- Connected matrix tiga flavor lulus pada dua perangkat dan audit visual final berstatus `passed` di `design-qa.md`.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/data/ReportPeriod.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/OwnerDashboardComponents.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/ReportDashboardComponents.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/ManagementScreens.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/AppDestination.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/MainActivitySmokeTest.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/report/ReportDemoTest.kt`
+- `app/src/test/java/com/bimacore/usahakecil/data/ReportPeriodTest.kt`
+
+## ERR-046 - Ringkasan laporan memakan ruang dan grafik utama tidak membantu monitoring
+
+Tanggal: 2026-08-02
+
+Varian dan versi: Semua flavor, `0.4.7`
+
+### Kondisi/gejala
+
+Ringkasan laporan tersusun sebagai kartu vertikal sehingga memakan ruang. Grafik utama hanya membandingkan metode pembayaran dan tidak menunjukkan arah penjualan atau arus kas dari hari ke hari. Saat belum ada transaksi, grafik tidak memberi sumbu dan bucket nol yang bisa dipantau.
+
+### Root cause
+
+UI laporan belum memiliki model perbandingan periode atau seri tren berbucket. Data laporan hanya dipakai sebagai agregat periode aktif, sedangkan grafik pembayaran tidak cocok menjadi grafik monitoring utama.
+
+### Solusi
+
+Menambahkan perbandingan dengan periode sebelumnya yang setara, grid KPI dua kolom, dan status semantik yang memperhitungkan apakah kenaikan itu baik atau buruk. Repository sekarang mengubah baris penjualan, item produk, dan kas menjadi `ReportTrendReport` dengan bucket harian, mingguan, bulanan, atau tahunan. UI menyediakan mode Arus kas, Penjualan, dan Produk, mempertahankan bucket nol, dan menjadikan grafik pembayaran sebagai rincian sekunder.
+
+### Bukti verifikasi aktual
+
+- Unit `ReportPeriodTest` memeriksa batas periode sebelumnya untuk hari, minggu, bulan, dan tahun.
+- AndroidTest `ReportTrendRepositoryTest` memeriksa 14 bucket nol pada database kosong.
+- Connected `ReportDemoTest` membuat transaksi fiktif, memilih semua mode grafik, metrik Produk, serta periode hari/minggu/bulan/tahun pada `emulator-5554` dan `emulator-5556`.
+- Full flavor build dan connected matrix tiga flavor lulus pada dua emulator; targeted report test lulus lagi setelah patch label sumbu.
+- Judul dan delta KPI dikunci masing-masing dua baris agar tinggi card konsisten walaupun teks membungkus.
+- Label batang nominal dipadatkan menjadi angka singkat (`165`) sementara nominal lengkap tetap tampil pada detail bucket; tidak ada ellipsis pada screenshot final.
+- Screenshot final memperlihatkan bucket nol tetap dirender, label harian `20` sampai `02` tidak lagi menjadi ellipsis, dan card KPI per baris sama tinggi.
+- Kontrol grafik yang sebelumnya tampil sebagai banyak tombol diringkas menjadi dua dropdown inti: `Tampilan` dan `Rentang`.
+- Saat mode `Produk` dipilih, selector produk dan metrik `Omzet`/`Terjual` digabung dalam satu menu agar alur tetap seamless tanpa menambah baris tombol.
+- Audit visual manual pada emulator memeriksa layout dropdown utama dan popup opsi mode/produk; connected `ReportDemoTest` memeriksa anchor kontrol, perpindahan mode, serta chart produk.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/data/ReportPeriod.kt`
+- `app/src/main/java/com/bimacore/usahakecil/data/ReportTrend.kt`
+- `app/src/main/java/com/bimacore/usahakecil/data/OperationalDaos.kt`
+- `app/src/main/java/com/bimacore/usahakecil/data/ReportRepository.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/OperationsViewModel.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/ReportDashboardComponents.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/ManagementScreens.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/data/ReportTrendRepositoryTest.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/report/ReportDemoTest.kt`
+
+## ERR-045 - Export Excel salah tempat dan grafik forecast sulit dibaca
+
+Tanggal: 2026-08-02
+
+Varian dan versi: Semua flavor, `0.4.6`
+
+### Kondisi/gejala
+
+Export Excel berada di `Lainnya > Backup & restore`, sehingga Owner tidak tahu konteks periode laporan. Laporan juga belum menyediakan pilihan hari, minggu, bulan, atau tahun. Grafik forecast menampilkan batang yang tampak sama tanpa nilai per hari.
+
+### Root cause
+
+View laporan hanya membaca ringkasan hari ini, sedangkan `ExcelExportManager` mengambil seluruh event offline. Tombol export ditempatkan di layar backup. Grafik hanya memberi tanggal dan tinggi batang tanpa angka atau rentang skala.
+
+### Solusi
+
+Menambahkan `ReportPeriod` bersama dengan batas waktu lokal perangkat. Ringkasan dan sheet event Excel menerima rentang yang sama; sheet master tetap snapshot saat export. Tombol export/share dipindahkan ke bagian atas Laporan dan dibuat mengikuti periode aktif. Forecast sekarang menampilkan nilai per hari, satuan, serta skala minimum-maksimum.
+
+### Bukti verifikasi aktual
+
+- `ExcelExportTest` membuktikan export periode hari ini memuat transaksi hari ini dan tidak memuat transaksi kemarin.
+- `ReportDemoTest` lulus dengan periode harian, mingguan, bulanan, tahunan, workbook, analisis, serta label skala grafik.
+- `MainActivitySmokeTest.protected_reports_and_backup_are_reachable` lulus setelah export dipindahkan ke Laporan; `Lainnya` tetap hanya menampilkan backup/restore.
+- Build Retail debug dan AndroidTest lulus sebelum verifikasi matriks akhir.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/data/ReportPeriod.kt`
+- `app/src/main/java/com/bimacore/usahakecil/export/ExcelExportManager.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/ManagementScreens.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/OperationsViewModel.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/ForecastScreen.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/export/ExcelExportTest.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/report/ReportDemoTest.kt`
+
+## ERR-044 - Export Excel crash ketika kolom shift kosong
+
+Tanggal: 2026-08-02
+
+Varian dan versi: Semua flavor, `0.4.5`
+
+### Kondisi/gejala
+
+Export Excel dapat gagal dengan `NumberFormatException: For input string: ""` ketika ada histori shift yang memiliki kolom angka kosong.
+
+### Root cause
+
+`ExcelExportManager.shiftSheet()` memanggil `toLong()` langsung pada kolom angka shift. Data lama atau shift yang belum lengkap dapat direpresentasikan sebagai string kosong.
+
+### Solusi
+
+Pembacaan angka export memakai `toLongOrZero()`. Nilai kosong atau tidak valid menjadi `0` dan ditulis sebagai `Rp 0`, sehingga satu baris histori yang tidak lengkap tidak menggagalkan seluruh workbook.
+
+### Bukti verifikasi aktual
+
+- `ReportDemoTest` mengisi data transaksi/laporan lalu menjalankan export workbook dengan histori shift kosong; test lulus pada dua emulator.
+- Test export 500 order tetap dijalankan dalam connected smoke.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/export/ExcelExportManager.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/report/ReportDemoTest.kt`
+
+## ERR-042 - Grafik laporan hilang saat belum ada penerimaan
+
+Tanggal: 2026-08-02
+
+Varian dan versi: Semua flavor, `0.4.5`
+
+### Kondisi/gejala
+
+Saat periode laporan belum mempunyai transaksi, area grafik hanya menampilkan pesan `Belum ada penerimaan pada periode ini`, sehingga struktur grafik dan metode pembayaran tidak terlihat.
+
+### Root cause
+
+Data grafik hanya memakai metode pembayaran yang memiliki total lebih dari nol. Ketika hasil filter kosong, composable tidak merender batang apa pun.
+
+### Solusi
+
+Grafik sekarang membuat empat slot tetap dari `PaymentMethod.entries`. Metode yang belum mempunyai transaksi diberi nilai `0`, label tetap tampil, dan baseline kecil dipertahankan agar area grafik tetap terlihat.
+
+### Bukti verifikasi aktual
+
+- Smoke laporan memeriksa chart dan label Tunai, QRIS, Transfer, serta Piutang pada data kosong.
+- `ReportDemoTest` memeriksa empat metode dengan data fiktif dan memastikan seluruh label chart tersedia.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/ui/ReportCharts.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/MainActivitySmokeTest.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/report/ReportDemoTest.kt`
+
+## ERR-043 - Form produk belum menyediakan foto menu
+
+Tanggal: 2026-08-02
+
+Varian dan versi: Semua flavor, `0.4.5`
+
+### Kondisi/gejala
+
+Owner dapat memasukkan nama, harga, stok, dan satuan produk, tetapi tidak mempunyai cara untuk menambahkan foto menu.
+
+### Root cause
+
+`ProductDraft` belum membawa URI gambar dan `ProductDialog` belum membuka pemilih dokumen Android.
+
+### Solusi
+
+Form produk sekarang menyediakan tombol `Pilih foto menu`/`Ganti foto menu`, menyimpan URI content yang dipilih, menampilkan preview, dan mempertahankan URI lama ketika produk diedit tanpa foto baru. Penyimpanan tetap lokal dan tidak membutuhkan internet.
+
+### Bukti verifikasi aktual
+
+- Regression repository menyimpan URI foto lalu memastikan URI tetap ada setelah edit data produk.
+- UI smoke semua flavor memastikan tombol pemilih foto tersedia di form produk.
+- Compile Retail setelah perubahan foto lulus.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/data/InventoryRepository.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/OperationsViewModel.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/ManagementScreens.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/CatalogScreen.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/data/OperationalRepositoryTest.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/MainActivitySmokeTest.kt`
 - `docs/MUMU_TESTING_GUIDE.md`
 
 ## ERR-032 - Grafik analisis laporan belum dirender pada APK
@@ -1384,4 +1617,94 @@ Menghapus auto-lock dari lifecycle Activity. Sesi Owner sekarang tetap terbuka s
 - `app/src/main/java/com/bimacore/usahakecil/MainActivity.kt`
 - `app/src/main/java/com/bimacore/usahakecil/security/ReportSession.kt`
 - `app/src/main/java/com/bimacore/usahakecil/ui/CashierLandingScreen.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/MainActivitySmokeTest.kt`
+
+## ERR-039 - Pekerja masuk katalog sebelum membuka shift
+
+Tanggal: 2026-08-02
+
+Varian dan versi: Semua flavor, `0.4.3`
+
+### Kondisi/gejala
+
+Saat belum ada shift aktif, pekerja menekan `Mulai Transaksi` tetapi langsung masuk katalog. Shift baru gagal terlihat ketika checkout, sehingga pekerja bisa mengira aplikasi tidak bisa menerima pesanan.
+
+### Root cause
+
+Callback `Mulai Transaksi` langsung memanggil `PosViewModel.showCatalog()` tanpa memeriksa `activeShift`. Halaman shift juga berada di area Owner, sehingga pekerja tidak punya jalur yang jelas dari tombol pesanan.
+
+### Solusi
+
+Home screen sekarang memeriksa shift sebelum membuka katalog. Jika belum ada shift, tombol langsung menampilkan popup `Buka Shift`; jika sudah ada, alur katalog tetap berjalan seperti sebelumnya.
+
+### Bukti verifikasi aktual
+
+- Regression test `start_transaction_without_shift_prompts_to_open_shift` membuktikan form nama kasir dan modal awal muncul, sedangkan katalog tidak terbuka.
+- Test checkout dengan shift aktif tetap dijalankan untuk memastikan perubahan tidak memblokir transaksi normal.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/ui/HomeScreen.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/PosApp.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/MainActivitySmokeTest.kt`
+
+## ERR-040 - Owner ikut tertahan aturan shift saat memakai kasir
+
+Tanggal: 2026-08-02
+
+Varian dan versi: Semua flavor, `0.4.4`
+
+### Kondisi/gejala
+
+Mode Owner sudah terbuka, tetapi checkout masih menampilkan `Buka shift terlebih dahulu sebelum menerima transaksi`.
+
+### Root cause
+
+`PosRepository.completeSale()` selalu mengambil shift aktif secara wajib, padahal sesi Owner sudah terverifikasi dan transaksi Owner tidak perlu dimasukkan ke shift pekerja.
+
+### Solusi
+
+Repository sekarang hanya mewajibkan shift untuk pekerja. Owner dapat checkout tanpa shift; penjualan dan kas masuk tetap disimpan, dengan `shiftId` kosong agar tidak salah masuk rekonsiliasi shift pekerja.
+
+### Bukti verifikasi aktual
+
+- AndroidTest domain membuktikan Owner dapat menyelesaikan penjualan tanpa shift dan `sales.shiftId` tetap kosong.
+- Regression UI ditambahkan untuk membuka kasir dan checkout dari Mode Owner tanpa shift.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/PosApplication.kt`
+- `app/src/main/java/com/bimacore/usahakecil/data/PosRepository.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/HomeScreen.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/CashierLandingScreen.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/data/PosRepositoryTest.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/MainActivitySmokeTest.kt`
+
+## ERR-041 - Navigasi Operasional dan tombol aksi memakan ruang
+
+Tanggal: 2026-08-02
+
+Varian dan versi: Semua flavor, `0.4.4`
+
+### Kondisi/gejala
+
+Header hijau terlalu dominan, label `Pembelian` terpotong/terpaksa turun, dan kategori serta tombol aksi berjajar horizontal sehingga sulit dipindai.
+
+### Root cause
+
+Layar memakai warna primary pada TopAppBar dan `TabRow`/bar horizontal untuk banyak pilihan tanpa batas lebar yang seragam.
+
+### Solusi
+
+Top bar Owner dibuat putih dengan judul hijau yang lebih hemat secara visual. Navigasi Operasional, Keuangan, dan aksi cepat memakai grid dua kolom; tile diberi tinggi minimum dan teks maksimal dua baris dengan ellipsis. Kategori diubah menjadi kartu grid dua kolom dengan tombol Edit yang konsisten.
+
+### Bukti verifikasi aktual
+
+- Test UI memeriksa grid navigasi Operasional dan label `Pembelian` tampil.
+- Matriks unit test, lint, build, dan AndroidTest APK tiga flavor lulus.
+- Connected smoke lulus di `emulator-5554` dan `emulator-5556`; visual QA portrait/landscape mengonfirmasi header compact dan grid tidak terpotong.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/ui/ManagementScreens.kt`
 - `app/src/androidTest/java/com/bimacore/usahakecil/MainActivitySmokeTest.kt`

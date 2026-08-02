@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.core.content.FileProvider
 import com.bimacore.usahakecil.data.PosDatabase
+import com.bimacore.usahakecil.data.ReportPeriod
 import com.bimacore.usahakecil.security.ReportSession
 import java.io.File
 import java.io.FileOutputStream
@@ -21,13 +22,29 @@ class ExcelExportManager(
     private val businessType: String,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
-    suspend fun createExport(): Uri = withContext(Dispatchers.IO) {
+    suspend fun createExport(): Uri {
+        val exportedAt = clock()
+        return createExport(ExportRange.all(), exportedAt)
+    }
+
+    suspend fun createExport(period: ReportPeriod): Uri {
+        val exportedAt = clock()
+        val range = period.range(exportedAt)
+        return createExport(
+            ExportRange(period.label, range.first, range.last),
+            exportedAt,
+        )
+    }
+
+    private suspend fun createExport(
+        range: ExportRange,
+        exportedAt: Long,
+    ): Uri = withContext(Dispatchers.IO) {
         ownerSession.requireOwner()
         val profile = requireNotNull(database.profileDao().getProfile()) {
             "Profil usaha belum tersedia"
         }
-        val exportedAt = clock()
-        val workbook = collectWorkbook(profile.businessName, exportedAt)
+        val workbook = collectWorkbook(profile.businessName, exportedAt, range)
         val directory = File(context.cacheDir, EXPORT_DIRECTORY).apply { mkdirs() }
         val output = File(
             directory,
@@ -43,66 +60,82 @@ class ExcelExportManager(
         )
     }
 
-    private fun collectWorkbook(businessName: String, exportedAt: Long): ExcelWorkbook = ExcelWorkbook(
+    private fun collectWorkbook(
+        businessName: String,
+        exportedAt: Long,
+        range: ExportRange,
+    ): ExcelWorkbook = ExcelWorkbook(
         sheets = listOf(
-            infoSheet(businessName, exportedAt),
-            summarySheet(businessName, exportedAt),
-            salesSheet(businessName, exportedAt),
-            saleDetailsSheet(businessName, exportedAt),
-            productSalesSheet(businessName, exportedAt),
+            infoSheet(businessName, exportedAt, range),
+            summarySheet(businessName, exportedAt, range),
+            salesSheet(businessName, exportedAt, range),
+            saleDetailsSheet(businessName, exportedAt, range),
+            productSalesSheet(businessName, exportedAt, range),
             catalogSheet(businessName, exportedAt),
-            purchaseSheet(businessName, exportedAt),
-            purchaseDetailsSheet(businessName, exportedAt),
-            cashSheet(businessName, exportedAt),
-            debtSheet(businessName, exportedAt),
-            debtPaymentSheet(businessName, exportedAt),
-            shiftSheet(businessName, exportedAt),
-            stockSheet(businessName, exportedAt),
+            purchaseSheet(businessName, exportedAt, range),
+            purchaseDetailsSheet(businessName, exportedAt, range),
+            cashSheet(businessName, exportedAt, range),
+            debtSheet(businessName, exportedAt, range),
+            debtPaymentSheet(businessName, exportedAt, range),
+            shiftSheet(businessName, exportedAt, range),
+            stockSheet(businessName, exportedAt, range),
             workforceSheet(businessName, exportedAt),
-            attendanceSheet(businessName, exportedAt),
-            freelanceSheet(businessName, exportedAt),
-            workerPaymentSheet(businessName, exportedAt),
+            attendanceSheet(businessName, exportedAt, range),
+            freelanceSheet(businessName, exportedAt, range),
+            workerPaymentSheet(businessName, exportedAt, range),
             wholesaleSheet(businessName, exportedAt),
             culinarySheet(businessName, exportedAt),
             partySheet(businessName, exportedAt),
         ),
     )
 
-    private fun infoSheet(businessName: String, exportedAt: Long): ExcelSheet = ExcelSheet(
-        name = "Info Export",
+    private fun infoSheet(
+        businessName: String,
+        exportedAt: Long,
+        range: ExportRange,
+    ): ExcelSheet = ExcelSheet(
+        name = "Info Laporan",
         rows = listOf(
             listOf("Kolom", "Nilai"),
             listOf("Nama usaha", businessName),
             listOf("Jenis usaha", businessType),
-            listOf("Waktu export", formatExportTime(exportedAt)),
-            listOf("Periode", "Seluruh data yang tersimpan offline di perangkat ini"),
-            listOf("Format", "Laporan Excel terstruktur untuk dibaca Owner"),
-            listOf("Catatan", "Export tidak mengubah transaksi, stok, atau histori keuangan"),
+            listOf("Waktu dibuat", formatExportTime(exportedAt)),
+            listOf("Periode", range.label),
+            listOf("Format", "Laporan Excel terstruktur untuk dibaca pemilik usaha"),
+            listOf("Catatan", "Laporan ini tidak mengubah transaksi, stok, atau riwayat keuangan"),
         ),
     )
 
-    private fun summarySheet(businessName: String, exportedAt: Long): ExcelSheet {
-        val sales = scalarPair("SELECT COUNT(*), COALESCE(SUM(total), 0) FROM sales")
+    private fun summarySheet(
+        businessName: String,
+        exportedAt: Long,
+        range: ExportRange,
+    ): ExcelSheet {
+        val sales = scalarPair(
+            "SELECT COUNT(*), COALESCE(SUM(total), 0) FROM sales WHERE ${range.where("createdAt")}",
+        )
         val cashIn = scalarLong(
-            "SELECT COALESCE(SUM(amount), 0) FROM cash_entries WHERE type IN ('SALE_IN', 'CASH_IN', 'RECEIVABLE_IN')",
+            "SELECT COALESCE(SUM(amount), 0) FROM cash_entries WHERE ${range.where("createdAt")} AND type IN ('SALE_IN', 'CASH_IN', 'RECEIVABLE_IN')",
         )
         val cashOut = scalarLong(
-            "SELECT COALESCE(SUM(amount), 0) FROM cash_entries WHERE type IN ('PURCHASE_OUT', 'CASH_OUT', 'EXPENSE', 'PAYABLE_OUT', 'WAGE_OUT')",
+            "SELECT COALESCE(SUM(amount), 0) FROM cash_entries WHERE ${range.where("createdAt")} AND type IN ('PURCHASE_OUT', 'CASH_OUT', 'EXPENSE', 'PAYABLE_OUT', 'WAGE_OUT')",
         )
-        val expenses = scalarLong("SELECT COALESCE(SUM(amount), 0) FROM cash_entries WHERE type = 'EXPENSE'")
+        val expenses = scalarLong(
+            "SELECT COALESCE(SUM(amount), 0) FROM cash_entries WHERE ${range.where("createdAt")} AND type = 'EXPENSE'",
+        )
         val payments = queryRows(
             """
             SELECT paymentMethod, COUNT(*), COALESCE(SUM(
                 CASE WHEN paymentMethod = 'CASH' THEN total ELSE amountReceived END
             ), 0)
-            FROM sales GROUP BY paymentMethod ORDER BY paymentMethod
+            FROM sales WHERE ${range.where("createdAt")} GROUP BY paymentMethod ORDER BY paymentMethod
             """.trimIndent(),
         )
         val rows = mutableListOf(
             listOf("Laporan Operasional - $businessName"),
             listOf("Jenis usaha: $businessType"),
-            listOf("Waktu export: ${formatExportTime(exportedAt)}"),
-            listOf("Periode: seluruh data yang tersimpan offline di perangkat ini"),
+            listOf("Waktu dibuat: ${formatExportTime(exportedAt)}"),
+            listOf("Periode: ${range.label}"),
             emptyList(),
             listOf("Ringkasan Keuangan", "Nilai"),
             listOf("Jumlah transaksi", sales.first.toString()),
@@ -117,7 +150,7 @@ class ExcelExportManager(
             listOf("Metode Pembayaran", "Transaksi", "Total"),
         )
         rows += payments.map { payment ->
-            listOf(payment[0], payment[1], formatRupiah(payment[2].toLong()))
+            listOf(payment[0], payment[1], formatRupiah(payment[2].toLongOrZero()))
         }
         return ExcelSheet(
             name = "Ringkasan",
@@ -128,7 +161,11 @@ class ExcelExportManager(
         )
     }
 
-    private fun salesSheet(businessName: String, exportedAt: Long): ExcelSheet = reportSheet(
+    private fun salesSheet(
+        businessName: String,
+        exportedAt: Long,
+        range: ExportRange,
+    ): ExcelSheet = reportSheet(
         name = "Penjualan",
         title = "Laporan Penjualan - $businessName",
         businessName = businessName,
@@ -145,19 +182,24 @@ class ExcelExportManager(
             FROM sales s
             LEFT JOIN parties c ON c.id = s.customerId
             LEFT JOIN shifts sh ON sh.id = s.shiftId
+            WHERE ${range.where("s.createdAt")}
             ORDER BY s.createdAt DESC, s.id DESC
             """.trimIndent(),
         ).mapIndexed { index, row ->
             listOf(
                 (index + 1).toString(), row[0], formatDateTime(row[1].toLongOrNull()),
                 paymentLabel(row[2]), settlementLabel(row[3]), orderStatusLabel(row[4]),
-                formatRupiah(row[5].toLong()), formatRupiah(row[6].toLong()),
-                formatRupiah(row[7].toLong()), row[8].ifBlank { "-" }, row[9].ifBlank { "-" },
+                formatRupiah(row[5].toLongOrZero()), formatRupiah(row[6].toLongOrZero()),
+                formatRupiah(row[7].toLongOrZero()), row[8].ifBlank { "-" }, row[9].ifBlank { "-" },
             )
         },
     )
 
-    private fun saleDetailsSheet(businessName: String, exportedAt: Long): ExcelSheet = reportSheet(
+    private fun saleDetailsSheet(
+        businessName: String,
+        exportedAt: Long,
+        range: ExportRange,
+    ): ExcelSheet = reportSheet(
         name = "Detail Penjualan",
         title = "Detail Penjualan - $businessName",
         businessName = businessName,
@@ -175,18 +217,23 @@ class ExcelExportManager(
                              FROM sale_item_toppings WHERE saleItemId = i.id), ''),
                    i.note
             FROM sale_items i INNER JOIN sales s ON s.id = i.saleId
+            WHERE ${range.where("s.createdAt")}
             ORDER BY s.createdAt DESC, i.id DESC
             """.trimIndent(),
         ).mapIndexed { index, row ->
             listOf(
                 (index + 1).toString(), row[0], formatDateTime(row[1].toLongOrNull()), row[2],
-                row[3].ifBlank { "-" }, row[4], row[5], row[6], row[7], formatRupiah(row[8].toLong()),
-                formatRupiah(row[9].toLong()), row[10].ifBlank { "-" }, row[11].ifBlank { "-" },
+                row[3].ifBlank { "-" }, row[4], row[5], row[6], row[7], formatRupiah(row[8].toLongOrZero()),
+                formatRupiah(row[9].toLongOrZero()), row[10].ifBlank { "-" }, row[11].ifBlank { "-" },
             )
         },
     )
 
-    private fun productSalesSheet(businessName: String, exportedAt: Long): ExcelSheet = reportSheet(
+    private fun productSalesSheet(
+        businessName: String,
+        exportedAt: Long,
+        range: ExportRange,
+    ): ExcelSheet = reportSheet(
         name = "Produk Terjual",
         title = "Rekap Produk Terjual - $businessName",
         businessName = businessName,
@@ -200,13 +247,15 @@ class ExcelExportManager(
             SELECT productName, COALESCE(variantName, ''), categoryName, unitLabel,
                    COALESCE(SUM(quantity), 0), COALESCE(SUM(baseQuantity), 0),
                    COALESCE(SUM(subtotal), 0), COUNT(DISTINCT saleId)
-            FROM sale_items GROUP BY productName, variantName, categoryName, unitLabel
+            FROM sale_items INNER JOIN sales s ON s.id = sale_items.saleId
+            WHERE ${range.where("s.createdAt")}
+            GROUP BY productName, variantName, categoryName, unitLabel
             ORDER BY SUM(subtotal) DESC, productName
             """.trimIndent(),
         ).mapIndexed { index, row ->
             listOf(
                 (index + 1).toString(), row[0], row[1].ifBlank { "-" }, row[2], row[3],
-                row[4], row[5], formatRupiah(row[6].toLong()), row[7],
+                row[4], row[5], formatRupiah(row[6].toLongOrZero()), row[7],
             )
         },
     )
@@ -236,77 +285,94 @@ class ExcelExportManager(
         ).mapIndexed { index, row ->
             listOf(
                 (index + 1).toString(), row[0], row[1], row[2], row[3].ifBlank { "-" }, row[4],
-                formatRupiah(row[5].toLong()), row[6], row[7].ifBlank { "-" }, row[8],
+                formatRupiah(row[5].toLongOrZero()), row[6], row[7].ifBlank { "-" }, row[8],
             )
         },
     )
 
-    private fun purchaseSheet(businessName: String, exportedAt: Long): ExcelSheet = reportSheet(
+    private fun purchaseSheet(
+        businessName: String,
+        exportedAt: Long,
+        range: ExportRange,
+    ): ExcelSheet = reportSheet(
         name = "Pembelian",
-        title = "Pembelian Supplier - $businessName",
+        title = "Pembelian Pemasok - $businessName",
         businessName = businessName,
         exportedAt = exportedAt,
-        headers = listOf("No", "Tanggal", "Supplier", "No Faktur", "Total", "Dibayar", "Status", "Catatan"),
+        headers = listOf("No", "Tanggal", "Pemasok", "No Faktur", "Total", "Dibayar", "Status", "Catatan"),
         rows = queryRows(
-            "SELECT createdAt, supplierName, invoiceNumber, total, amountPaid, settlementStatus, note FROM purchases ORDER BY createdAt DESC, id DESC",
+            "SELECT createdAt, supplierName, invoiceNumber, total, amountPaid, settlementStatus, note FROM purchases WHERE ${range.where("createdAt")} ORDER BY createdAt DESC, id DESC",
         ).mapIndexed { index, row ->
             listOf(
                 (index + 1).toString(), formatDateTime(row[0].toLongOrNull()), row[1], row[2],
-                formatRupiah(row[3].toLong()), formatRupiah(row[4].toLong()), settlementLabel(row[5]),
+                formatRupiah(row[3].toLongOrZero()), formatRupiah(row[4].toLongOrZero()), settlementLabel(row[5]),
                 row[6].ifBlank { "-" },
             )
         },
     )
 
-    private fun purchaseDetailsSheet(businessName: String, exportedAt: Long): ExcelSheet = reportSheet(
+    private fun purchaseDetailsSheet(
+        businessName: String,
+        exportedAt: Long,
+        range: ExportRange,
+    ): ExcelSheet = reportSheet(
         name = "Detail Pembelian",
         title = "Detail Pembelian - $businessName",
         businessName = businessName,
         exportedAt = exportedAt,
-        headers = listOf("No", "Supplier", "No Faktur", "Produk", "Varian", "Satuan", "Qty", "Qty Dasar", "Harga Modal", "Subtotal"),
+        headers = listOf("No", "Pemasok", "No Faktur", "Produk", "Varian", "Satuan", "Jumlah", "Jumlah Dasar", "Harga Modal", "Subtotal"),
         rows = queryRows(
             """
             SELECT p.supplierName, p.invoiceNumber, i.productName, COALESCE(i.variantName, ''),
                    i.unitLabel, i.quantity, i.baseQuantity, i.unitCost, i.subtotal
             FROM purchase_items i INNER JOIN purchases p ON p.id = i.purchaseId
+            WHERE ${range.where("p.createdAt")}
             ORDER BY p.createdAt DESC, i.id DESC
             """.trimIndent(),
         ).mapIndexed { index, row ->
             listOf(
                 (index + 1).toString(), row[0], row[1], row[2], row[3].ifBlank { "-" }, row[4],
-                row[5], row[6], formatRupiah(row[7].toLong()), formatRupiah(row[8].toLong()),
+                row[5], row[6], formatRupiah(row[7].toLongOrZero()), formatRupiah(row[8].toLongOrZero()),
             )
         },
     )
 
-    private fun cashSheet(businessName: String, exportedAt: Long): ExcelSheet = reportSheet(
+    private fun cashSheet(
+        businessName: String,
+        exportedAt: Long,
+        range: ExportRange,
+    ): ExcelSheet = reportSheet(
         name = "Kas",
         title = "Kas Masuk dan Keluar - $businessName",
         businessName = businessName,
         exportedAt = exportedAt,
         headers = listOf("No", "Tanggal", "Jenis", "Kategori", "Nominal", "Metode", "Referensi", "Catatan", "Shift"),
         rows = queryRows(
-            "SELECT createdAt, type, category, amount, paymentMethod, COALESCE(referenceType, ''), note, COALESCE(shiftId, '') FROM cash_entries ORDER BY createdAt DESC, id DESC",
+            "SELECT createdAt, type, category, amount, paymentMethod, COALESCE(referenceType, ''), note, COALESCE(shiftId, '') FROM cash_entries WHERE ${range.where("createdAt")} ORDER BY createdAt DESC, id DESC",
         ).mapIndexed { index, row ->
             listOf(
                 (index + 1).toString(), formatDateTime(row[0].toLongOrNull()), cashTypeLabel(row[1]), row[2],
-                formatRupiah(row[3].toLong()), paymentLabel(row[4]), row[5].ifBlank { "-" },
+                formatRupiah(row[3].toLongOrZero()), paymentLabel(row[4]), row[5].ifBlank { "-" },
                 row[6].ifBlank { "-" }, row[7].ifBlank { "-" },
             )
         },
     )
 
-    private fun debtSheet(businessName: String, exportedAt: Long): ExcelSheet = reportSheet(
+    private fun debtSheet(
+        businessName: String,
+        exportedAt: Long,
+        range: ExportRange,
+    ): ExcelSheet = reportSheet(
         name = "Utang Piutang",
         title = "Utang dan Piutang - $businessName",
         businessName = businessName,
         exportedAt = exportedAt,
         headers = listOf("No", "Jenis", "Pihak", "Total Awal", "Dibayar", "Sisa", "Status", "Tanggal", "Catatan"),
         rows = queryRows(
-            "SELECT kind, partyName, originalAmount, paidAmount, settlementStatus, createdAt, note FROM debts ORDER BY createdAt DESC, id DESC",
+            "SELECT kind, partyName, originalAmount, paidAmount, settlementStatus, createdAt, note FROM debts WHERE ${range.where("createdAt")} ORDER BY createdAt DESC, id DESC",
         ).mapIndexed { index, row ->
-            val original = row[2].toLong()
-            val paid = row[3].toLong()
+            val original = row[2].toLongOrZero()
+            val paid = row[3].toLongOrZero()
             listOf(
                 (index + 1).toString(), debtKindLabel(row[0]), row[1], formatRupiah(original),
                 formatRupiah(paid), formatRupiah((original - paid).coerceAtLeast(0)), settlementLabel(row[4]),
@@ -315,7 +381,11 @@ class ExcelExportManager(
         },
     )
 
-    private fun debtPaymentSheet(businessName: String, exportedAt: Long): ExcelSheet = reportSheet(
+    private fun debtPaymentSheet(
+        businessName: String,
+        exportedAt: Long,
+        range: ExportRange,
+    ): ExcelSheet = reportSheet(
         name = "Pembayaran Utang",
         title = "Riwayat Pembayaran Utang/Piutang - $businessName",
         businessName = businessName,
@@ -325,17 +395,22 @@ class ExcelExportManager(
             """
             SELECT p.paidAt, d.kind, d.partyName, p.amount, p.paymentMethod, p.note
             FROM debt_payments p INNER JOIN debts d ON d.id = p.debtId
+            WHERE ${range.where("p.paidAt")}
             ORDER BY p.paidAt DESC, p.id DESC
             """.trimIndent(),
         ).mapIndexed { index, row ->
             listOf(
                 (index + 1).toString(), formatDateTime(row[0].toLongOrNull()), debtKindLabel(row[1]), row[2],
-                formatRupiah(row[3].toLong()), paymentLabel(row[4]), row[5].ifBlank { "-" },
+                formatRupiah(row[3].toLongOrZero()), paymentLabel(row[4]), row[5].ifBlank { "-" },
             )
         },
     )
 
-    private fun shiftSheet(businessName: String, exportedAt: Long): ExcelSheet = reportSheet(
+    private fun shiftSheet(
+        businessName: String,
+        exportedAt: Long,
+        range: ExportRange,
+    ): ExcelSheet = reportSheet(
         name = "Shift",
         title = "Riwayat Shift - $businessName",
         businessName = businessName,
@@ -345,18 +420,22 @@ class ExcelExportManager(
             "Tunai", "Non Tunai", "Kas Seharusnya", "Kas Akhir", "Selisih",
         ),
         rows = queryRows(
-            "SELECT cashierName, openedAt, closedAt, status, openingCash, totalSales, cashSales, nonCashSales, expectedCash, closingCash, cashDifference FROM shifts ORDER BY openedAt DESC, id DESC",
+            "SELECT cashierName, openedAt, closedAt, status, openingCash, totalSales, cashSales, nonCashSales, expectedCash, closingCash, cashDifference FROM shifts WHERE ${range.where("openedAt")} ORDER BY openedAt DESC, id DESC",
         ).mapIndexed { index, row ->
             listOf(
                 (index + 1).toString(), row[0], formatDateTime(row[1].toLongOrNull()),
-                formatDateTime(row[2].toLongOrNull()), row[3], formatRupiah(row[4].toLong()),
-                formatRupiah(row[5].toLong()), formatRupiah(row[6].toLong()), formatRupiah(row[7].toLong()),
-                formatRupiah(row[8].toLong()), formatRupiah(row[9].toLong()), formatRupiah(row[10].toLong()),
+                formatDateTime(row[2].toLongOrNull()), row[3], formatRupiah(row[4].toLongOrZero()),
+                formatRupiah(row[5].toLongOrZero()), formatRupiah(row[6].toLongOrZero()), formatRupiah(row[7].toLongOrZero()),
+                formatRupiah(row[8].toLongOrZero()), formatRupiah(row[9].toLongOrZero()), formatRupiah(row[10].toLongOrZero()),
             )
         },
     )
 
-    private fun stockSheet(businessName: String, exportedAt: Long): ExcelSheet = reportSheet(
+    private fun stockSheet(
+        businessName: String,
+        exportedAt: Long,
+        range: ExportRange,
+    ): ExcelSheet = reportSheet(
         name = "Pergerakan Stok",
         title = "Pergerakan Stok - $businessName",
         businessName = businessName,
@@ -369,6 +448,7 @@ class ExcelExportManager(
             FROM stock_movements sm
             LEFT JOIN products p ON p.id = sm.productId
             LEFT JOIN product_variants v ON v.id = sm.variantId
+            WHERE ${range.where("sm.createdAt")}
             ORDER BY sm.createdAt DESC, sm.id DESC
             """.trimIndent(),
         ).mapIndexed { index, row ->
@@ -395,12 +475,16 @@ class ExcelExportManager(
         ).mapIndexed { index, row ->
             listOf(
                 (index + 1).toString(), row[0], schemeLabel(row[1]), row[2].ifBlank { "-" }, row[3],
-                formatRupiah(row[4].toLong()), formatDateTime(row[5].toLongOrNull()),
+                formatRupiah(row[4].toLongOrZero()), formatDateTime(row[5].toLongOrNull()),
             )
         },
     )
 
-    private fun attendanceSheet(businessName: String, exportedAt: Long): ExcelSheet = reportSheet(
+    private fun attendanceSheet(
+        businessName: String,
+        exportedAt: Long,
+        range: ExportRange,
+    ): ExcelSheet = reportSheet(
         name = "Kehadiran",
         title = "Kehadiran dan Upah Harian - $businessName",
         businessName = businessName,
@@ -411,21 +495,26 @@ class ExcelExportManager(
             SELECT a.workDate, e.name, a.status, a.rateSnapshot, a.overtime, a.bonus, a.deduction,
                    a.advance, a.netPay, CASE WHEN a.isPaid = 1 THEN 'Sudah dibayar' ELSE 'Belum dibayar' END, a.note
             FROM attendance_records a INNER JOIN employees e ON e.id = a.employeeId
+            WHERE ${range.where("a.workDate")}
             ORDER BY a.workDate DESC, a.id DESC
             """.trimIndent(),
         ).mapIndexed { index, row ->
             listOf(
                 (index + 1).toString(), formatDateTime(row[0].toLongOrNull()), row[1], row[2],
-                formatRupiah(row[3].toLong()), formatRupiah(row[4].toLong()), formatRupiah(row[5].toLong()),
-                formatRupiah(row[6].toLong()), formatRupiah(row[7].toLong()), formatRupiah(row[8].toLong()),
+                formatRupiah(row[3].toLongOrZero()), formatRupiah(row[4].toLongOrZero()), formatRupiah(row[5].toLongOrZero()),
+                formatRupiah(row[6].toLongOrZero()), formatRupiah(row[7].toLongOrZero()), formatRupiah(row[8].toLongOrZero()),
                 row[9], row[10].ifBlank { "-" },
             )
         },
     )
 
-    private fun freelanceSheet(businessName: String, exportedAt: Long): ExcelSheet = reportSheet(
-        name = "Freelancer",
-        title = "Pekerjaan Freelancer/Panggilan - $businessName",
+    private fun freelanceSheet(
+        businessName: String,
+        exportedAt: Long,
+        range: ExportRange,
+    ): ExcelSheet = reportSheet(
+        name = "Pekerja Panggilan",
+        title = "Pekerjaan Panggilan - $businessName",
         businessName = businessName,
         exportedAt = exportedAt,
         headers = listOf("No", "Tanggal", "Pekerja", "Pekerjaan", "Kesepakatan", "Dibayar", "Status", "Catatan"),
@@ -433,29 +522,34 @@ class ExcelExportManager(
             """
             SELECT j.workDate, e.name, j.title, j.agreedAmount, j.paidAmount, j.status, j.note
             FROM freelance_jobs j INNER JOIN employees e ON e.id = j.employeeId
+            WHERE ${range.where("j.workDate")}
             ORDER BY j.workDate DESC, j.id DESC
             """.trimIndent(),
         ).mapIndexed { index, row ->
             listOf(
                 (index + 1).toString(), formatDateTime(row[0].toLongOrNull()), row[1], row[2],
-                formatRupiah(row[3].toLong()), formatRupiah(row[4].toLong()), settlementLabel(row[5]),
+                formatRupiah(row[3].toLongOrZero()), formatRupiah(row[4].toLongOrZero()), settlementLabel(row[5]),
                 row[6].ifBlank { "-" },
             )
         },
     )
 
-    private fun workerPaymentSheet(businessName: String, exportedAt: Long): ExcelSheet = reportSheet(
+    private fun workerPaymentSheet(
+        businessName: String,
+        exportedAt: Long,
+        range: ExportRange,
+    ): ExcelSheet = reportSheet(
         name = "Pembayaran Pekerja",
         title = "Pembayaran Pekerja - $businessName",
         businessName = businessName,
         exportedAt = exportedAt,
         headers = listOf("No", "Tanggal", "Pekerja", "Referensi", "Nominal", "Catatan"),
         rows = queryRows(
-            "SELECT p.paidAt, e.name, p.referenceType, p.amount, p.note FROM worker_payments p INNER JOIN employees e ON e.id = p.employeeId ORDER BY p.paidAt DESC, p.id DESC",
+            "SELECT p.paidAt, e.name, p.referenceType, p.amount, p.note FROM worker_payments p INNER JOIN employees e ON e.id = p.employeeId WHERE ${range.where("p.paidAt")} ORDER BY p.paidAt DESC, p.id DESC",
         ).mapIndexed { index, row ->
             listOf(
                 (index + 1).toString(), formatDateTime(row[0].toLongOrNull()), row[1], row[2],
-                formatRupiah(row[3].toLong()), row[4].ifBlank { "-" },
+                formatRupiah(row[3].toLongOrZero()), row[4].ifBlank { "-" },
             )
         },
     )
@@ -471,7 +565,7 @@ class ExcelExportManager(
         ).map { row ->
             listOf(
                 row[0], row[1], row[2].ifBlank { "-" }, row[3].ifBlank { "-" }, row[4].ifBlank { "-" },
-                formatRupiah(row[5].toLong()), row[6],
+                formatRupiah(row[5].toLongOrZero()), row[6],
             )
         },
     )
@@ -493,8 +587,8 @@ class ExcelExportManager(
     )
 
     private fun partySheet(businessName: String, exportedAt: Long): ExcelSheet = reportSheet(
-        name = "Pelanggan & Supplier",
-        title = "Pelanggan dan Supplier - $businessName",
+        name = "Pelanggan & Pemasok",
+        title = "Pelanggan dan Pemasok - $businessName",
         businessName = businessName,
         exportedAt = exportedAt,
         headers = listOf("No", "Jenis", "Nama", "Telepon", "Alamat", "Status"),
@@ -517,7 +611,7 @@ class ExcelExportManager(
         rows = buildList {
             add(listOf(title))
             add(listOf("Usaha: $businessName"))
-            add(listOf("Export: ${formatExportTime(exportedAt)}"))
+            add(listOf("Dibuat: ${formatExportTime(exportedAt)}"))
             add(emptyList())
             add(headers)
             addAll(rows)
@@ -559,6 +653,8 @@ class ExcelExportManager(
     private fun formatDateTime(timestamp: Long?): String = timestamp?.let {
         SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.forLanguageTag("id-ID")).format(Date(it))
     }.orEmpty().ifBlank { "-" }
+
+    private fun String.toLongOrZero(): Long = toLongOrNull() ?: 0L
 
     private fun formatRupiah(value: Long): String =
         "Rp ${NumberFormat.getIntegerInstance(Locale.forLanguageTag("id-ID")).format(value)}"
@@ -606,13 +702,13 @@ class ExcelExportManager(
 
     private fun partyKindLabel(value: String): String = when (value) {
         "CUSTOMER" -> "Pelanggan"
-        "SUPPLIER" -> "Supplier"
+        "SUPPLIER" -> "Pemasok"
         else -> value
     }
 
     private fun schemeLabel(value: String): String = when (value) {
         "DAILY" -> "Harian"
-        "FREELANCE" -> "Freelancer"
+        "FREELANCE" -> "Pekerja panggilan"
         else -> value
     }
 
@@ -622,6 +718,22 @@ class ExcelExportManager(
         .trim('-')
         .ifBlank { "usaha" }
         .take(40)
+
+    private data class ExportRange(
+        val label: String,
+        val fromInclusive: Long? = null,
+        val toInclusive: Long? = null,
+    ) {
+        fun where(column: String): String = if (fromInclusive == null || toInclusive == null) {
+            "1 = 1"
+        } else {
+            "$column >= $fromInclusive AND $column <= $toInclusive"
+        }
+
+        companion object {
+            fun all() = ExportRange("Seluruh data yang tersimpan di perangkat ini tanpa internet")
+        }
+    }
 
     private companion object {
         const val EXPORT_DIRECTORY = "excel-exports"

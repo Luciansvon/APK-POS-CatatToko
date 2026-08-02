@@ -298,6 +298,27 @@ data class CashAggregate(
     val total: Long,
 )
 
+data class SalesTrendRow(
+    val createdAt: Long,
+    val total: Long,
+)
+
+data class ProductTrendRow(
+    val productId: Long,
+    val productName: String,
+    val unitLabel: String,
+    val quantity: Int,
+    val baseQuantity: Int,
+    val subtotal: Long,
+    val createdAt: Long,
+)
+
+data class CashTrendRow(
+    val createdAt: Long,
+    val type: String,
+    val amount: Long,
+)
+
 data class ForecastSalesRow(
     val productId: Long,
     val productName: String,
@@ -367,6 +388,52 @@ interface ReportDao {
         fromInclusive: Long,
         toInclusive: Long,
     ): List<CashAggregate>
+
+    @Query(
+        """
+        SELECT createdAt, total
+        FROM sales
+        WHERE createdAt BETWEEN :fromInclusive AND :toInclusive
+        ORDER BY createdAt, id
+        """,
+    )
+    suspend fun salesTrendRows(
+        fromInclusive: Long,
+        toInclusive: Long,
+    ): List<SalesTrendRow>
+
+    @Query(
+        """
+        SELECT sale_items.productId AS productId,
+               sale_items.productName AS productName,
+               sale_items.unitLabel AS unitLabel,
+               sale_items.quantity AS quantity,
+               sale_items.baseQuantity AS baseQuantity,
+               sale_items.subtotal AS subtotal,
+               sales.createdAt AS createdAt
+        FROM sale_items
+        INNER JOIN sales ON sales.id = sale_items.saleId
+        WHERE sales.createdAt BETWEEN :fromInclusive AND :toInclusive
+        ORDER BY sales.createdAt, sale_items.id
+        """,
+    )
+    suspend fun productTrendRows(
+        fromInclusive: Long,
+        toInclusive: Long,
+    ): List<ProductTrendRow>
+
+    @Query(
+        """
+        SELECT createdAt, type, amount
+        FROM cash_entries
+        WHERE createdAt BETWEEN :fromInclusive AND :toInclusive
+        ORDER BY createdAt, id
+        """,
+    )
+    suspend fun cashTrendRows(
+        fromInclusive: Long,
+        toInclusive: Long,
+    ): List<CashTrendRow>
 
     @Query(
         """

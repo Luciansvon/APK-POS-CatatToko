@@ -25,6 +25,95 @@ Worklog bukan pengganti:
 
 ---
 
+## 2026-08-02 - Redesign area Owner untuk pengguna UMKM
+
+Status: Selesai dan siap diaudit sebagai APK debug `0.4.8`.
+
+### Keputusan yang disetujui
+
+- Memakai arah Laporan opsi 2 dan mempertahankan tombol penyimpanan Excel yang mudah dikenali.
+- Memprioritaskan halaman Owner lain yang masih generik; Kasir dan isi Produk tidak diubah.
+- Memakai bahasa usaha sehari-hari, angka utama yang jelas, tombol bertulisan, dan kondisi kosong yang menjelaskan langkah berikutnya.
+- Mengganti label navigasi Retail `Piutang` menjadi `Keuangan`.
+
+### Hasil implementasi
+
+- Laporan memakai pemilih periode lebar penuh, omzet utama, tiga metrik ringkas, grafik penjualan, serta pintasan bertulisan `Buka` untuk arus kas dan rincian lengkap.
+- `Simpan Laporan Excel` dan `Bagikan Excel` tampil sebagai tombol lebar penuh dengan tulisan dan ikon.
+- Istilah baru yang tidak perlu berbahasa asing diganti menjadi `salinan data`, `pulihkan data`, `pemasok`, dan `pekerja panggilan`; detail perkiraan tidak lagi menampilkan istilah teknis `model`/`MAE`.
+- Perbandingan sebelumnya memakai durasi berjalan yang sama; pilihan `Terjual` tidak tersedia untuk gabungan semua produk.
+- Stok, Pembelian, Pekerja, Kas, Utang & Piutang, Transaksi, dan Lainnya memakai komponen Owner bersama.
+- Pengaturan PIN dan keluar Owner ditempatkan pada bagian `Keamanan Owner` di Lainnya.
+
+### Verifikasi akhir
+
+- Unit test, lint, build debug, dan kompilasi AndroidTest Retail, Grosir, serta Kuliner lulus.
+- Connected Retail lulus `47/47` per perangkat; Grosir dan Kuliner masing-masing `49` run dengan `2` test khusus Retail dilewati per perangkat, tanpa kegagalan.
+- `ReportDemoTest` mengunci periode, grafik, Excel, batas semua produk, serta ketiadaan karakter rentang tanggal yang rusak.
+- Visual QA Laporan dan halaman Owner lain lulus pada HP portrait serta tablet landscape; bukti ada di `design-qa.md` dan folder visualisasi `owner-redesign-0.4.8`.
+- Tiga APK final disalin ke `dist/debug` dengan hash yang dicatat di `docs/RELEASE_NOTES.md`.
+
+### File utama
+
+- `app/src/main/java/com/bimacore/usahakecil/ui/OwnerDashboardComponents.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/ReportDashboardComponents.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/ManagementScreens.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/AppDestination.kt`
+- `app/src/main/java/com/bimacore/usahakecil/data/ReportPeriod.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/MainActivitySmokeTest.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/report/ReportDemoTest.kt`
+
+---
+
+## 2026-08-02 - Dashboard laporan dan tren monitoring
+
+Status: Selesai dan siap dibagikan sebagai APK debug `0.4.7`.
+
+### Keputusan yang disetujui
+
+- KPI laporan memakai grid dua kolom agar ringkas.
+- KPI membandingkan periode aktif dengan periode sebelumnya yang setara.
+- Grafik default adalah `Arus kas`; mode lain adalah `Penjualan` dan `Produk`.
+- Granularitas grafik dapat dipilih terpisah: harian, mingguan, bulanan, tahunan.
+- Bucket tanpa data tetap ditampilkan sebagai nol.
+
+### Hasil implementasi
+
+- Menambahkan `ReportTrendReport`, query baris penjualan/item/kas, dan agregasi bucket kalender lokal di shared core.
+- Menambahkan status naik/turun/netral dengan arah penilaian berbeda untuk pendapatan dan pengeluaran.
+- Menempatkan grafik pembayaran sebagai rincian sekunder; forecast tetap menjadi analisis stok.
+- Menambahkan selector produk dan metrik `Omzet`/`Terjual`.
+
+### File utama
+
+- `app/src/main/java/com/bimacore/usahakecil/data/ReportPeriod.kt`
+- `app/src/main/java/com/bimacore/usahakecil/data/ReportTrend.kt`
+- `app/src/main/java/com/bimacore/usahakecil/data/OperationalDaos.kt`
+- `app/src/main/java/com/bimacore/usahakecil/data/ReportRepository.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/ReportDashboardComponents.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/ManagementScreens.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/OperationsViewModel.kt`
+
+### Verifikasi yang sudah dilakukan
+
+- `testRetailDebugUnitTest` dan compile AndroidTest Retail lulus.
+- Connected `ReportDemoTest` Retail lulus di `emulator-5554` dan `emulator-5556`.
+- Test repository data kosong memeriksa bucket tren nol.
+
+### Verifikasi akhir
+
+- Unit test tiga flavor, assemble debug, dan compile AndroidTest tiga flavor lulus setelah patch label sumbu.
+- Connected matrix tiga flavor lulus pada dua serial MuMu; Retail `47/47` per device, Wholesale dan Culinary `49` run per device dengan 2 test Retail-only dilewati.
+- Targeted `ReportDemoTest` dan `ReportTrendRepositoryTest` lulus pada dua device setelah database test dikembalikan bersih.
+- APK Retail `0.4.7` dipasang kembali di `emulator-5554` dan dibiarkan terpasang untuk uji user.
+- Screenshot final disimpan di `C:\Users\shint\.codex\visualizations\2026\08\02\usaha-kecil-suite-0.4.7`.
+- Audit visual emulator memeriksa tinggi card KPI yang seragam, mode Arus kas/Penjualan/Produk, metrik Omzet/Terjual, selector produk, empat granularitas, dan label grafik tanpa ellipsis.
+- Kontrol grafik diringkas menjadi dua dropdown inti (`Tampilan` dan `Rentang`); mode Produk memakai satu menu gabungan untuk produk serta ukuran Omzet/Terjual.
+- Audit popup manual ADB memastikan seluruh opsi mode, produk, dan metrik tetap tersedia tanpa memenuhi layar; screenshot final disimpan di `artifacts/ui-qa/report-audit/`.
+- APK tiga flavor dipackage ulang; hash final dicatat di `docs/RELEASE_NOTES.md`.
+
+---
+
 ## 2026-08-01 - Standarisasi flow test MuMu dua device
 
 Status: Selesai untuk dokumentasi; hasil connected test dan audit Owner dicatat terpisah sesuai bukti aktual.
@@ -830,3 +919,99 @@ Status: Diimplementasikan, diuji lintas flavor, dan dipackage sebagai `0.4.2` / 
 
 - Export masih seluruh data offline; periode harian/mingguan/bulanan/tahunan, chart Excel, forecasting Excel, dan analisis laba/HPP belum termasuk.
 - Fitur agen bank/e-wallet belum ditambahkan dan tetap di luar scope rilis ini.
+
+---
+
+## 2026-08-02 - Popup buka shift dari tombol transaksi
+
+Status: Diimplementasikan, diverifikasi, dan dipackage sebagai `0.4.3` / `versionCode 12`.
+
+### Perubahan
+
+- Menambahkan guard pada tombol `Mulai Transaksi` agar pekerja yang belum membuka shift langsung melihat popup `Buka Shift`.
+- Menjaga alur normal: ketika shift aktif, tombol tetap membuka katalog produk/menu.
+- Menambahkan regression test untuk kondisi tanpa shift.
+- Menaikkan versi ke `0.4.3` / `versionCode 12`.
+
+### Verifikasi aktual
+
+- Full Gradle matrix lulus: unit test, lint, assemble debug, dan compile AndroidTest tiga flavor (`259 actionable tasks`).
+- Connected smoke lulus: Retail 8/8 per device; Wholesale dan Culinary 8 lulus + 1 test Retail-only dilewati per device.
+- Regression tanpa shift lulus pada emulator portrait dan landscape.
+- APK dipackage:
+  - Retail SHA256 `BE4D77121CEBE57CF483441DD7D0C0995CCD90FD5ED62E3F96CE5C79F1EB06F5`.
+  - Grosir SHA256 `F5331CD6CF7A4D3BB971C6319EB9D219C141AE5759BB71F586C8B5E0D47D0AC3`.
+  - Kuliner SHA256 `A1DAADC9DF52E5B1C5EEFA7118B4E3424DBDCBBF1BA455C03BE2FF9F50AE4ECC`.
+
+## 2026-08-02 - Owner kasir tanpa shift dan grid Operasional
+
+Status: Diimplementasikan, diverifikasi, dan dipackage sebagai `0.4.4` / `versionCode 13`.
+
+### Perubahan
+
+- Membedakan aturan checkout Owner dan pekerja di `PosRepository`; Owner tidak lagi wajib membuka shift.
+- Menjaga `shiftId = null` untuk transaksi Owner tanpa shift agar rekonsiliasi shift pekerja tidak tercampur.
+- Mengurangi dominasi header hijau pada layar Owner.
+- Mengganti tab/bar horizontal Operasional dan Keuangan menjadi grid dua kolom.
+- Mengganti daftar kategori vertikal menjadi kartu kategori dua kolom dan membatasi teks tile agar tidak bertabrakan.
+- Menambahkan regression test domain, UI Owner tanpa shift, dan grid Operasional.
+
+### Bukti verifikasi aktual
+
+- Full Gradle matrix tiga flavor lulus: unit test, lint, debug build, dan AndroidTest APK.
+- Connected smoke lulus pada `emulator-5554` dan `emulator-5556`; Retail `42/42`, Grosir/Kuliner `44` run per emulator tanpa failure.
+- Screenshot portrait dan landscape untuk Owner, Operasional, Laporan, dan Lainnya sudah diperiksa.
+- APK `0.4.4` sudah dipackage dengan SHA256 tercatat di `docs/RELEASE_NOTES.md`.
+
+## 2026-08-02 - Grafik laporan kosong, demo report, dan foto menu
+
+Status: Diimplementasikan, diverifikasi, dan dipackage sebagai `0.4.5` / `versionCode 14`.
+
+### Perubahan
+
+- Grafik penerimaan tidak lagi diganti pesan kosong; empat metode pembayaran selalu dirender dan metode tanpa transaksi bernilai `Rp0`.
+- Menambahkan `ReportDemoTest` dengan transaksi, kas, pengeluaran, utang, piutang, dan histori fiktif untuk memeriksa kartu laporan, periode harian/mingguan/bulanan/tahunan, forecast, ranking analisis, dan export Excel.
+- Menambahkan tombol pilih/ganti foto menu pada form produk; URI foto disimpan di database lokal dan foto lama dipertahankan saat edit tanpa foto baru.
+- Menambahkan regression test untuk chart kosong, demo laporan, dan pemilih foto menu.
+- Menaikkan versi ke `0.4.5` / `versionCode 14`.
+
+### Bukti verifikasi aktual
+
+- Target connected `ReportDemoTest` lulus pada `emulator-5554` dan `emulator-5556`.
+- Full Gradle matrix tiga flavor lulus: unit test, lint, debug build, dan AndroidTest APK.
+- Connected smoke final lulus pada `emulator-5554` dan `emulator-5556`; Retail `45/45`, Grosir/Kuliner `47` run per emulator dengan `2` test Retail-only dilewati.
+- Target `ReportDemoTest`, chart kosong, export Excel dengan histori shift kosong, dan pemilih foto menu lulus pada dua emulator.
+- APK `0.4.5` sudah dipackage dengan SHA256 tercatat di `docs/RELEASE_NOTES.md`.
+
+## 2026-08-02 - Periode laporan, export Excel di Laporan, dan grafik forecast terbaca
+
+Status: Selesai, diverifikasi lintas flavor, dan dipackage sebagai `0.4.6` / `versionCode 15`.
+
+### Perubahan
+
+- Menambahkan pemilih periode `Hari ini`, `Minggu ini`, `Bulan ini`, dan `Tahun ini` pada Laporan.
+- Menggunakan periode aktif untuk ringkasan dan sheet event Excel; master/catalog tetap snapshot saat export.
+- Memindahkan `Export Excel` dan `Bagikan Excel` dari Lainnya ke bagian atas Laporan.
+- Menambahkan angka setiap hari, satuan, dan skala minimum-maksimum pada grafik forecast.
+- Menambahkan test periode workbook dan memperkuat smoke test UI export untuk protected report serta Owner tanpa shift.
+- Menaikkan versi ke `0.4.6` / `versionCode 15`.
+
+### Bukti verifikasi aktual
+
+- Unit test tiga flavor, lint tiga flavor, `assembleDebug`, dan AndroidTest APK tiga flavor lulus; `259 actionable tasks`.
+- Retail connected lulus `46/46` per emulator.
+- Wholesale dan Culinary connected masing-masing `48` run per emulator, dengan dua test Retail-only dilewati dan tanpa failure.
+- `ReportDemoTest` dan `ExcelExportTest` periode lulus pada dua emulator.
+- APK final:
+  - Retail SHA256 `1A71CCE4A56E548E2DC8528666FF31FCCD5C5E8E443EE2AAEEDDD0ED17C19DEC`.
+  - Grosir SHA256 `4B36F1DA7C736FDB77BE3E43A0ED5B19F2C46FA83919E09DAEEAC8374DB18EEE`.
+  - Kuliner SHA256 `A206F4014F3893FBDD0606385950A57AEB9120B944A0FE6068180F2E8AD426BA`.
+
+### File utama
+
+- `app/src/main/java/com/bimacore/usahakecil/data/ReportPeriod.kt`
+- `app/src/main/java/com/bimacore/usahakecil/export/ExcelExportManager.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/ManagementScreens.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/ForecastScreen.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/export/ExcelExportTest.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/report/ReportDemoTest.kt`

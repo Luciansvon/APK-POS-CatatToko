@@ -8,6 +8,7 @@ import com.bimacore.usahakecil.domain.AddToCartResult
 import com.bimacore.usahakecil.domain.BusinessType
 import com.bimacore.usahakecil.domain.CheckoutResult
 import com.bimacore.usahakecil.domain.PaymentMethod
+import com.bimacore.usahakecil.security.ReportSession
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
@@ -110,5 +111,34 @@ class PosRepositoryTest {
 
         assertTrue(result is CheckoutResult.Error)
         assertTrue((result as CheckoutResult.Error).message.contains("Buka shift"))
+    }
+
+    @Test
+    fun owner_can_complete_sale_without_an_open_shift() = runTest {
+        repository.seedIfNeeded()
+        val openShift = requireNotNull(database.shiftDao().getOpenShift())
+        database.shiftDao().updateShift(
+            openShift.copy(
+                status = ShiftStatus.CLOSED.name,
+                closedAt = 1_700_000_000_001L,
+                closingCash = 0,
+                openSlot = null,
+            ),
+        )
+        val ownerSession = ReportSession().apply { unlock() }
+        val ownerRepository = PosRepository(
+            database = database,
+            businessType = BusinessType.RETAIL,
+            businessName = "Retail Test",
+            ownerSession = ownerSession,
+            clock = { 1_700_000_000_000L },
+        )
+        assertEquals(AddToCartResult.Added, ownerRepository.addProduct(101))
+
+        val result = ownerRepository.completeSale(
+            CheckoutRequest(PaymentMethod.CASH, 20_000, false),
+        ) as CheckoutResult.Success
+
+        assertEquals(null, database.saleDao().getSale(result.receipt.saleId)?.shiftId)
     }
 }

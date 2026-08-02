@@ -3,31 +3,36 @@ package com.bimacore.usahakecil.ui
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.TableView
+import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -44,6 +49,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.bimacore.usahakecil.data.DebtEntity
@@ -52,6 +59,7 @@ import com.bimacore.usahakecil.data.EmployeeEntity
 import com.bimacore.usahakecil.data.ManualCashType
 import com.bimacore.usahakecil.data.PartyKind
 import com.bimacore.usahakecil.data.ProductEntity
+import com.bimacore.usahakecil.data.ReportPeriod
 import com.bimacore.usahakecil.data.WorkerScheme
 import com.bimacore.usahakecil.domain.AttendanceStatus
 import com.bimacore.usahakecil.domain.OrderStatus
@@ -61,8 +69,8 @@ import java.util.Locale
 
 @Composable
 private fun ownerTopAppBarColors() = TopAppBarDefaults.topAppBarColors(
-    containerColor = MaterialTheme.colorScheme.primary,
-    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+    containerColor = MaterialTheme.colorScheme.surface,
+    titleContentColor = MaterialTheme.colorScheme.primary,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -112,15 +120,12 @@ fun OperationsScreen(
                 .fillMaxSize()
                 .padding(padding),
         ) {
-            TabRow(selectedTabIndex = tab) {
-                tabs.forEachIndexed { index, label ->
-                    Tab(
-                        selected = tab == index,
-                        onClick = { tab = index },
-                        text = { Text(label) },
-                    )
-                }
-            }
+            OwnerSectionTabs(
+                items = tabs,
+                selectedIndex = tab,
+                onSelected = { tab = it },
+                testTag = "operations-section-grid",
+            )
             Column(
                 Modifier
                     .fillMaxSize()
@@ -141,16 +146,13 @@ fun OperationsScreen(
                             },
                             "Tambah varian" to { dialog = "variant" },
                         )
-                        categories.forEach { category ->
-                            ItemCard(
-                                category.name,
-                                "Kategori aktif",
-                                "Edit",
-                            ) {
+                        CategoryGrid(
+                            categories = categories,
+                            onEdit = { category ->
                                 selectedCategoryId = category.id
                                 dialog = "category"
-                            }
-                        }
+                            },
+                        )
                         products.forEach { product ->
                             val displayStock = if (product.hasVariants) {
                                 variants.filter { it.productId == product.id }.sumOf { it.stock }
@@ -164,7 +166,7 @@ fun OperationsScreen(
                                 onAction = {
                                     viewModel.setProductActive(product.id, !product.isActive)
                                 },
-                                secondaryAction = "Edit",
+                                secondaryAction = "Ubah",
                                 onSecondaryAction = {
                                     selectedProductId = product.id
                                     dialog = "product"
@@ -185,67 +187,204 @@ fun OperationsScreen(
                         }
                     }
                     "Stok" -> {
-                        Text("Pilih produk untuk mencatat stok masuk, keluar, rusak, atau hilang.")
-                        products.filter { it.isActive }.forEach { product ->
-                            ItemCard(
-                                product.name,
-                                "Stok ${product.stock} ${product.unitLabel}",
-                                "Sesuaikan",
-                            ) {
-                                selectedProductId = product.id
-                                dialog = "stock"
+                        val stockItems = products.filter { it.isActive }.map { product ->
+                            val displayStock = if (product.hasVariants) {
+                                variants.filter { it.productId == product.id && it.isActive }.sumOf { it.stock }
+                            } else {
+                                product.stock
+                            }
+                            product to displayStock
+                        }
+                        val outOfStock = stockItems.count { (product, stock) ->
+                            product.stockTrackingEnabled && stock <= 0
+                        }
+                        val lowStock = stockItems.count { (product, stock) ->
+                            product.stockTrackingEnabled && stock in 1..product.lowStockThreshold
+                        }
+                        OwnerHeroCard(
+                            eyebrow = "Stok perlu perhatian",
+                            value = "${outOfStock + lowStock} produk",
+                            supportingText = if (outOfStock + lowStock == 0) {
+                                "Semua stok yang dilacak masih aman."
+                            } else {
+                                "Dahulukan barang habis dan hampir habis."
+                            },
+                        ) {
+                            OwnerMetricStrip(
+                                listOf(
+                                    outOfStock.toString() to "Habis",
+                                    lowStock.toString() to "Menipis",
+                                    stockItems.size.toString() to "Produk aktif",
+                                ),
+                            )
+                        }
+                        SectionTitle("Daftar stok")
+                        if (stockItems.isEmpty()) {
+                            OwnerEmptyState(
+                                title = "Belum ada produk aktif",
+                                message = "Tambahkan produk dulu sebelum mencatat stok masuk atau keluar.",
+                                actionLabel = "Buka Produk",
+                                onAction = { tab = tabs.indexOf("Produk") },
+                                testTag = "stock-empty-state",
+                            )
+                        } else {
+                            stockItems.sortedWith(
+                                compareBy<Pair<ProductEntity, Int>> {
+                                    when {
+                                        !it.first.stockTrackingEnabled -> 3
+                                        it.second <= 0 -> 0
+                                        it.second <= it.first.lowStockThreshold -> 1
+                                        else -> 2
+                                    }
+                                }.thenBy { it.first.name },
+                            ).forEach { (product, displayStock) ->
+                                val status = when {
+                                    !product.stockTrackingEnabled -> "Stok tidak dilacak"
+                                    displayStock <= 0 -> "Stok habis"
+                                    displayStock <= product.lowStockThreshold -> "Stok menipis"
+                                    else -> "Stok aman"
+                                }
+                                OwnerDetailCard(
+                                    title = product.name,
+                                    subtitle = "$displayStock ${product.unitLabel} • $status",
+                                    action = "Atur stok",
+                                ) {
+                                    selectedProductId = product.id
+                                    dialog = "stock"
+                                }
                             }
                         }
                         SectionTitle("Riwayat terbaru")
-                        movements.take(30).forEach {
-                            InfoCard(
-                                "${it.type}: ${it.baseQuantityDelta}",
-                                "${it.reason} • ${formatDate(it.createdAt)}",
+                        if (movements.isEmpty()) {
+                            OwnerEmptyState(
+                                title = "Belum ada perubahan stok",
+                                message = "Riwayat akan muncul setelah stok masuk, keluar, rusak, atau hilang dicatat.",
+                                testTag = "stock-history-empty-state",
                             )
+                        } else {
+                            movements.take(30).forEach {
+                                OwnerDetailCard(
+                                    "${it.type}: ${it.baseQuantityDelta}",
+                                    "${it.reason} • ${formatDate(it.createdAt)}",
+                                )
+                            }
                         }
                     }
                     "Pembelian" -> {
-                        ActionRow(
-                            "Tambah supplier" to { dialog = "supplier" },
-                            "Catat pembelian" to { dialog = "purchase" },
+                        OwnerHeroCard(
+                            eyebrow = "Total pembelian tercatat",
+                            value = formatRupiah(purchases.sumOf { it.total }),
+                            supportingText = "${purchases.size} pembelian dari ${suppliers.size} pemasok.",
                         )
-                        suppliers.forEach { InfoCard(it.name, it.phone.ifBlank { "Supplier" }) }
+                        Button(
+                            onClick = { dialog = "purchase" },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                        ) { Text("Catat pembelian") }
+                        OutlinedButton(
+                            onClick = { dialog = "supplier" },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        ) { Text("Tambah pemasok") }
                         SectionTitle("Riwayat pembelian")
-                        purchases.forEach {
-                            InfoCard(
-                                it.supplierName,
-                                "${formatRupiah(it.total)} • ${settlementLabel(it.settlementStatus)}",
+                        if (purchases.isEmpty()) {
+                            OwnerEmptyState(
+                                title = "Belum ada pembelian",
+                                message = "Catat belanja dari pemasok agar biaya dan stok punya riwayat yang jelas.",
+                                actionLabel = "Catat pembelian",
+                                onAction = { dialog = "purchase" },
+                                testTag = "purchase-empty-state",
                             )
+                        } else {
+                            purchases.forEach {
+                                OwnerDetailCard(
+                                    it.supplierName,
+                                    "${formatRupiah(it.total)} • ${settlementLabel(it.settlementStatus)}",
+                                )
+                            }
+                        }
+                        SectionTitle("Pemasok")
+                        if (suppliers.isEmpty()) {
+                            OwnerEmptyState(
+                                title = "Belum ada pemasok",
+                                message = "Pemasok bisa ditambahkan sekarang atau saat mencatat pembelian.",
+                            )
+                        } else {
+                            suppliers.forEach {
+                                OwnerDetailCard(it.name, it.phone.ifBlank { "Nomor telepon belum diisi" })
+                            }
                         }
                     }
                     "Pekerja" -> {
-                        ActionRow("Tambah pekerja" to { dialog = "worker" })
-                        employees.forEach { employee ->
-                            ItemCard(
-                                employee.name,
-                                if (employee.scheme == "DAILY") "Pekerja harian" else "Freelancer",
-                                if (employee.scheme == "DAILY") "Catat hadir" else "Tambah kerja",
-                                secondaryAction = if (employee.scheme == "DAILY") "Ubah tarif" else null,
-                                onSecondaryAction = {
+                        val unpaidAttendance = attendance.filter { !it.isPaid }
+                        val unpaidJobs = jobs.filter { it.paidAmount < it.agreedAmount }
+                        OwnerHeroCard(
+                            eyebrow = "Pembayaran pekerja tertunda",
+                            value = "${unpaidAttendance.size + unpaidJobs.size} catatan",
+                            supportingText = if (unpaidAttendance.isEmpty() && unpaidJobs.isEmpty()) {
+                                "Belum ada upah atau pekerjaan yang perlu dibayar."
+                            } else {
+                                "Periksa upah harian dan pekerjaan panggilan yang belum lunas."
+                            },
+                        ) {
+                            OwnerMetricStrip(
+                                listOf(
+                                    employees.size.toString() to "Pekerja",
+                                    unpaidAttendance.size.toString() to "Upah tertunda",
+                                    unpaidJobs.size.toString() to "Kerja tertunda",
+                                ),
+                            )
+                        }
+                        Button(
+                            onClick = { dialog = "worker" },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                        ) { Text("Tambah pekerja") }
+                        SectionTitle("Daftar pekerja")
+                        if (employees.isEmpty()) {
+                            OwnerEmptyState(
+                                title = "Belum ada pekerja",
+                                message = "Tambahkan pekerja harian atau pekerja panggilan agar catatan kerja dan pembayaran tidak tercecer.",
+                                actionLabel = "Tambah pekerja",
+                                onAction = { dialog = "worker" },
+                                testTag = "worker-empty-state",
+                            )
+                        } else {
+                            employees.forEach { employee ->
+                                OwnerDetailCard(
+                                    title = employee.name,
+                                    subtitle = if (employee.scheme == "DAILY") "Pekerja harian" else "Pekerja panggilan",
+                                    action = if (employee.scheme == "DAILY") "Catat hadir" else "Tambah kerja",
+                                ) {
                                     selectedEmployee = employee
-                                    dialog = "rate"
-                                },
-                            ) {
-                                selectedEmployee = employee
-                                dialog = if (employee.scheme == "DAILY") "attendance" else "job"
+                                    dialog = if (employee.scheme == "DAILY") "attendance" else "job"
+                                }
+                                if (employee.scheme == "DAILY") {
+                                    TextButton(onClick = {
+                                        selectedEmployee = employee
+                                        dialog = "rate"
+                                    }) { Text("Ubah tarif ${employee.name}") }
+                                }
                             }
                         }
                         SectionTitle("Kehadiran belum dibayar")
-                        attendance.filter { !it.isPaid }.forEach {
-                            ItemCard(
+                        if (unpaidAttendance.isEmpty()) {
+                            Text(
+                                "Tidak ada upah harian yang tertunda.",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        } else unpaidAttendance.forEach {
+                            OwnerDetailCard(
                                 "Upah ${formatRupiah(it.netPay)}",
                                 "${it.status} • ${formatDate(it.workDate)}",
                                 "Bayar",
                             ) { viewModel.payAttendance(it.id) }
                         }
-                        SectionTitle("Pekerjaan freelancer")
-                        jobs.forEach {
-                            ItemCard(
+                        SectionTitle("Pekerjaan panggilan")
+                        if (jobs.isEmpty()) {
+                            Text(
+                                "Belum ada pekerjaan panggilan.",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        } else jobs.forEach {
+                            OwnerDetailCard(
                                 it.title,
                                 "${formatRupiah(it.paidAmount)} / ${formatRupiah(it.agreedAmount)}",
                                 if (it.paidAmount < it.agreedAmount) "Bayar/cicil" else null,
@@ -294,7 +433,7 @@ fun OperationsScreen(
 
     when (dialog) {
         "category" -> TextInputDialog(
-            title = if (selectedCategoryId == null) "Tambah kategori" else "Edit kategori",
+            title = if (selectedCategoryId == null) "Tambah kategori" else "Ubah kategori",
             labels = listOf("Nama kategori"),
             initialValues = listOf(
                 categories.firstOrNull { it.id == selectedCategoryId }?.name.orEmpty(),
@@ -308,8 +447,16 @@ fun OperationsScreen(
             categories = categories.map { it.id to it.name },
             product = products.firstOrNull { it.id == selectedProductId },
             onDismiss = { dialog = null },
-            onSave = { categoryId, name, price, stock, unit ->
-                viewModel.saveProduct(selectedProductId, categoryId, name, price, stock, unit)
+            onSave = { categoryId, name, price, stock, unit, imageUri ->
+                viewModel.saveProduct(
+                    selectedProductId,
+                    categoryId,
+                    name,
+                    price,
+                    stock,
+                    unit,
+                    imageUri,
+                )
                 dialog = null
             },
         )
@@ -337,7 +484,7 @@ fun OperationsScreen(
             },
         )
         "supplier" -> PartyDialog(
-            title = "Tambah supplier",
+            title = "Tambah pemasok",
             onDismiss = { dialog = null },
         ) { name, phone, address ->
             viewModel.saveParty(PartyKind.SUPPLIER, name, phone, address)
@@ -393,7 +540,7 @@ fun OperationsScreen(
             dialog = null
         }
         "job" -> TextInputDialog(
-            title = "Tambah pekerjaan freelancer",
+            title = "Tambah pekerjaan panggilan",
             labels = listOf("Nama pekerjaan", "Nilai kesepakatan"),
             numericIndexes = setOf(1),
             onDismiss = { dialog = null },
@@ -406,7 +553,7 @@ fun OperationsScreen(
             dialog = null
         }
         "pay_job" -> TextInputDialog(
-            title = "Bayar pekerjaan freelancer",
+            title = "Bayar pekerjaan panggilan",
             labels = listOf("Nominal cicilan"),
             numericIndexes = setOf(0),
             onDismiss = { dialog = null },
@@ -465,6 +612,7 @@ fun FinanceScreen(
     }
     var dialog by remember { mutableStateOf<String?>(null) }
     var debtToPay by remember { mutableStateOf<DebtEntity?>(null) }
+    var transactionSearch by remember { mutableStateOf("") }
 
     LaunchedEffect(shifts, cash, sales) {
         viewModel.refreshShiftSummary()
@@ -479,11 +627,12 @@ fun FinanceScreen(
         },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
-            TabRow(selectedTabIndex = tab) {
-                tabs.forEachIndexed { index, label ->
-                    Tab(tab == index, { tab = index }, text = { Text(label) })
-                }
-            }
+            OwnerSectionTabs(
+                items = tabs,
+                selectedIndex = tab,
+                onSelected = { tab = it },
+                testTag = "finance-section-grid",
+            )
             Column(
                 Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -498,46 +647,122 @@ fun FinanceScreen(
                             onCloseRequest = { dialog = "close_shift" },
                         )
                         SectionTitle("Catatan kas")
-                        ActionRow("Tambah catatan kas" to { dialog = "cash" })
-                        cash.forEach {
-                            InfoCard(
+                        Button(
+                            onClick = { dialog = "cash" },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                        ) { Text("Tambah catatan kas") }
+                        if (cash.isEmpty()) {
+                            OwnerEmptyState(
+                                title = "Belum ada catatan kas",
+                                message = "Catat uang masuk atau keluar yang bukan berasal dari transaksi kasir.",
+                                actionLabel = "Tambah catatan kas",
+                                onAction = { dialog = "cash" },
+                                testTag = "cash-empty-state",
+                            )
+                        } else cash.forEach {
+                            OwnerDetailCard(
                                 "${cashLabel(it.type)} • ${formatRupiah(it.amount)}",
                                 "${it.category} • ${formatDate(it.createdAt)}",
                             )
                         }
                     }
                     1 -> {
-                        ActionRow(
-                            "Tambah utang" to { dialog = "payable" },
-                            *if (viewModel.capabilities.customerReceivables) {
-                                arrayOf("Tambah piutang" to { dialog = "receivable" })
+                        val payableTotal = debts.filter { it.kind == DebtKind.PAYABLE.name }
+                            .sumOf { (it.originalAmount - it.paidAmount).coerceAtLeast(0) }
+                        val receivableTotal = debts.filter { it.kind == DebtKind.RECEIVABLE.name }
+                            .sumOf { (it.originalAmount - it.paidAmount).coerceAtLeast(0) }
+                        OwnerHeroCard(
+                            eyebrow = if (viewModel.capabilities.customerReceivables) {
+                                "Piutang belum diterima"
                             } else {
-                                emptyArray()
+                                "Utang belum dibayar"
                             },
-                            *if (viewModel.capabilities.customerReceivables) {
-                                arrayOf("Tambah pelanggan" to { dialog = "customer" })
-                            } else {
-                                emptyArray()
-                            },
-                        )
-                        debts.forEach { debt ->
-                            val remaining = debt.originalAmount - debt.paidAmount
-                            ItemCard(
-                                "${if (debt.kind == "PAYABLE") "Utang" else "Piutang"} • ${debt.partyName}",
+                            value = formatRupiah(
+                                if (viewModel.capabilities.customerReceivables) receivableTotal else payableTotal,
+                            ),
+                            supportingText = "Tampilkan tagihan yang masih perlu diselesaikan.",
+                        ) {
+                            OwnerMetricStrip(
+                                buildList {
+                                    add(formatRupiah(payableTotal) to "Utang")
+                                    if (viewModel.capabilities.customerReceivables) {
+                                        add(formatRupiah(receivableTotal) to "Piutang")
+                                    }
+                                    add(debts.count { it.originalAmount > it.paidAmount }.toString() to "Belum lunas")
+                                },
+                            )
+                        }
+                        if (viewModel.capabilities.customerReceivables) {
+                            Button(
+                                onClick = { dialog = "receivable" },
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                            ) { Text("Tambah piutang") }
+                            OutlinedButton(
+                                onClick = { dialog = "customer" },
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                            ) { Text("Tambah pelanggan") }
+                        }
+                        OutlinedButton(
+                            onClick = { dialog = "payable" },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        ) { Text("Tambah utang") }
+                        SectionTitle("Daftar utang & piutang")
+                        if (debts.isEmpty()) {
+                            OwnerEmptyState(
+                                title = "Belum ada utang atau piutang",
+                                message = "Tagihan yang dicatat akan tampil di sini beserta sisa pembayarannya.",
+                                actionLabel = if (viewModel.capabilities.customerReceivables) "Tambah piutang" else "Tambah utang",
+                                onAction = {
+                                    dialog = if (viewModel.capabilities.customerReceivables) "receivable" else "payable"
+                                },
+                                testTag = "debt-empty-state",
+                            )
+                        } else debts.forEach { debt ->
+                            val remaining = (debt.originalAmount - debt.paidAmount).coerceAtLeast(0)
+                            OwnerDetailCard(
+                                "${if (debt.kind == DebtKind.PAYABLE.name) "Utang" else "Piutang"} • ${debt.partyName}",
                                 "Sisa ${formatRupiah(remaining)} • ${settlementLabel(debt.settlementStatus)}",
-                                if (remaining > 0) "Bayar" else null,
+                                if (remaining > 0) "Catat bayar" else null,
                             ) {
                                 debtToPay = debt
                                 dialog = "pay"
                             }
                         }
                     }
-                    else -> sales.forEach {
-                        ItemCard(
-                            it.receiptNumber,
-                            "${formatRupiah(it.total)} • ${it.paymentMethod} • ${formatDate(it.createdAt)}",
-                            "Detail",
-                        ) { viewModel.openSaleDetail(it) }
+                    else -> {
+                        val visibleSales = sales.filter {
+                            transactionSearch.isBlank() || it.receiptNumber.contains(transactionSearch, ignoreCase = true)
+                        }
+                        OwnerHeroCard(
+                            eyebrow = "Riwayat transaksi",
+                            value = "${sales.size} transaksi",
+                            supportingText = "Total penjualan tercatat ${formatRupiah(sales.sumOf { it.total })}.",
+                        )
+                        OutlinedTextField(
+                            value = transactionSearch,
+                            onValueChange = { transactionSearch = it },
+                            label = { Text("Cari nomor struk") },
+                            leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth().testTag("transaction-search"),
+                        )
+                        if (visibleSales.isEmpty()) {
+                            OwnerEmptyState(
+                                title = if (sales.isEmpty()) "Belum ada transaksi" else "Transaksi tidak ditemukan",
+                                message = if (sales.isEmpty()) {
+                                    "Transaksi yang selesai dari kasir akan muncul otomatis di sini."
+                                } else {
+                                    "Coba periksa kembali nomor struk yang dicari."
+                                },
+                                testTag = "transaction-empty-state",
+                            )
+                        } else visibleSales.forEach {
+                            OwnerDetailCard(
+                                it.receiptNumber,
+                                "${formatRupiah(it.total)} • ${it.paymentMethod} • ${formatDate(it.createdAt)}",
+                                "Lihat detail",
+                            ) { viewModel.openSaleDetail(it) }
+                        }
                     }
                 }
             }
@@ -634,16 +859,34 @@ fun FinanceScreen(
     }
 }
 
+private enum class ReportDetailMode {
+    CASH,
+    FULL,
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReportsScreen(viewModel: OperationsViewModel) {
     val hasPin by viewModel.reportHasPin.collectAsState()
     val summary by viewModel.reportSummary.collectAsState()
+    val previousSummary by viewModel.previousReportSummary.collectAsState()
+    val reportPeriod by viewModel.reportPeriod.collectAsState()
+    val reportChartMode by viewModel.reportChartMode.collectAsState()
+    val reportChartGranularity by viewModel.reportChartGranularity.collectAsState()
+    val reportProductMeasure by viewModel.reportProductMeasure.collectAsState()
+    val selectedReportProductId by viewModel.selectedReportProductId.collectAsState()
+    val reportTrend by viewModel.reportTrend.collectAsState()
+    val reportTrendError by viewModel.reportTrendError.collectAsState()
     val forecastReport by viewModel.forecastReport.collectAsState()
     val forecastLoading by viewModel.forecastLoading.collectAsState()
     val forecastError by viewModel.forecastError.collectAsState()
+    val busy by viewModel.busy.collectAsState()
+    val excelUri by viewModel.excelUri.collectAsState()
+    val excelError by viewModel.excelError.collectAsState()
+    val context = LocalContext.current
+    val periods = remember { ReportPeriod.values().toList() }
     var pin by remember { mutableStateOf("") }
-    var showChangePin by remember { mutableStateOf(false) }
+    var detailMode by remember { mutableStateOf<ReportDetailMode?>(null) }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -658,7 +901,7 @@ fun ReportsScreen(viewModel: OperationsViewModel) {
         ) {
             if (summary == null) {
                 Text(
-                    if (hasPin == false) "Buat PIN Owner 4–8 angka" else "Masukkan PIN Owner",
+                    if (hasPin == false) "Buat PIN Owner 4-8 angka" else "Masukkan PIN Owner",
                     style = MaterialTheme.typography.titleMedium,
                 )
                 OutlinedTextField(
@@ -682,67 +925,143 @@ fun ReportsScreen(viewModel: OperationsViewModel) {
                     Text(if (hasPin == false) "Buat PIN & Buka" else "Buka Laporan")
                 }
             } else {
-                ReportValue("Omzet hari ini", formatRupiah(requireNotNull(summary).totalSales))
-                ReportValue("Jumlah transaksi", requireNotNull(summary).transactionCount.toString())
-                ReportValue("Kas masuk tercatat", formatRupiah(requireNotNull(summary).cashIn))
-                ReportValue("Kas keluar tercatat", formatRupiah(requireNotNull(summary).cashOut))
-                ReportValue("Pengeluaran", formatRupiah(requireNotNull(summary).expenses))
-                ReportValue("Selisih kas", formatRupiah(requireNotNull(summary).netCash))
-                ReportValue("Sisa utang", formatRupiah(requireNotNull(summary).outstandingPayables))
-                if (viewModel.capabilities.customerReceivables) {
-                    ReportValue(
-                        "Sisa piutang",
-                        formatRupiah(requireNotNull(summary).outstandingReceivables),
+                ReportPeriodPicker(
+                    periods = periods,
+                    selected = reportPeriod,
+                    onSelected = viewModel::selectReportPeriod,
+                )
+                Button(
+                    onClick = viewModel::createExcelExport,
+                    enabled = !busy,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 54.dp)
+                        .testTag("excel-export"),
+                ) {
+                    Icon(Icons.Outlined.TableView, contentDescription = null)
+                    Spacer(Modifier.width(10.dp))
+                    Text(if (busy) "Menyiapkan Excel..." else "Simpan Laporan Excel")
+                }
+                Text(
+                    "Simpan laporan ${reportPeriod.label.lowercase(Locale.forLanguageTag("id-ID"))} sebagai berkas Excel.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                excelError?.let { error ->
+                    Text(
+                        "Gagal menyimpan Excel: $error",
+                        color = MaterialTheme.colorScheme.error,
                     )
                 }
-                SectionTitle("Penerimaan per metode")
-                val reportPayments = requireNotNull(summary).payments
-                PaymentMethodBarChart(reportPayments)
-                reportPayments.forEach {
-                    InfoCard(it.paymentMethod, formatRupiah(it.total))
+                if (excelUri != null) {
+                    OutlinedButton(
+                        onClick = {
+                            context.startActivity(
+                                Intent.createChooser(
+                                    Intent(Intent.ACTION_SEND).apply {
+                                        type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                                        putExtra(Intent.EXTRA_STREAM, excelUri)
+                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    },
+                                    "Bagikan Excel",
+                                ),
+                            )
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 52.dp),
+                    ) {
+                        Icon(Icons.Outlined.Share, contentDescription = null)
+                        Spacer(Modifier.width(10.dp))
+                        Text("Bagikan Excel")
+                    }
                 }
-                SalesForecastSection(
-                    report = forecastReport,
-                    isLoading = forecastLoading,
-                    error = forecastError,
+                ReportOverviewCard(
+                    summary = requireNotNull(summary),
+                    previous = previousSummary,
+                    period = reportPeriod,
                 )
-                Text(
-                    "Laba belum dihitung karena metode HPP belum ditentukan.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                ReportSalesMovementCard(
+                    trend = reportTrend,
+                    period = reportPeriod,
+                    error = reportTrendError,
                 )
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
+                OwnerLinkCard(
+                    title = "Lihat arus kas",
+                    subtitle = "Ringkasan uang masuk dan keluar",
+                    onClick = {
+                        detailMode = if (detailMode == ReportDetailMode.CASH) null else ReportDetailMode.CASH
+                    },
+                    testTag = "report-cash-details",
+                )
+                if (detailMode == ReportDetailMode.CASH) {
+                    OwnerHeroCard(
+                        eyebrow = "Selisih kas tercatat",
+                        value = formatRupiah(requireNotNull(summary).netCash),
+                        supportingText = "Uang masuk dikurangi uang keluar.",
+                    ) {
+                        OwnerMetricStrip(
+                            listOf(
+                                formatRupiah(requireNotNull(summary).cashIn) to "Uang masuk",
+                                formatRupiah(requireNotNull(summary).cashOut) to "Uang keluar",
+                                formatRupiah(requireNotNull(summary).expenses) to "Pengeluaran",
+                            ),
+                        )
+                    }
+                }
+                OwnerLinkCard(
+                    title = "Lihat rincian lengkap",
+                    subtitle = "Pembayaran, produk, perkiraan, dan saldo",
+                    onClick = {
+                        detailMode = if (detailMode == ReportDetailMode.FULL) null else ReportDetailMode.FULL
+                    },
+                    testTag = "report-full-details",
+                )
+                if (detailMode == ReportDetailMode.FULL) {
+                    SectionTitle("Rincian lengkap")
+                    OwnerMetricStrip(
+                        buildList {
+                            add(formatRupiah(requireNotNull(summary).outstandingPayables) to "Utang")
+                            if (viewModel.capabilities.customerReceivables) {
+                                add(formatRupiah(requireNotNull(summary).outstandingReceivables) to "Piutang")
+                            }
+                        },
+                    )
+                    ReportTrendSection(
+                        trend = reportTrend,
+                        mode = reportChartMode,
+                        granularity = reportChartGranularity,
+                        productMeasure = reportProductMeasure,
+                        selectedProductId = selectedReportProductId,
+                        error = reportTrendError,
+                        onModeSelected = viewModel::selectReportChartMode,
+                        onGranularitySelected = viewModel::selectReportChartGranularity,
+                        onProductMeasureSelected = viewModel::selectReportProductMeasure,
+                        onProductSelected = viewModel::selectReportProduct,
+                    )
+                    SectionTitle("Cara pembayaran pelanggan")
+                    val reportPayments = requireNotNull(summary).payments
+                    PaymentMethodBarChart(reportPayments)
+                    reportPayments.forEach {
+                        OwnerDetailCard(it.paymentMethod, formatRupiah(it.total))
+                    }
+                    SalesForecastSection(
+                        report = forecastReport,
+                        isLoading = forecastLoading,
+                        error = forecastError,
+                    )
+                    OwnerEmptyState(
+                        title = "Laba belum dihitung",
+                        message = "Metode HPP belum ditentukan, jadi angka omzet tidak boleh dianggap sebagai laba.",
+                    )
                     OutlinedButton(
                         onClick = viewModel::refreshReport,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 48.dp),
                     ) { Text("Muat ulang") }
-                    OutlinedButton(
-                        onClick = { showChangePin = true },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("report-change-pin"),
-                    ) { Text("Ganti PIN") }
-                    Button(
-                        onClick = viewModel::lockReport,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("report-lock"),
-                    ) { Text("Kunci Mode Owner") }
                 }
             }
-        }
-    }
-    if (showChangePin) {
-        TextInputDialog(
-            title = "Ganti PIN Owner",
-            labels = listOf("PIN lama", "PIN baru 4–8 angka"),
-            numericIndexes = setOf(0, 1),
-            onDismiss = { showChangePin = false },
-        ) {
-            viewModel.changeReportPin(it[0], it[1])
-            showChangePin = false
         }
     }
 }
@@ -757,9 +1076,9 @@ fun MoreScreen(
     val profile by viewModel.profile.collectAsState()
     val busy by viewModel.busy.collectAsState()
     val backupUri by viewModel.backupUri.collectAsState()
-    val excelUri by viewModel.excelUri.collectAsState()
     val preview by viewModel.backupPreview.collectAsState()
     var showProfile by remember { mutableStateOf(false) }
+    var showChangePin by remember { mutableStateOf(false) }
     val openBackup = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
     ) { uri ->
@@ -775,49 +1094,38 @@ fun MoreScreen(
         },
     ) { padding ->
         Column(
-            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             SectionTitle("Profil usaha")
-            InfoCard(
-                profile?.businessName ?: "Memuat…",
-                "${profile?.businessType.orEmpty()} • ID ${profile?.businessUid?.take(8).orEmpty()}",
+            OwnerHeroCard(
+                eyebrow = "Nama usaha",
+                value = profile?.businessName ?: "Memuat…",
+                supportingText = "Jenis usaha: ${businessTypeLabel(profile?.businessType.orEmpty())}",
             )
-            OutlinedButton(onClick = { showProfile = true }, modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(
+                onClick = { showProfile = true },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+            ) {
                 Text("Ubah nama usaha")
             }
-            HorizontalDivider()
-            SectionTitle("Backup & restore")
-            Button(
-                onClick = viewModel::createExcelExport,
-                enabled = !busy,
-                modifier = Modifier.fillMaxWidth().testTag("excel-export"),
-            ) {
-                Text("Export Excel")
-            }
-            if (excelUri != null) {
-                OutlinedButton(
-                    onClick = {
-                        context.startActivity(
-                            Intent.createChooser(
-                                Intent(Intent.ACTION_SEND).apply {
-                                    type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                                    putExtra(Intent.EXTRA_STREAM, excelUri)
-                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                },
-                                "Bagikan Excel",
-                            ),
-                        )
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text("Bagikan Excel") }
-            }
+            OwnerSectionDivider()
+            SectionTitle("Salinan & keamanan data")
+            OwnerHeroCard(
+                eyebrow = "Status salinan data",
+                value = if (backupUri == null) "Belum ada salinan baru" else "Salinan siap dibagikan",
+                supportingText = if (backupUri == null) {
+                    "Buat salinan data agar catatan usaha tidak hilang saat HP rusak atau hilang."
+                } else {
+                    "Bagikan salinan ke tempat lain, jangan hanya disimpan di HP ini."
+                },
+            )
             Button(
                 onClick = viewModel::createBackup,
                 enabled = !busy,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
             ) {
-                Text("Buat backup lokal")
+                Text(if (busy) "Menyiapkan salinan..." else "Buat salinan sekarang")
             }
             if (backupUri != null) {
                 OutlinedButton(
@@ -829,15 +1137,22 @@ fun MoreScreen(
                                     putExtra(Intent.EXTRA_STREAM, backupUri)
                                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                 },
-                                "Bagikan backup keluar HP",
+                                "Bagikan salinan keluar HP",
                             ),
                         )
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text("Bagikan backup") }
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                ) {
+                    Icon(Icons.Outlined.Share, contentDescription = null)
+                    Spacer(Modifier.width(10.dp))
+                    Text("Bagikan salinan data")
+                }
             }
-            OutlinedButton(
-                onClick = {
+            OwnerEmptyState(
+                title = "Pulihkan data dari salinan",
+                message = "Data sekarang akan diamankan dulu. Isi salinan akan diperiksa sebelum mengganti data aktif.",
+                actionLabel = "Pilih berkas salinan",
+                onAction = {
                     viewModel.beginRestoreFileSelection()
                     try {
                         openBackup.launch(arrayOf("*/*"))
@@ -846,23 +1161,30 @@ fun MoreScreen(
                         throw error
                     }
                 },
-                modifier = Modifier.fillMaxWidth(),
-            ) { Text("Pilih file untuk restore") }
-            Text(
-                "Saran: bagikan backup keluar HP secara berkala. Backup di HP yang sama tidak melindungi saat HP hilang atau rusak.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                testTag = "restore-entry",
             )
-            HorizontalDivider()
-            SectionTitle("Aplikasi")
+            OwnerSectionDivider()
+            SectionTitle("Keamanan Owner")
+            OutlinedButton(
+                onClick = { showChangePin = true },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp)
+                    .testTag("report-change-pin"),
+            ) { Text("Ganti PIN Owner") }
             OutlinedButton(
                 onClick = onExitOwner,
                 modifier = Modifier
                     .fillMaxWidth()
+                    .heightIn(min = 48.dp)
                     .testTag("owner-exit"),
             ) {
                 Text("Keluar Mode Owner")
             }
-            Text("Offline-first • tanpa akun • tanpa internet")
+            Text(
+                "Aplikasi tetap bisa dipakai tanpa akun dan tanpa internet.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 
@@ -877,10 +1199,21 @@ fun MoreScreen(
             showProfile = false
         }
     }
+    if (showChangePin) {
+        TextInputDialog(
+            title = "Ganti PIN Owner",
+            labels = listOf("PIN lama", "PIN baru 4-8 angka"),
+            numericIndexes = setOf(0, 1),
+            onDismiss = { showChangePin = false },
+        ) {
+            viewModel.changeReportPin(it[0], it[1])
+            showChangePin = false
+        }
+    }
     preview?.let { item ->
         AlertDialog(
             onDismissRequest = viewModel::cancelRestore,
-            title = { Text("Konfirmasi restore") },
+            title = { Text("Konfirmasi pemulihan") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Usaha: ${item.manifest.businessName}")
@@ -890,7 +1223,7 @@ fun MoreScreen(
                 }
             },
             confirmButton = {
-                Button(onClick = viewModel::confirmRestore) { Text("Restore sekarang") }
+                Button(onClick = viewModel::confirmRestore) { Text("Pulihkan sekarang") }
             },
             dismissButton = {
                 TextButton(onClick = viewModel::cancelRestore) { Text("Batal") }
@@ -901,12 +1234,123 @@ fun MoreScreen(
 
 @Composable
 private fun ActionRow(vararg actions: Pair<String, () -> Unit>) {
-    Row(
-        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    CompactGrid(actions.toList())
+}
+
+@Composable
+private fun CompactGrid(
+    items: List<Pair<String, () -> Unit>>,
+    selectedIndex: Int? = null,
+    testTag: String? = null,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .then(if (testTag == null) Modifier else Modifier.testTag(testTag)),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        actions.forEach { (label, action) ->
-            AssistChip(onClick = action, label = { Text(label) })
+        items.chunked(2).forEachIndexed { rowIndex, rowItems ->
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                rowItems.forEachIndexed { columnIndex, (label, action) ->
+                    val itemIndex = rowIndex * 2 + columnIndex
+                    val buttonModifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 48.dp)
+                    if (selectedIndex == itemIndex) {
+                        Button(
+                            onClick = action,
+                            modifier = buttonModifier,
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                        ) {
+                            Text(
+                                label,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                textAlign = TextAlign.Center,
+                            )
+                        }
+                    } else {
+                        OutlinedButton(
+                            onClick = action,
+                            modifier = buttonModifier,
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                        ) {
+                            Text(
+                                label,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                                textAlign = TextAlign.Center,
+                            )
+                        }
+                    }
+                }
+                if (rowItems.size == 1) Spacer(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun CategoryGrid(
+    categories: List<com.bimacore.usahakecil.data.CategoryEntity>,
+    onEdit: (com.bimacore.usahakecil.data.CategoryEntity) -> Unit,
+) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .testTag("category-grid"),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        categories.chunked(2).forEach { rowItems ->
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                rowItems.forEach { category ->
+                    Card(
+                        modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 92.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        ),
+                    ) {
+                        Column(
+                            Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text(
+                                category.name,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    "Aktif",
+                                    modifier = Modifier.weight(1f),
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                                TextButton(
+                                    onClick = { onEdit(category) },
+                                    contentPadding = PaddingValues(0.dp),
+                                ) { Text("Ubah") }
+                            }
+                        }
+                    }
+                }
+                if (rowItems.size == 1) Spacer(Modifier.weight(1f))
+            }
         }
     }
 }
@@ -950,11 +1394,6 @@ private fun ItemCard(
             }
         }
     }
-}
-
-@Composable
-private fun ReportValue(label: String, value: String) {
-    InfoCard(label, value)
 }
 
 @Composable
@@ -1002,8 +1441,25 @@ private fun ProductDialog(
     categories: List<Pair<Long, String>>,
     product: ProductEntity? = null,
     onDismiss: () -> Unit,
-    onSave: (Long, String, Long, Int, String) -> Unit,
+    onSave: (Long, String, Long, Int, String, String?) -> Unit,
 ) {
+    var selectedImageUri by remember(product?.id, product?.imageUri) {
+        mutableStateOf(product?.imageUri)
+    }
+    val context = LocalContext.current
+    val imagePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                )
+            }
+            selectedImageUri = uri.toString()
+        }
+    }
     var categoryIndex by remember {
         mutableIntStateOf(
             categories.indexOfFirst { it.first == product?.categoryId }.coerceAtLeast(0),
@@ -1021,7 +1477,7 @@ private fun ProductDialog(
     }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (product == null) "Tambah produk" else "Edit produk") },
+        title = { Text(if (product == null) "Tambah produk" else "Ubah produk") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
@@ -1030,6 +1486,21 @@ private fun ProductDialog(
                     },
                 ) {
                     Text("Kategori: ${categories.getOrNull(categoryIndex)?.second ?: "buat kategori dulu"}")
+                }
+                OutlinedButton(
+                    onClick = { imagePicker.launch(arrayOf("image/*")) },
+                    modifier = Modifier.testTag("product-image-picker"),
+                ) {
+                    Text(if (selectedImageUri == null) "Pilih foto menu" else "Ganti foto menu")
+                }
+                selectedImageUri?.let { uri ->
+                    ProductVisual(
+                        imageUri = uri,
+                        icon = Icons.Outlined.Inventory2,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(120.dp),
+                    )
                 }
                 listOf("Nama produk", "Harga jual", "Stok awal", "Satuan").forEachIndexed { index, label ->
                     OutlinedTextField(
@@ -1058,6 +1529,7 @@ private fun ProductDialog(
                         values[1].toLongOrNull() ?: 0,
                         values[2].toIntOrNull() ?: 0,
                         values[3],
+                        selectedImageUri,
                     )
                 },
             ) { Text("Simpan") }
@@ -1200,7 +1672,7 @@ private fun PurchaseDialog(
         title = { Text("Catat pembelian") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                SelectionButton("Supplier", suppliers, supplierIndex) {
+                SelectionButton("Pemasok", suppliers, supplierIndex) {
                     supplierIndex = nextIndex(supplierIndex, suppliers.size)
                 }
                 SelectionButton("Produk", products, productIndex) {
@@ -1266,7 +1738,7 @@ private fun WorkerDialog(
                     } else {
                         WorkerScheme.DAILY
                     }
-                }) { Text(if (scheme == WorkerScheme.DAILY) "Pekerja harian" else "Freelancer/panggilan") }
+                }) { Text(if (scheme == WorkerScheme.DAILY) "Pekerja harian" else "Pekerja panggilan") }
                 listOf("Nama", "Nomor HP", "Tarif harian").forEachIndexed { index, label ->
                     if (index < 2 || scheme == WorkerScheme.DAILY) {
                         OutlinedTextField(
@@ -1564,7 +2036,14 @@ private fun nextIndex(current: Int, size: Int): Int =
     if (size <= 0) 0 else (current + 1) % size
 
 private fun formatDate(timestamp: Long): String =
-    SimpleDateFormat("dd MMM yyyy HH:mm", Locale("id", "ID")).format(Date(timestamp))
+    SimpleDateFormat("dd MMM yyyy HH:mm", Locale.forLanguageTag("id-ID")).format(Date(timestamp))
+
+private fun businessTypeLabel(value: String): String = when (value.uppercase(Locale.ROOT)) {
+    "RETAIL" -> "Toko & UMKM"
+    "WHOLESALE" -> "Grosir & Agen"
+    "CULINARY" -> "Kuliner & PKL"
+    else -> value
+}
 
 private fun settlementLabel(value: String): String = when (value) {
     "PAID" -> "Lunas"

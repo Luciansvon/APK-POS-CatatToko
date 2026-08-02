@@ -15,6 +15,7 @@ import com.bimacore.usahakecil.domain.Product
 import com.bimacore.usahakecil.domain.ProductVariant
 import com.bimacore.usahakecil.domain.Receipt
 import com.bimacore.usahakecil.domain.ReceiptItem
+import com.bimacore.usahakecil.security.ReportSession
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -50,6 +51,7 @@ class PosRepository(
     private val database: PosDatabase,
     private val businessType: BusinessType,
     private val businessName: String,
+    private val ownerSession: ReportSession? = null,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     val supportsCulinaryCustomization: Boolean
@@ -334,7 +336,8 @@ class PosRepository(
                 val saleId = database.withTransaction {
                     val existing = cartDao.getDraft()?.completedSaleId
                     if (existing != null) return@withTransaction existing
-                    val activeShift = requireNotNull(database.shiftDao().getOpenShift()) {
+                    val activeShift = database.shiftDao().getOpenShift()
+                    require(activeShift != null || ownerSession?.isUnlocked == true) {
                         "Buka shift terlebih dahulu sebelum menerima transaksi"
                     }
 
@@ -555,7 +558,7 @@ class PosRepository(
                                 "COMPLETED"
                             },
                             updatedAt = now,
-                            shiftId = activeShift.id,
+                            shiftId = activeShift?.id,
                         ),
                     )
                     val saleItemIds = saleDao.insertItems(
@@ -667,7 +670,7 @@ class PosRepository(
                             referenceType = "SALE",
                             referenceId = saleId,
                             createdAt = now,
-                            shiftId = activeShift.id,
+                            shiftId = activeShift?.id,
                             ),
                         )
                     }

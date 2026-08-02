@@ -15,6 +15,7 @@ data class ProductDraft(
     val stockTrackingEnabled: Boolean,
     val lowStockThreshold: Int,
     val unitLabel: String,
+    val imageUri: String? = null,
 )
 
 data class CategoryDraft(
@@ -92,7 +93,7 @@ class InventoryRepository(
                 stockTrackingEnabled = draft.stockTrackingEnabled,
                 hasVariants = current?.hasVariants ?: false,
                 lowStockThreshold = draft.lowStockThreshold,
-                imageUri = current?.imageUri,
+                imageUri = draft.imageUri ?: current?.imageUri,
                 sortOrder = current?.sortOrder ?: id.toInt(),
                 isActive = current?.isActive ?: true,
                 unitLabel = draft.unitLabel.trim(),
