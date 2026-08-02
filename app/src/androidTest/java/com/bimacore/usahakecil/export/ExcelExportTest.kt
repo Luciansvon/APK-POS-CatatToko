@@ -12,11 +12,13 @@ import com.bimacore.usahakecil.data.MIGRATION_2_3
 import com.bimacore.usahakecil.data.MIGRATION_3_4
 import com.bimacore.usahakecil.data.PosDatabase
 import com.bimacore.usahakecil.data.ProductEntity
+import com.bimacore.usahakecil.data.ReportPeriod
 import com.bimacore.usahakecil.security.ReportSession
 import java.util.zip.ZipInputStream
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertFalse
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -93,7 +95,7 @@ class ExcelExportTest {
         }
 
         assertTrue(entries.containsKey("xl/workbook.xml"))
-        assertTrue(entries.getValue("xl/workbook.xml").contains("Info Export"))
+        assertTrue(entries.getValue("xl/workbook.xml").contains("Info Laporan"))
         assertTrue(entries.getValue("xl/workbook.xml").contains("Ringkasan"))
         assertTrue(entries.values.any { it.contains("Laporan Penjualan -") })
         assertTrue(entries.getValue("xl/workbook.xml").contains("Produk"))
@@ -149,6 +151,58 @@ class ExcelExportTest {
 
         assertTrue(salesSheet.contains("QA-0499"))
         assertTrue(Regex("<row r=").findAll(salesSheet).count() >= 501)
+    }
+
+    @Test
+    fun period_export_contains_only_events_in_selected_period() = runBlocking {
+        val exportedAt = System.currentTimeMillis()
+        val todayStart = ReportPeriod.DAY.range(exportedAt).first
+        insertSale("PERIOD-TODAY", exportedAt - 60_000L)
+        insertSale("PERIOD-YESTERDAY", todayStart - 60_000L)
+
+        val session = ReportSession().also { it.unlock() }
+        val manager = ExcelExportManager(
+            context = context,
+            database = database,
+            ownerSession = session,
+            businessType = "RETAIL",
+            clock = { exportedAt },
+        )
+        val entries = readEntries(manager.createExport(ReportPeriod.DAY))
+        val salesSheet = entries.values.first { it.contains("Laporan Penjualan -") }
+
+        assertTrue(salesSheet.contains("PERIOD-TODAY"))
+        assertFalse(salesSheet.contains("PERIOD-YESTERDAY"))
+        assertTrue(entries.values.any { it.contains("Periode") && it.contains("Hari ini") })
+    }
+
+    private suspend fun insertSale(receiptNumber: String, createdAt: Long) {
+        val saleId = database.saleDao().insertSale(
+            com.bimacore.usahakecil.data.SaleEntity(
+                receiptNumber = receiptNumber,
+                businessName = "Kopi & Roti",
+                createdAt = createdAt,
+                paymentMethod = "CASH",
+                total = 15_000,
+                amountReceived = 15_000,
+                changeAmount = 0,
+            ),
+        )
+        database.saleDao().insertItems(
+            listOf(
+                com.bimacore.usahakecil.data.SaleItemEntity(
+                    saleId = saleId,
+                    productId = 1,
+                    variantId = null,
+                    productName = "Kopi <Susu>",
+                    variantName = null,
+                    categoryName = "Minuman",
+                    unitPrice = 15_000,
+                    quantity = 1,
+                    subtotal = 15_000,
+                ),
+            ),
+        )
     }
 
     private suspend fun readEntries(uri: android.net.Uri): Map<String, String> {

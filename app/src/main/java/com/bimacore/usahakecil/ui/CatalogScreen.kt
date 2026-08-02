@@ -322,7 +322,7 @@ private fun ProductCard(
 }
 
 @Composable
-private fun ProductVisual(
+fun ProductVisual(
     imageUri: String?,
     icon: ImageVector,
     modifier: Modifier = Modifier,

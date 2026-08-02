@@ -38,6 +38,7 @@ fun PosApp(
     ownerUnlocked: Boolean,
     onOwnerAccess: () -> Unit,
     onOpenShift: () -> Unit,
+    onStartTransaction: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val snapshot by viewModel.snapshot.collectAsState()
@@ -146,7 +147,7 @@ fun PosApp(
                 ownerUnlocked = ownerUnlocked,
                 onOwnerAccess = onOwnerAccess,
                 onOpenShift = onOpenShift,
-                onStartTransaction = viewModel::showCatalog,
+                onStartTransaction = onStartTransaction,
                 onViewStock = viewModel::showCatalog,
             )
         } else if (expanded) {

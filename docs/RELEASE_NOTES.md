@@ -20,6 +20,143 @@ dist/debug/CatatToko-Grosir.apk
 dist/debug/CatatToko-Kuliner.apk
 ```
 
+## Versi 0.4.8 - 2026-08-02
+
+Status: Siap dibagikan sebagai APK debug
+
+### Kenapa versi ini dibuat
+
+- Laporan masih terasa seperti panel teknis dan aksi menyimpan laporan Excel belum cukup menonjol untuk Owner UMKM yang jarang memakai aplikasi bisnis.
+- Halaman Owner lain masih memakai susunan generik sehingga angka penting, aksi utama, dan kondisi kosong sulit dipindai.
+
+### Perubahan
+
+- Menerapkan arah Laporan opsi 2: periode yang jelas, omzet sebagai angka utama, metrik ringkas, grafik pergerakan penjualan, serta rincian lanjutan yang dapat dibuka saat dibutuhkan.
+- Membuat tombol `Simpan Laporan Excel` berikon dan bertulisan lengkap, lebar penuh, dengan penjelasan singkat; setelah berkas siap tersedia tombol `Bagikan Excel`.
+- Mengganti kata asing yang tidak perlu pada area baru: `backup`, `restore`, `supplier`, `freelancer`, `model`, dan `MAE` menjadi istilah usaha berbahasa Indonesia.
+- Memperbaiki teks rentang tanggal yang sempat tampil rusak sebagai `â€“`; format final memakai tanda aman seperti `27 Jul - 2 Agu 2026`.
+- Menampilkan nominal panjang dalam susunan adaptif agar angka seperti `Rp165.000` tidak terpotong.
+- Membandingkan periode aktif dengan durasi berjalan yang sama pada periode sebelumnya.
+- Menyembunyikan pilihan `Terjual` ketika grafik masih memakai `Semua produk` agar jumlah berbagai produk tidak dijumlahkan secara menyesatkan.
+- Menerapkan sistem visual Owner yang konsisten pada Stok, Pembelian, Pekerja, Kas, Utang & Piutang, Transaksi, dan Lainnya.
+- Mengganti label navigasi Retail `Piutang` menjadi `Keuangan`; Kasir dan isi halaman Produk tidak didesain ulang.
+- Memindahkan penggantian PIN dan keluar Mode Owner ke `Lainnya > Keamanan Owner`.
+- Menaikkan `versionCode` ke `17` dan `versionName` ke `0.4.8`.
+
+### Kekurangan yang masih ada
+
+- HPP dan laba belum dihitung karena metode HPP belum dikunci.
+- Chart dan forecast belum menjadi sheet khusus di Excel.
+- Visual form tambah/edit rinci masih memakai komponen dasar lama.
+
+### Masalah yang diketahui
+
+- Provider share Android dapat menampilkan aplikasi tujuan berbeda-beda; file Excel tetap dibuat lokal sebelum dibagikan.
+
+### Verifikasi
+
+- Unit test, lint, build debug, dan kompilasi AndroidTest tiga flavor lulus (`259` task, `BUILD SUCCESSFUL`).
+- Connected Retail lulus `47/47` per perangkat pada `emulator-5554` dan `emulator-5556`.
+- Connected Grosir dan Kuliner masing-masing menyelesaikan `49` run per perangkat dengan `2` test khusus Retail dilewati dan tanpa kegagalan.
+- `ReportDemoTest` lulus pada dua perangkat, termasuk regression check bahwa karakter rusak tidak tampil dan tiga rentang tanggal memakai ` - `.
+- Visual QA HP portrait dan tablet landscape mencakup Laporan, Pembelian, Pekerja, Keuangan, dan Lainnya; hasil akhir tercatat `passed` di `design-qa.md`.
+
+### APK yang ditimpa
+
+- Retail: `dist/debug/CatatToko-Retail.apk` | SHA256 `DD875C4CB7024E81909A464BEB784756BC26084370B0A0438C6DBEA267C5BEB8`
+- Grosir: `dist/debug/CatatToko-Grosir.apk` | SHA256 `00B8D129CC086C1C79F979743826C33FED2EC583873B5D4B818F35739A28D874`
+- Kuliner: `dist/debug/CatatToko-Kuliner.apk` | SHA256 `CB6A9521A8A275B039FCE831B800B49A5B24638CA884388FE926600EAAC9CA0B`
+
+## Versi 0.4.7 - 2026-08-02
+
+Status: Siap dibagikan sebagai APK debug
+
+### Kenapa versi ini dibuat
+
+- Ringkasan laporan terlalu panjang dan grafik penerimaan per metode tidak membantu Owner memantau perubahan penjualan serta arus kas.
+
+### Perubahan
+
+- Ringkasan laporan diubah menjadi grid KPI dua kolom agar lebih hemat ruang dan mudah dipindai.
+- KPI membandingkan periode aktif dengan periode sebelumnya yang setara, memakai panah, teks, dan warna semantik; metrik arus keluar memakai arah penilaian yang benar.
+- Grafik utama memiliki mode `Arus kas`, `Penjualan`, dan `Produk`.
+- Grafik menyediakan granularitas `Harian`, `Mingguan`, `Bulanan`, dan `Tahunan`, dengan bucket nol tetap dirender saat belum ada data.
+- Grafik Produk menyediakan pilihan `Semua produk`/produk teratas serta metrik `Omzet` atau `Terjual`.
+- Grafik pembayaran tetap tersedia sebagai rincian sekunder, sementara forecast tetap berada di bagian analisis stok.
+- Menambahkan repository trend query, test data kosong, dan demo connected untuk seluruh mode grafik serta periode laporan.
+- Menaikkan `versionCode` ke `16` dan `versionName` ke `0.4.7`.
+
+### Kekurangan yang masih ada
+
+- Chart dan forecast belum menjadi sheet khusus di Excel.
+- HPP dan laba belum dihitung otomatis karena metode HPP belum dikunci.
+- Grafik belum menyediakan zoom atau ekspor gambar; detail bucket tersedia melalui pemilihan batang.
+
+### Masalah yang diketahui
+
+- Provider share Android dapat menampilkan aplikasi tujuan berbeda-beda; file tetap dibuat lokal dan dapat dibagikan dari tombol `Bagikan Excel`.
+
+### Verifikasi
+
+- Unit test tiga flavor dan compile AndroidTest Retail lulus.
+- Connected `ReportDemoTest` Retail lulus pada `emulator-5554` dan `emulator-5556` setelah kontrol periode diuji dengan sinkronisasi pemuatan data.
+- Repository trend test memeriksa 14 bucket nol pada database kosong.
+- Full flavor build dan compile AndroidTest tiga flavor lulus setelah patch label sumbu.
+- Connected matrix tiga flavor lulus pada dua emulator: Retail `47/47` per device; Wholesale dan Culinary `49` run per device dengan 2 test Retail-only dilewati.
+- Setelah patch label sumbu, targeted `ReportDemoTest` dan `ReportTrendRepositoryTest` lulus pada `emulator-5554` dan `emulator-5556`.
+- Screenshot final data kosong memperlihatkan KPI grid dua kolom, selector grafik, 14 bucket harian nol, angka `0`, dan label tanggal tanpa ellipsis.
+
+### APK yang ditimpa
+
+- Retail: `dist/debug/CatatToko-Retail.apk` | SHA256 `4C4CB2BEBFFFFF5794A1972F3902CC2269DDB9A76BD6516F18322F23ADBBE110`
+- Grosir: `dist/debug/CatatToko-Grosir.apk` | SHA256 `F50BAC681756478FF6A0BDE6DADC03C67CA13BA71C444A0F389AB61701560A31`
+- Kuliner: `dist/debug/CatatToko-Kuliner.apk` | SHA256 `C43F00F1361532205CF73791D47E1701F648D8F40500E75B2F68B8A0FAE84323`
+
+## Versi 0.4.6 - 2026-08-02
+
+Status: Siap dibagikan sebagai APK debug
+
+### Kenapa versi ini dibuat
+
+- Memindahkan export Excel ke konteks yang benar, yaitu halaman `Laporan`.
+- Menyediakan pilihan periode yang jelas sebelum Owner membuat export.
+- Membuat grafik perkiraan dapat dibaca meskipun nilai antarhari berdekatan.
+
+### Perubahan
+
+- `Laporan` sekarang memiliki pilihan `Hari ini`, `Minggu ini`, `Bulan ini`, dan `Tahun ini`.
+- Ringkasan laporan dan workbook Excel mengikuti periode yang dipilih.
+- Event transaksi, pembelian, kas, utang, pembayaran utang, shift, stok, kehadiran, pekerjaan panggilan, dan pembayaran pekerja difilter berdasarkan periode export.
+- Data katalog/master tetap menjadi snapshot kondisi saat export agar konteks usaha tidak hilang.
+- `Export Excel` dan `Bagikan Excel` dipindahkan dari `Lainnya > Backup & restore` ke bagian atas `Laporan`.
+- Grafik forecast menampilkan nilai setiap hari, satuan, dan rentang skala sehingga perbedaan kecil tetap terbaca.
+- Menaikkan `versionCode` ke `15` dan `versionName` ke `0.4.6`.
+
+### Kekurangan yang masih ada
+
+- Chart dan forecast belum menjadi sheet khusus di Excel.
+- HPP dan laba belum dihitung otomatis karena metode HPP belum dikunci.
+- Filter periode memakai waktu lokal perangkat; perubahan jam perangkat dapat memengaruhi batas periode.
+
+### Masalah yang diketahui
+
+- Provider share Android dapat menampilkan aplikasi tujuan berbeda-beda; file tetap dibuat lokal dan dapat dibagikan dari tombol `Bagikan Excel`.
+
+### Verifikasi
+
+- Unit test: tiga flavor lulus.
+- Lint/build: lint tiga flavor, `assembleDebug`, dan AndroidTest APK tiga flavor lulus; `259 actionable tasks`.
+- Smoke test: Retail `46/46` per emulator; Wholesale dan Culinary `48` run per emulator dengan `2` test Retail-only dilewati, tanpa failure.
+- Demo/export: `ReportDemoTest` serta filter workbook periode lulus pada dua emulator; UI export protected dan Owner tanpa shift lulus.
+- HP/emulator: `emulator-5554` dan `emulator-5556`; portrait dan landscape.
+- Kondisi offline: query laporan/export memakai database lokal dan tidak menambah syarat internet atau shift Owner.
+
+### APK yang ditimpa
+
+- Retail: `dist/debug/CatatToko-Retail.apk` | SHA256 `1A71CCE4A56E548E2DC8528666FF31FCCD5C5E8E443EE2AAEEDDD0ED17C19DEC`
+- Grosir: `dist/debug/CatatToko-Grosir.apk` | SHA256 `4B36F1DA7C736FDB77BE3E43A0ED5B19F2C46FA83919E09DAEEAC8374DB18EEE`
+- Kuliner: `dist/debug/CatatToko-Kuliner.apk` | SHA256 `A206F4014F3893FBDD0606385950A57AEB9120B944A0FE6068180F2E8AD426BA`
+
 ## Template patch berikutnya
 
 ```markdown
@@ -57,6 +194,134 @@ Status: Draft / Siap dites / Siap dibagikan
 - Grosir:
 - Kuliner:
 ```
+
+## Versi 0.4.5 - 2026-08-02
+
+Status: Siap dibagikan sebagai APK debug
+
+### Kenapa versi ini dibuat
+
+- Memastikan grafik laporan tetap terbaca ketika periode belum mempunyai transaksi.
+- Menambahkan jalur foto untuk produk/menu.
+- Menambah demo test laporan yang mengisi data fiktif dan memeriksa seluruh kartu, grafik, analisis, periode, serta export Excel.
+
+### Perubahan
+
+- Grafik penerimaan selalu menampilkan Tunai, QRIS, Transfer, dan Piutang; metode tanpa data tampil `Rp0`.
+- Export Excel menganggap angka histori shift yang kosong sebagai `Rp0`, sehingga satu shift lama yang belum lengkap tidak menggagalkan export.
+- Form tambah/edit produk memiliki tombol `Pilih foto menu`/`Ganti foto menu`, menyimpan URI foto secara lokal, dan mempertahankan foto saat edit tanpa memilih foto baru.
+- `ReportDemoTest` memeriksa kartu laporan, agregasi harian/mingguan/bulanan/tahunan, forecast 7 hari, ranking produk, dan workbook Excel dengan data demo.
+- Menambahkan regression test UI untuk keberadaan pemilih foto menu.
+- Menaikkan `versionCode` ke `14` dan `versionName` ke `0.4.5`.
+
+### Kekurangan yang masih ada
+
+- Layar laporan saat ini tetap menampilkan ringkasan hari ini; agregasi periode lain sudah diuji di repository/export fixture, tetapi selector periode di UI belum ditambahkan.
+- Export Excel masih mengekspor seluruh data offline; pemilihan periode export belum tersedia.
+- Shift pekerja tetap harus dibuka sebelum pekerja menerima pembayaran.
+- HPP dan laba belum dihitung otomatis karena metode HPP belum diputuskan.
+
+### Masalah yang diketahui
+
+- Foto dari provider yang tidak memberi izin baca permanen dapat menampilkan fallback ikon setelah provider menghapus aksesnya.
+- Kontras jam/status bar masih bergantung pada konfigurasi emulator/perangkat.
+
+### Verifikasi
+
+- Unit test: tiga flavor lulus.
+- Lint/build: matriks lint, `assembleDebug`, dan tiga target AndroidTest lulus.
+- Demo laporan: semua kartu, empat metode grafik, empat periode agregasi, forecast/analisis, dan workbook Excel lulus pada Retail di dua emulator.
+- UI smoke: form produk menampilkan `Pilih foto menu` pada semua flavor.
+- Connected smoke final: Retail `45/45` per emulator; Grosir dan Kuliner `47` run per emulator dengan `2` test Retail-only dilewati dan tanpa failure.
+- Kondisi offline: URI foto disimpan di database lokal dan Owner tetap dapat memakai laporan/export tanpa shift pekerja.
+
+### APK yang ditimpa
+
+- Retail: `dist/debug/CatatToko-Retail.apk` — SHA256 dicatat setelah packaging.
+- Grosir: `dist/debug/CatatToko-Grosir.apk` — SHA256 dicatat setelah packaging.
+- Kuliner: `dist/debug/CatatToko-Kuliner.apk` — SHA256 dicatat setelah packaging.
+
+### Hash final APK
+
+- Retail: `754D99F37E5310E391583C2A421191DB7F4892B3C24F17DD56A0B8026896F6A2`
+- Grosir: `C8E632EF33CFDF35B67D701048A394CEDB64F9837B9BF59BD94F729D1EBEA2AF`
+- Kuliner: `C1EA3177CBF5F699A5A9BBA762140920F9175ECA3BB966212563D6376DD1F140`
+
+## Versi 0.4.4 - 2026-08-02
+
+Status: Siap dibagikan sebagai APK debug
+
+### Kenapa versi ini dibuat
+
+- Menghilangkan kewajiban shift untuk Owner saat memakai kasir.
+- Merapikan ruang layar Operasional dan Keuangan agar pilihan tidak saling bertabrakan.
+
+### Perubahan
+
+- Owner dapat membuka katalog dan menyelesaikan transaksi tanpa membuka shift pekerja.
+- Transaksi Owner tanpa shift tetap tersimpan, tetapi tidak ditautkan ke shift pekerja.
+- Header Owner di Operasional, Keuangan, Laporan, dan Lainnya memakai bar putih compact.
+- Tab Operasional/Keuangan, tombol aksi, dan kategori memakai grid dua kolom dengan teks maksimal dua baris.
+- Menaikkan `versionCode` ke `13` dan `versionName` ke `0.4.4`.
+
+### Kekurangan yang masih ada
+
+- Shift pekerja tetap harus dibuka sebelum pekerja menerima pembayaran.
+- HPP dan laba belum dihitung otomatis karena metode HPP belum diputuskan.
+
+### Masalah yang diketahui
+
+- Kontras jam/status bar masih bergantung pada konfigurasi emulator/perangkat.
+
+### Verifikasi
+
+- Unit test: `testRetailDebugUnitTest`, `testWholesaleDebugUnitTest`, dan `testCulinaryDebugUnitTest` lulus.
+- Lint/build: matriks lint, `assembleDebug`, dan tiga target AndroidTest lulus; `259 actionable tasks`, `9 executed`, `250 up-to-date`.
+- Smoke test Android: Retail `42/42` lulus di `emulator-5554` dan `emulator-5556`; Grosir dan Kuliner masing-masing `44` run per emulator, `2` test Retail-only skipped, tanpa failure.
+- HP/emulator: visual QA portrait dan landscape mencakup Owner, Operasional, Laporan, dan Lainnya; `Pembelian` tampil utuh dan grid dua kolom rata.
+- Kondisi offline: alur Owner tanpa shift memakai database lokal dan regression test memastikan `shiftId = null`.
+
+### APK yang ditimpa
+
+- Retail: `dist/debug/CatatToko-Retail.apk` — SHA256 `443ED6FAC8B134478027733912482B968E2C825191484D933B56BE697A5CA005`
+- Grosir: `dist/debug/CatatToko-Grosir.apk` — SHA256 `793621036D1FCB33D63C84270DB5F520BE212C2312085731431F766F1AB89E21`
+- Kuliner: `dist/debug/CatatToko-Kuliner.apk` — SHA256 `0FC6F2BE843E96696AA1A72E26EAD8EF555B3DD40D10DB4843BA0664DC7D164D`
+
+## Versi 0.4.3 - 2026-08-02
+
+Status: Siap dibagikan sebagai APK debug
+
+### Kenapa versi ini dibuat
+
+- Membuat alur pekerja yang belum membuka shift lebih mudah ditemukan sebelum mulai menerima pesanan.
+
+### Perubahan
+
+- Tombol `Mulai Transaksi` sekarang membuka form `Buka Shift` ketika belum ada shift aktif.
+- Jika shift sudah aktif, alur tombol tetap langsung menuju katalog produk/menu.
+- Menambahkan regresi AndroidTest untuk memastikan katalog tidak dibuka sebelum shift diisi.
+- Menaikkan `versionCode` ke `12` dan `versionName` ke `0.4.3`.
+
+### Kekurangan yang masih ada
+
+- Shift tetap dibuka dari popup; halaman pengelolaan shift tetap berada di area Owner.
+
+### Masalah yang diketahui
+
+- Kontras ikon/jam status bar masih rendah pada latar terang di sebagian emulator.
+
+### Verifikasi
+
+- Unit test, lint, build, dan compile AndroidTest tiga flavor lulus (`259 actionable tasks`).
+- Connected `MainActivitySmokeTest`: Retail 8/8 per device; Wholesale dan Culinary 8 lulus + 1 test Retail-only dilewati per device, tanpa failure.
+- Regression tanpa shift lulus di `emulator-5554` portrait dan `emulator-5556` landscape; form `Buka Shift` muncul dan katalog tidak terbuka.
+- Kondisi offline tetap lulus karena shift dibuka melalui database lokal tanpa PIN Owner.
+
+### APK yang ditimpa
+
+- Retail: `dist/debug/CatatToko-Retail.apk` | SHA256 `BE4D77121CEBE57CF483441DD7D0C0995CCD90FD5ED62E3F96CE5C79F1EB06F5`
+- Grosir: `dist/debug/CatatToko-Grosir.apk` | SHA256 `F5331CD6CF7A4D3BB971C6319EB9D219C141AE5759BB71F586C8B5E0D47D0AC3`
+- Kuliner: `dist/debug/CatatToko-Kuliner.apk` | SHA256 `A1DAADC9DF52E5B1C5EEFA7118B4E3424DBDCBBF1BA455C03BE2FF9F50AE4ECC`
 
 ## Versi 0.4.1 - 2026-08-01
 

@@ -18,6 +18,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.bimacore.usahakecil.data.ProductForecast
 import com.bimacore.usahakecil.data.ProductForecastReport
@@ -86,19 +88,25 @@ private fun ForecastProductCard(product: ProductForecast) {
                 color = MaterialTheme.colorScheme.primary,
             )
             Text(
-                "Model: ${modelLabel(result.selectedCandidate.model)} - histori ${result.normalizedHistoryDays} hari - MAE ${formatForecastQuantity(result.selectedCandidate.metrics.mae)}",
+                "Dasar hitung: ${modelLabel(result.selectedCandidate.model)} - riwayat ${result.normalizedHistoryDays} hari - selisih rata-rata ${formatForecastQuantity(result.selectedCandidate.metrics.mae)}",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            ForecastBarChart(result.forecast)
+            ForecastBarChart(result.forecast, product.unitLabel)
         }
     }
 }
 
 @Composable
-private fun ForecastBarChart(points: List<ForecastPoint>) {
+private fun ForecastBarChart(points: List<ForecastPoint>, unitLabel: String) {
     val maxValue = points.maxOfOrNull { it.expectedQuantity }?.takeIf { it > 0.0 } ?: 1.0
+    val minValue = points.minOfOrNull { it.expectedQuantity } ?: 0.0
+    Text(
+        "Nilai per hari ($unitLabel) - skala ${formatForecastQuantity(minValue)} - ${formatForecastQuantity(maxValue)}",
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
     Row(
-        modifier = Modifier.fillMaxWidth().height(118.dp),
+        modifier = Modifier.fillMaxWidth().height(142.dp),
         horizontalArrangement = Arrangement.spacedBy(5.dp),
         verticalAlignment = Alignment.Bottom,
     ) {
@@ -109,6 +117,15 @@ private fun ForecastBarChart(points: List<ForecastPoint>) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Bottom,
             ) {
+                Text(
+                    formatForecastQuantity(point.expectedQuantity),
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = MaterialTheme.typography.labelSmall,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.height(3.dp))
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -119,7 +136,11 @@ private fun ForecastBarChart(points: List<ForecastPoint>) {
                 Spacer(Modifier.height(4.dp))
                 Text(
                     formatForecastDay(point.epochDay),
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                     style = MaterialTheme.typography.labelSmall,
+                    textAlign = TextAlign.Center,
                 )
             }
         }

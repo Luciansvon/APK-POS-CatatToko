@@ -137,6 +137,10 @@ fun HomeScreen(
                     ownerUnlocked = ownerUnlocked,
                     onOwnerAccess = { showOwnerAccess = true },
                     onOpenShift = { showShiftOpen = true },
+                    onStartTransaction = {
+                        if (!ownerUnlocked && activeShift == null) showShiftOpen = true
+                        else posViewModel.showCatalog()
+                    },
                 )
                 AppDestination.OPERATIONS -> OperationsScreen(
                     viewModel = operationsViewModel,

@@ -46,12 +46,12 @@ data class BackupManifest(
             createdAt: Long,
             databaseBytes: ByteArray,
         ): BackupManifest {
-            require(schemaVersion > 0) { "Versi database backup tidak valid" }
-            require(businessUid.isNotBlank()) { "Identitas usaha backup kosong" }
-            require(businessName.isNotBlank()) { "Nama usaha backup kosong" }
-            require(businessType.isNotBlank()) { "Jenis usaha backup kosong" }
-            require(createdAt > 0) { "Waktu backup tidak valid" }
-            require(databaseBytes.isNotEmpty()) { "Database backup kosong" }
+            require(schemaVersion > 0) { "Versi data salinan tidak valid" }
+            require(businessUid.isNotBlank()) { "Identitas usaha pada salinan kosong" }
+            require(businessName.isNotBlank()) { "Nama usaha pada salinan kosong" }
+            require(businessType.isNotBlank()) { "Jenis usaha pada salinan kosong" }
+            require(createdAt > 0) { "Waktu salinan tidak valid" }
+            require(databaseBytes.isNotEmpty()) { "Data pada salinan kosong" }
             return BackupManifest(
                 formatVersion = CURRENT_FORMAT_VERSION,
                 schemaVersion = schemaVersion,
@@ -66,18 +66,18 @@ data class BackupManifest(
 
         fun parse(serialized: String): BackupManifest {
             val lines = serialized.lineSequence().filter { it.isNotBlank() }.toList()
-            require(lines.firstOrNull() == MAGIC) { "Format backup tidak dikenali" }
+            require(lines.firstOrNull() == MAGIC) { "Format salinan tidak dikenali" }
             val values = lines.drop(1).associate { line ->
                 val separator = line.indexOf('=')
-                require(separator > 0) { "Metadata backup rusak" }
+                require(separator > 0) { "Keterangan salinan rusak" }
                 line.substring(0, separator) to line.substring(separator + 1)
             }
             val formatVersion = values.requiredInt("formatVersion")
-            require(formatVersion == CURRENT_FORMAT_VERSION) { "Versi format backup belum didukung" }
+            require(formatVersion == CURRENT_FORMAT_VERSION) { "Versi format salinan belum didukung" }
             val businessName = runCatching {
                 Base64.decode(values.required("businessNameBase64")).decodeToString()
             }.getOrElse {
-                throw IllegalArgumentException("Nama usaha pada backup rusak")
+                throw IllegalArgumentException("Nama usaha pada salinan rusak")
             }
             return BackupManifest(
                 formatVersion = formatVersion,

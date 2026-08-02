@@ -31,7 +31,13 @@ fun PaymentMethodBarChart(
     payments: List<PaymentAggregate>,
     modifier: Modifier = Modifier,
 ) {
-    val visiblePayments = payments.filter { it.total > 0L }
+    val totalsByMethod = payments.associate { it.paymentMethod to it.total }
+    val chartPayments = PaymentMethod.entries.map { method ->
+        PaymentAggregate(
+            paymentMethod = method.name,
+            total = totalsByMethod[method.name] ?: 0L,
+        )
+    }
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -49,57 +55,48 @@ fun PaymentMethodBarChart(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
             )
-            if (visiblePayments.isEmpty()) {
-                Text(
-                    "Belum ada penerimaan pada periode ini.",
-                    modifier = Modifier.padding(top = 12.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            } else {
-                val maxValue = visiblePayments.maxOf { it.total }
-                Spacer(Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(176.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.Bottom,
-                ) {
-                    visiblePayments.forEach { payment ->
-                        val fraction = (payment.total.toDouble() / maxValue).toFloat()
-                        Column(
+            val maxValue = chartPayments.maxOf { it.total }.coerceAtLeast(1L)
+            Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(176.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.Bottom,
+            ) {
+                chartPayments.forEach { payment ->
+                    val fraction = (payment.total.toDouble() / maxValue).toFloat()
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Bottom,
+                    ) {
+                        Text(
+                            formatRupiah(payment.total),
+                            modifier = Modifier.width(76.dp),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        )
+                        Spacer(Modifier.height(5.dp))
+                        Box(
                             modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight(),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.Bottom,
-                        ) {
-                            Text(
-                                formatRupiah(payment.total),
-                                modifier = Modifier.width(76.dp),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                            )
-                            Spacer(Modifier.height(5.dp))
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height((18f + fraction * 92f).dp)
-                                    .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp))
-                                    .background(MaterialTheme.colorScheme.primary),
-                            )
-                            Spacer(Modifier.height(6.dp))
-                            Text(
-                                paymentMethodLabel(payment.paymentMethod),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                style = MaterialTheme.typography.labelMedium,
-                            )
-                        }
+                                .fillMaxWidth()
+                                .height((8f + fraction * 102f).dp)
+                                .clip(RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp))
+                                .background(MaterialTheme.colorScheme.primary),
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            paymentMethodLabel(payment.paymentMethod),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.labelMedium,
+                        )
                     }
                 }
             }

@@ -3,6 +3,7 @@ package com.bimacore.usahakecil
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -13,11 +14,14 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.printToString
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.bimacore.usahakecil.data.ShiftEntity
 import kotlinx.coroutines.runBlocking
@@ -35,8 +39,23 @@ class MainActivitySmokeTest {
 
     @Before
     fun lockOwnerSessionForTestIsolation() {
+        val application = composeRule.activity.application as PosApplication
+        runBlocking {
+            application.database.openHelper.writableDatabase.execSQL(
+                "DELETE FROM report_security",
+            )
+        }
         (composeRule.activity.application as PosApplication).reportSession.lock()
+        composeRule.activity.runOnUiThread {
+            composeRule.activity.viewModelStore.clear()
+            composeRule.activity.recreate()
+        }
+        composeRule.waitForIdle()
         dismissFirstRunGuideIfPresent()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithTag("start-transaction")
+                .fetchSemanticsNodes().isNotEmpty()
+        }
     }
 
     @Test
@@ -73,6 +92,7 @@ class MainActivitySmokeTest {
 
     @Test
     fun catalog_and_calculator_are_accessible() {
+        ensureOpenShift()
         composeRule.onNodeWithTag("catattoko-brand").assertExists()
         composeRule.onNodeWithText("CatatToko").assertIsDisplayed()
         composeRule.onNodeWithTag("start-transaction").performScrollTo().performClick()
@@ -84,6 +104,59 @@ class MainActivitySmokeTest {
         composeRule.onNodeWithContentDescription("Buka kalkulator").performClick()
         composeRule.onNodeWithText("Kalkulator").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Tutup kalkulator").performClick()
+    }
+
+    @Test
+    fun start_transaction_without_shift_prompts_to_open_shift() {
+        clearOpenShift()
+        composeRule.onNodeWithTag("start-transaction").performScrollTo().performClick()
+        composeRule.onNodeWithText("Nama kasir").assertIsDisplayed()
+        composeRule.onNodeWithText("Modal awal").assertIsDisplayed()
+        composeRule.onNodeWithText("Batal").performClick()
+        composeRule.onNodeWithText("Pilih Produk").assertDoesNotExist()
+    }
+
+    @Test
+    fun owner_can_start_cashier_without_opening_a_shift() {
+        assumeTrue(BuildConfig.BUSINESS_TYPE == "RETAIL")
+        clearOpenShift()
+        val application = composeRule.activity.application as PosApplication
+        composeRule.activity.runOnUiThread { application.reportSession.unlock() }
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithText("Laporan")
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("start-transaction").performScrollTo()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("start-transaction").performClick()
+        waitForText("Pilih Produk")
+        composeRule.onNodeWithTag("product-101").performClick()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithTag("continue-payment").fetchSemanticsNodes().isNotEmpty() ||
+                composeRule.onAllNodesWithTag("cart-summary").fetchSemanticsNodes().isNotEmpty()
+        }
+        if (composeRule.onAllNodesWithTag("cart-summary").fetchSemanticsNodes().isNotEmpty()) {
+            composeRule.onNodeWithTag("cart-summary").performClick()
+        }
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            runCatching {
+                composeRule.onNodeWithTag("continue-payment").assertIsEnabled()
+                true
+            }.getOrDefault(false)
+        }
+        composeRule.onNodeWithTag("continue-payment").performClick()
+        waitForText("Pembayaran")
+        composeRule.onNodeWithTag("payment-list")
+            .performScrollToNode(hasTestTag("quick-cash-option"))
+        val quickCashOptions = composeRule.onAllNodesWithTag("quick-cash-option")
+        quickCashOptions[quickCashOptions.fetchSemanticsNodes().lastIndex].performClick()
+        composeRule.onNodeWithTag("complete-sale").performClick()
+        waitForText("Transaksi Berhasil")
+        composeRule.onNodeWithTag("receipt-list")
+            .performScrollToNode(hasTestTag("new-transaction"))
+        composeRule.onNodeWithTag("new-transaction").performClick()
     }
 
     @Test
@@ -153,6 +226,8 @@ class MainActivitySmokeTest {
             else -> "Operasional"
         }
         composeRule.onNodeWithText(operationsLabel).performClick()
+        composeRule.onNodeWithTag("operations-section-grid").assertExists()
+        composeRule.onNodeWithText("Pembelian").assertIsDisplayed()
 
         when (BuildConfig.BUSINESS_TYPE) {
             "WHOLESALE" -> {
@@ -177,20 +252,55 @@ class MainActivitySmokeTest {
     }
 
     @Test
+    fun product_form_exposes_menu_photo_picker() {
+        unlockOwner()
+
+        val operationsLabel = when (BuildConfig.BUSINESS_TYPE) {
+            "WHOLESALE" -> "Grosir"
+            "CULINARY" -> "Pesanan"
+            else -> "Operasional"
+        }
+        composeRule.onNodeWithText(operationsLabel).performClick()
+        if (BuildConfig.BUSINESS_TYPE != "RETAIL") {
+            composeRule.onAllNodesWithText("Produk")[0].performClick()
+        }
+        waitForText("Tambah produk")
+        composeRule.onNodeWithText("Tambah produk").performClick()
+        composeRule.onNodeWithTag("product-image-picker").assertIsDisplayed()
+        composeRule.onNodeWithText("Pilih foto menu").assertIsDisplayed()
+    }
+
+    @Test
     fun protected_reports_and_backup_are_reachable() {
         composeRule.onNodeWithText("Laporan").assertDoesNotExist()
         unlockOwner()
         composeRule.onNodeWithText("Laporan").performClick()
         composeRule.onNodeWithText("Omzet hari ini").assertIsDisplayed()
-        composeRule.onNodeWithTag("payment-method-chart").assertExists()
+        composeRule.onNodeWithTag("report-period-selector").assertIsDisplayed()
+        composeRule.onNodeWithTag("report-period-selector").performClick()
+        listOf("DAY", "WEEK", "MONTH", "YEAR").forEach { period ->
+            composeRule.onNodeWithTag("report-period-option-$period").assertIsDisplayed()
+        }
+        composeRule.onNodeWithTag("report-period-option-DAY").performClick()
+        composeRule.onNodeWithTag("report-full-details")
+            .performScrollTo()
+            .performSemanticsAction(SemanticsActions.OnClick)
+        composeRule.onNodeWithTag("payment-method-chart").performScrollTo().assertIsDisplayed()
+        listOf("Tunai", "QRIS", "Transfer", "Piutang").forEach { method ->
+            val matches = composeRule.onAllNodesWithText(method)
+            assertTrue(matches.fetchSemanticsNodes().isNotEmpty())
+        }
+        composeRule.onNodeWithTag("excel-export").performScrollTo().assertIsDisplayed()
+        waitForEnabledTag("excel-export")
+        composeRule.waitForIdle()
+        composeRule.onNodeWithText("Simpan Laporan Excel").performClick()
+        waitForText("Bagikan Excel", timeoutMillis = 30_000)
 
         composeRule.onNodeWithText("Lainnya").performClick()
-        composeRule.onNodeWithText("Backup & restore").assertIsDisplayed()
-        composeRule.onNodeWithText("Buat backup lokal").assertIsDisplayed()
-        composeRule.onNodeWithTag("excel-export").assertIsDisplayed()
-        waitForEnabledTag("excel-export")
-        composeRule.onNodeWithTag("excel-export").performClick()
-        waitForText("Bagikan Excel")
+        composeRule.onNodeWithText("Salinan & keamanan data").assertIsDisplayed()
+        composeRule.onNodeWithText("Buat salinan sekarang")
+            .performScrollTo()
+            .assertIsDisplayed()
     }
 
     @Test
@@ -206,13 +316,14 @@ class MainActivitySmokeTest {
         unlockOwner()
         composeRule.onNodeWithText("Laporan").performClick()
         waitForText("Omzet hari ini")
+        composeRule.onNodeWithTag("excel-export").performScrollTo().assertIsDisplayed()
+        waitForEnabledTag("excel-export")
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag("excel-export").performTouchInput { click() }
+        waitForText("Bagikan Excel", timeoutMillis = 30_000)
 
         composeRule.onNodeWithText("Lainnya").performClick()
-        waitForText("Backup & restore")
-        composeRule.onNodeWithTag("excel-export").assertIsDisplayed()
-        waitForEnabledTag("excel-export")
-        composeRule.onNodeWithTag("excel-export").performClick()
-        waitForText("Bagikan Excel")
+        waitForText("Salinan & keamanan data")
     }
 
     @Test
@@ -225,7 +336,7 @@ class MainActivitySmokeTest {
             "CULINARY" -> "Pesanan"
             else -> "Operasional"
         }
-        val financeLabel = if (BuildConfig.BUSINESS_TYPE == "RETAIL") "Piutang" else "Keuangan"
+        val financeLabel = "Keuangan"
 
         composeRule.onNodeWithText(operationsLabel).performClick()
         when (BuildConfig.BUSINESS_TYPE) {
@@ -241,42 +352,50 @@ class MainActivitySmokeTest {
         }
         waitForText("Tambah produk")
         composeRule.onAllNodesWithText("Stok")[0].performClick()
-        waitForText("Riwayat terbaru")
+        waitForText("Stok perlu perhatian")
         composeRule.onAllNodesWithText("Pembelian")[0].performClick()
         waitForText("Catat pembelian")
+        waitForText("Total pembelian tercatat")
         composeRule.onAllNodesWithText("Pekerja")[0].performClick()
         waitForText("Tambah pekerja")
+        waitForText("Pembayaran pekerja tertunda")
 
         composeRule.onNodeWithText(financeLabel).performClick()
         if (BuildConfig.BUSINESS_TYPE != "RETAIL") {
             waitForText("Shift kasir")
         }
         composeRule.onAllNodesWithText("Utang & Piutang")[0].performClick()
-        waitForText("Tambah utang")
+        waitForText("Daftar utang & piutang")
         if (BuildConfig.BUSINESS_TYPE != "CULINARY") {
             waitForText("Tambah piutang")
             waitForText("Tambah pelanggan")
         }
         composeRule.onAllNodesWithText("Transaksi")[0].performClick()
+        waitForText("Cari nomor struk")
         composeRule.onAllNodesWithText("Kas")[0].performClick()
         waitForText("Shift kasir")
 
         composeRule.onNodeWithText("Laporan").performClick()
         waitForText("Omzet hari ini")
+        composeRule.onNodeWithTag("report-full-details")
+            .performScrollTo()
+            .performSemanticsAction(SemanticsActions.OnClick)
         waitForText("Perkiraan penjualan")
-        waitForText("Ganti PIN")
+        composeRule.onNodeWithTag("excel-export").performScrollTo().assertIsDisplayed()
 
         composeRule.onNodeWithText("Lainnya").performClick()
         waitForText("Profil usaha")
         waitForText("Ubah nama usaha")
-        waitForText("Backup & restore")
-        waitForText("Buat backup lokal")
-        composeRule.onNodeWithTag("excel-export").assertIsDisplayed()
-        waitForText("Pilih file untuk restore")
+        waitForText("Salinan & keamanan data")
+        waitForText("Buat salinan sekarang")
+        waitForText("Pilih berkas salinan")
+        waitForText("Ganti PIN Owner")
         waitForText("Keluar Mode Owner")
-        composeRule.onNodeWithText("Offline-first", substring = true).performScrollTo()
+        composeRule.onNodeWithText("tanpa akun", substring = true).performScrollTo()
         composeRule.waitForIdle()
-        composeRule.onNodeWithTag("owner-exit").assertIsDisplayed().performClick()
+        composeRule.onNodeWithTag("owner-exit")
+            .assertIsDisplayed()
+            .performSemanticsAction(SemanticsActions.OnClick)
         waitForText("Mode Kasir")
     }
 
@@ -292,10 +411,17 @@ class MainActivitySmokeTest {
             composeRule.onAllNodesWithText("Laporan")
                 .fetchSemanticsNodes().isNotEmpty()
         }
+        composeRule.onNodeWithText("Laporan").performClick()
+        waitForText("Omzet hari ini")
+        composeRule.onNodeWithText("Kasir").performClick()
+        composeRule.waitForIdle()
     }
 
     private fun dismissFirstRunGuideIfPresent() {
-        composeRule.waitForIdle()
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithTag("onboarding-complete").fetchSemanticsNodes().isNotEmpty() ||
+                composeRule.onAllNodesWithTag("owner-access").fetchSemanticsNodes().isNotEmpty()
+        }
         if (composeRule.onAllNodesWithTag("onboarding-complete").fetchSemanticsNodes().isNotEmpty()) {
             composeRule.onNodeWithTag("onboarding-complete").performScrollTo().performClick()
             composeRule.waitForIdle()
@@ -318,9 +444,23 @@ class MainActivitySmokeTest {
         }
     }
 
-    private fun waitForText(text: String, substring: Boolean = false) {
+    private fun clearOpenShift() {
+        val application = composeRule.activity.application as PosApplication
+        runBlocking {
+            application.database.openHelper.writableDatabase.execSQL(
+                "DELETE FROM shifts WHERE status = 'OPEN'",
+            )
+        }
+        composeRule.waitForIdle()
+    }
+
+    private fun waitForText(
+        text: String,
+        substring: Boolean = false,
+        timeoutMillis: Long = 5_000,
+    ) {
         try {
-            composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.waitUntil(timeoutMillis = timeoutMillis) {
                 composeRule.onAllNodesWithText(text, substring = substring)
                     .fetchSemanticsNodes()
                     .isNotEmpty()

@@ -80,7 +80,7 @@ fun FirstRunGuide(
                 GuideCard(
                     icon = Icons.Outlined.Lock,
                     title = "Mode Owner",
-                    body = "Area pengelolaan yang dilindungi PIN Owner: operasional, keuangan, laporan, profil usaha, backup, restore, dan export Excel.",
+                    body = "Area pengelolaan yang dilindungi PIN Owner: operasional, keuangan, laporan, profil usaha, salinan data, pemulihan data, dan laporan Excel.",
                 )
                 GuideCard(
                     icon = Icons.Outlined.Shield,

@@ -55,15 +55,15 @@ class BackupManager(
     suspend fun preview(uri: Uri): BackupPreview = withContext(Dispatchers.IO) {
         val packageData = readPackage(uri)
         require(packageData.manifest.verify(packageData.databaseBytes)) {
-            "File backup rusak atau sudah berubah"
+            "Berkas salinan rusak atau sudah berubah"
         }
         require(packageData.manifest.schemaVersion <= DATABASE_SCHEMA_VERSION) {
-            "Versi backup lebih baru dari aplikasi"
+            "Versi salinan lebih baru dari aplikasi"
         }
         val profile = currentDatabase().profileDao().getProfile()
         if (profile != null) {
             require(packageData.manifest.businessType == profile.businessType) {
-                "File backup dari jenis usaha ${packageData.manifest.businessType} tidak dapat dipasang pada aplikasi ${profile.businessType}"
+                "Salinan dari jenis usaha ${packageData.manifest.businessType} tidak dapat dipasang pada aplikasi ${profile.businessType}"
             }
         }
         BackupPreview(packageData.manifest, uri)
@@ -71,14 +71,14 @@ class BackupManager(
 
     suspend fun restore(preview: BackupPreview) = withContext(Dispatchers.IO) {
         val incoming = readPackage(preview.sourceUri)
-        require(incoming.manifest == preview.manifest) { "Metadata backup berubah" }
+        require(incoming.manifest == preview.manifest) { "Keterangan salinan berubah" }
         require(incoming.manifest.verify(incoming.databaseBytes)) {
-            "File backup rusak atau sudah berubah"
+            "Berkas salinan rusak atau sudah berubah"
         }
         val profile = currentDatabase().profileDao().getProfile()
         if (profile != null) {
             require(incoming.manifest.businessType == profile.businessType) {
-                "File backup dari jenis usaha ${incoming.manifest.businessType} tidak dapat dipasang pada aplikasi ${profile.businessType}"
+                "Salinan dari jenis usaha ${incoming.manifest.businessType} tidak dapat dipasang pada aplikasi ${profile.businessType}"
             }
         }
         val active = context.getDatabasePath(databaseName)
@@ -98,14 +98,14 @@ class BackupManager(
                     if (cursor.moveToFirst()) cursor.getString(0) else ""
                 }
             require(integrity.equals("ok", ignoreCase = true)) {
-                "Pemeriksaan database hasil restore gagal"
+                "Pemeriksaan data hasil pemulihan gagal"
             }
             val restoredProfile = requireNotNull(reopened.profileDao().getProfile()) {
-                "Profil usaha pada backup tidak valid"
+                "Profil usaha pada salinan tidak valid"
             }
             if (profile != null) {
                 require(restoredProfile.businessType == profile.businessType) {
-                    "Profil usaha hasil restore tidak sesuai dengan aplikasi"
+                    "Profil usaha hasil pemulihan tidak sesuai dengan aplikasi"
                 }
             }
         } catch (error: Exception) {
@@ -114,7 +114,7 @@ class BackupManager(
             safety.copyTo(active, overwrite = true)
             reopenDatabase()
             throw IllegalStateException(
-                "Restore gagal. Data aktif sudah dikembalikan seperti semula.",
+                "Pemulihan gagal. Data aktif sudah dikembalikan seperti semula.",
                 error,
             )
         }
@@ -140,7 +140,7 @@ class BackupManager(
             .query("PRAGMA wal_checkpoint(FULL)")
             .use { cursor ->
                 require(cursor.moveToFirst()) { "Checkpoint database tidak memberi hasil" }
-                require(cursor.getInt(0) == 0) { "Database masih sibuk, coba backup lagi" }
+                require(cursor.getInt(0) == 0) { "Data masih sibuk, coba buat salinan lagi" }
             }
     }
 
@@ -149,15 +149,15 @@ class BackupManager(
         var databaseBytes: ByteArray? = null
         var entryCount = 0
         val input = context.contentResolver.openInputStream(uri)
-            ?: throw IllegalArgumentException("File backup tidak dapat dibuka")
+            ?: throw IllegalArgumentException("Berkas salinan tidak dapat dibuka")
         ZipInputStream(input.buffered()).use { zip ->
             var entry = zip.nextEntry
             while (entry != null) {
                 entryCount++
-                require(entryCount <= 2) { "File backup berisi entry yang tidak valid" }
+                require(entryCount <= 2) { "Berkas salinan berisi bagian yang tidak valid" }
                 val name = entry.name
                 require(name == MANIFEST_ENTRY || name == DATABASE_ENTRY) {
-                    "File backup berisi entry tidak sah: $name"
+                    "Berkas salinan berisi bagian tidak sah: $name"
                 }
                 when (name) {
                     MANIFEST_ENTRY -> {
@@ -173,7 +173,7 @@ class BackupManager(
             }
         }
         return PackageData(
-            manifest = requireNotNull(manifest) { "Metadata backup tidak ditemukan" },
+            manifest = requireNotNull(manifest) { "Keterangan salinan tidak ditemukan" },
             databaseBytes = requireNotNull(databaseBytes) { "Isi database tidak ditemukan" },
         )
     }
@@ -185,7 +185,7 @@ class BackupManager(
         var read: Int
         while (zip.read(buffer).also { read = it } != -1) {
             totalRead += read
-            require(totalRead <= maxBytes) { "Ukuran file backup melebihi batas" }
+            require(totalRead <= maxBytes) { "Ukuran berkas salinan melebihi batas" }
             baos.write(buffer, 0, read)
         }
         return baos.toByteArray()
@@ -205,7 +205,7 @@ class BackupManager(
             temporary.delete()
             error("Database lama tidak dapat dipindahkan")
         }
-        check(temporary.renameTo(target)) { "Database hasil restore tidak dapat dipasang" }
+        check(temporary.renameTo(target)) { "Data hasil pemulihan tidak dapat dipasang" }
     }
 
     private fun clearSidecars(database: File) {

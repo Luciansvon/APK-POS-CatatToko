@@ -102,7 +102,7 @@ class BusinessCapabilitiesTest {
 
         assertEquals("Operasional", presentation.operationsLabel)
         assertEquals("Produk", presentation.operationsStartSection)
-        assertEquals("Piutang", presentation.financeLabel)
+        assertEquals("Keuangan", presentation.financeLabel)
         assertEquals(1, presentation.financeStartTab)
     }
 

@@ -22,8 +22,13 @@ import com.bimacore.usahakecil.data.ProductDraft
 import com.bimacore.usahakecil.data.ProductForecastReport
 import com.bimacore.usahakecil.data.PurchaseDraft
 import com.bimacore.usahakecil.data.PurchaseLineDraft
+import com.bimacore.usahakecil.data.ReportChartGranularity
+import com.bimacore.usahakecil.data.ReportChartMode
+import com.bimacore.usahakecil.data.ReportPeriod
+import com.bimacore.usahakecil.data.ReportProductMeasure
 import com.bimacore.usahakecil.data.ReportRepository
 import com.bimacore.usahakecil.data.ReportSummary
+import com.bimacore.usahakecil.data.ReportTrendReport
 import com.bimacore.usahakecil.data.SaleEntity
 import com.bimacore.usahakecil.data.SaleItemEntity
 import com.bimacore.usahakecil.data.ShiftSummary
@@ -149,6 +154,22 @@ class OperationsViewModel(
     val busy = _busy.asStateFlow()
     private val _reportSummary = MutableStateFlow<ReportSummary?>(null)
     val reportSummary = _reportSummary.asStateFlow()
+    private val _previousReportSummary = MutableStateFlow<ReportSummary?>(null)
+    val previousReportSummary = _previousReportSummary.asStateFlow()
+    private val _reportPeriod = MutableStateFlow(ReportPeriod.DAY)
+    val reportPeriod = _reportPeriod.asStateFlow()
+    private val _reportChartMode = MutableStateFlow(ReportChartMode.CASH_FLOW)
+    val reportChartMode = _reportChartMode.asStateFlow()
+    private val _reportChartGranularity = MutableStateFlow(ReportChartGranularity.DAILY)
+    val reportChartGranularity = _reportChartGranularity.asStateFlow()
+    private val _reportProductMeasure = MutableStateFlow(ReportProductMeasure.SALES)
+    val reportProductMeasure = _reportProductMeasure.asStateFlow()
+    private val _selectedReportProductId = MutableStateFlow<Long?>(null)
+    val selectedReportProductId = _selectedReportProductId.asStateFlow()
+    private val _reportTrend = MutableStateFlow<ReportTrendReport?>(null)
+    val reportTrend = _reportTrend.asStateFlow()
+    private val _reportTrendError = MutableStateFlow<String?>(null)
+    val reportTrendError = _reportTrendError.asStateFlow()
     private val _forecastReport = MutableStateFlow<ProductForecastReport?>(null)
     val forecastReport = _forecastReport.asStateFlow()
     private val _forecastLoading = MutableStateFlow(false)
@@ -164,6 +185,8 @@ class OperationsViewModel(
     val backupPreview = _backupPreview.asStateFlow()
     private val _excelUri = MutableStateFlow<Uri?>(null)
     val excelUri = _excelUri.asStateFlow()
+    private val _excelError = MutableStateFlow<String?>(null)
+    val excelError = _excelError.asStateFlow()
     private val _restoreCompleted = MutableStateFlow(false)
     val restoreCompleted = _restoreCompleted.asStateFlow()
     private val _saleDetail = MutableStateFlow<SaleDetail?>(null)
@@ -209,6 +232,7 @@ class OperationsViewModel(
         price: Long,
         stock: Int,
         unit: String,
+        imageUri: String?,
     ) = execute(if (id == null) "Produk ditambahkan" else "Produk diperbarui") {
         val current = id?.let { productId ->
             products.value.firstOrNull { it.id == productId }
@@ -223,6 +247,7 @@ class OperationsViewModel(
                 stockTrackingEnabled = current?.stockTrackingEnabled ?: true,
                 lowStockThreshold = current?.lowStockThreshold ?: 5,
                 unitLabel = unit,
+                imageUri = imageUri,
             ),
         )
     }
@@ -289,7 +314,7 @@ class OperationsViewModel(
         name: String,
         phone: String,
         address: String,
-    ) = execute(if (kind == PartyKind.SUPPLIER) "Supplier ditambahkan" else "Pelanggan ditambahkan") {
+    ) = execute(if (kind == PartyKind.SUPPLIER) "Pemasok ditambahkan" else "Pelanggan ditambahkan") {
         require(kind != PartyKind.CUSTOMER || capabilities.customerReceivables) {
             "Pelanggan dan piutang tidak aktif pada APK ini"
         }
@@ -431,7 +456,7 @@ class OperationsViewModel(
         employee: EmployeeEntity,
         title: String,
         amount: Long,
-    ) = execute("Pekerjaan freelancer disimpan") {
+    ) = execute("Pekerjaan panggilan disimpan") {
         workforce.createFreelanceJob(
             employee.id,
             title,
@@ -444,7 +469,7 @@ class OperationsViewModel(
     fun payFreelanceJob(
         jobId: Long,
         amount: Long,
-    ) = execute("Cicilan freelancer disimpan") {
+    ) = execute("Pembayaran pekerja panggilan disimpan") {
         workforce.payFreelanceJob(jobId, amount, "Pembayaran pekerjaan")
     }
 
@@ -465,6 +490,16 @@ class OperationsViewModel(
     fun lockReport() {
         reports.lock()
         _reportSummary.value = null
+        _previousReportSummary.value = null
+        _reportPeriod.value = ReportPeriod.DAY
+        _reportChartMode.value = ReportChartMode.CASH_FLOW
+        _reportChartGranularity.value = ReportChartGranularity.DAILY
+        _reportProductMeasure.value = ReportProductMeasure.SALES
+        _selectedReportProductId.value = null
+        _reportTrend.value = null
+        _reportTrendError.value = null
+        _excelUri.value = null
+        _excelError.value = null
         _forecastReport.value = null
         _forecastError.value = null
         _message.value = "Mode Owner dikunci"
@@ -479,6 +514,43 @@ class OperationsViewModel(
 
     fun refreshReport() = execute {
         loadReport()
+    }
+
+    fun selectReportPeriod(period: ReportPeriod) {
+        if (_reportPeriod.value == period) return
+        _reportPeriod.value = period
+        _reportChartGranularity.value = when (period) {
+            ReportPeriod.DAY,
+            ReportPeriod.WEEK,
+            -> ReportChartGranularity.DAILY
+            ReportPeriod.MONTH -> ReportChartGranularity.WEEKLY
+            ReportPeriod.YEAR -> ReportChartGranularity.MONTHLY
+        }
+        _excelUri.value = null
+        _excelError.value = null
+        if (reports.session.isUnlocked) {
+            execute { loadReport() }
+        }
+    }
+
+    fun selectReportChartMode(mode: ReportChartMode) {
+        _reportChartMode.value = mode
+    }
+
+    fun selectReportChartGranularity(granularity: ReportChartGranularity) {
+        if (_reportChartGranularity.value == granularity) return
+        _reportChartGranularity.value = granularity
+        if (reports.session.isUnlocked) {
+            execute { loadReportTrend() }
+        }
+    }
+
+    fun selectReportProduct(productId: Long?) {
+        _selectedReportProductId.value = productId
+    }
+
+    fun selectReportProductMeasure(measure: ReportProductMeasure) {
+        _reportProductMeasure.value = measure
     }
 
     fun openSaleDetail(sale: SaleEntity) = execute {
@@ -501,29 +573,39 @@ class OperationsViewModel(
         uri?.let(::inspectBackup)
     }
 
-    fun createBackup() = execute("Backup siap dibagikan") {
+    fun createBackup() = execute("Salinan data siap dibagikan") {
         reports.session.requireOwner()
         _backupUri.value = backups.createBackup()
     }
 
-    fun createExcelExport() = execute {
-        reports.session.requireOwner()
-        _excelUri.value = excelExports.createExport()
+    fun createExcelExport() {
+        execute {
+            reports.session.requireOwner()
+            val period = _reportPeriod.value
+            _excelError.value = null
+            try {
+                _excelUri.value = excelExports.createExport(period)
+                _message.value = "Excel ${period.label} siap dibagikan"
+            } catch (error: Exception) {
+                _excelError.value = error.message ?: "File Excel gagal dibuat"
+                throw error
+            }
+        }
     }
 
     fun inspectBackup(uri: Uri) = execute {
         reports.session.requireOwner()
         _backupPreview.value = backups.preview(uri)
-        _message.value = "Backup valid. Periksa identitas sebelum restore."
+        _message.value = "Salinan valid. Periksa identitas sebelum memulihkan data."
     }
 
     fun cancelRestore() {
         _backupPreview.value = null
     }
 
-    fun confirmRestore() = execute("Restore selesai") {
+    fun confirmRestore() = execute("Pemulihan selesai") {
         reports.session.requireOwner()
-        val preview = requireNotNull(_backupPreview.value) { "Pilih file backup dulu" }
+        val preview = requireNotNull(_backupPreview.value) { "Pilih berkas salinan dulu" }
         backups.restore(preview)
         _backupPreview.value = null
         _restoreCompleted.value = true
@@ -560,7 +642,11 @@ class OperationsViewModel(
 
     private suspend fun loadReport() {
         val now = System.currentTimeMillis()
-        _reportSummary.value = reports.readSummary(startOfToday(), now)
+        val range = _reportPeriod.value.range(now)
+        _reportSummary.value = reports.readSummary(range.first, range.last)
+        val previousRange = _reportPeriod.value.previousRange(now)
+        _previousReportSummary.value = reports.readSummary(previousRange.first, previousRange.last)
+        loadReportTrend()
         _forecastLoading.value = true
         _forecastError.value = null
         try {
@@ -570,6 +656,16 @@ class OperationsViewModel(
             _forecastError.value = "Prediksi belum dapat dimuat sekarang"
         } finally {
             _forecastLoading.value = false
+        }
+    }
+
+    private suspend fun loadReportTrend() {
+        _reportTrendError.value = null
+        try {
+            _reportTrend.value = reports.readTrend(_reportChartGranularity.value)
+        } catch (_: Exception) {
+            _reportTrend.value = null
+            _reportTrendError.value = "Grafik belum dapat dimuat sekarang"
         }
     }
 
@@ -629,4 +725,5 @@ class OperationsViewModel(
                 excelExports = application.newExcelExportManager(),
             ) as T
     }
+
 }

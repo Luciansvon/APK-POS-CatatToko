@@ -205,7 +205,7 @@ class WorkforceRepository(
             "Pekerja tidak tersedia"
         }
         require(employee.scheme == WorkerScheme.FREELANCE.name) {
-            "Pekerjaan panggilan hanya untuk freelancer"
+            "Pekerjaan panggilan hanya untuk pekerja panggilan"
         }
         require(title.isNotBlank()) { "Nama pekerjaan wajib diisi" }
         require(agreedAmount in 1..MoneyMath.MAX_MONEY) { "Nilai pekerjaan tidak valid" }
@@ -259,7 +259,7 @@ class WorkforceRepository(
             CashEntryEntity(
                 type = "WAGE_OUT",
                 amount = amount,
-                category = "Bayaran freelancer",
+                category = "Bayaran pekerja panggilan",
                 note = note.trim().ifBlank { job.title },
                 paymentMethod = "CASH",
                 referenceType = "FREELANCE_JOB",

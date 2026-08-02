@@ -24,7 +24,7 @@ fun navigationPresentationFor(type: BusinessType): NavigationPresentation = when
     BusinessType.RETAIL -> NavigationPresentation(
         operationsLabel = "Operasional",
         operationsStartSection = "Produk",
-        financeLabel = "Piutang",
+        financeLabel = "Keuangan",
         financeStartTab = 1,
     )
     BusinessType.WHOLESALE -> NavigationPresentation(

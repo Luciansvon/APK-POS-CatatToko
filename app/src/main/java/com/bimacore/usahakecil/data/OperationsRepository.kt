@@ -124,10 +124,10 @@ class OperationsRepository(
     suspend fun recordPurchase(draft: PurchaseDraft): Long = database.withTransaction {
         require(draft.lines.isNotEmpty()) { "Item pembelian masih kosong" }
         val supplier = requireNotNull(operationsDao.getParty(draft.supplierId)) {
-            "Supplier tidak tersedia"
+            "Pemasok tidak tersedia"
         }
         require(supplier.kind == PartyKind.SUPPLIER.name && supplier.isActive) {
-            "Supplier tidak aktif"
+            "Pemasok tidak aktif"
         }
         val resolved = draft.lines.map { line ->
             require(line.quantity > 0) { "Jumlah pembelian harus lebih dari nol" }
