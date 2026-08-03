@@ -41,8 +41,10 @@ import com.bimacore.usahakecil.domain.OrderStatus
 import com.bimacore.usahakecil.export.ExcelExportManager
 import java.util.Calendar
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -188,8 +190,9 @@ class OperationsViewModel(
     val excelUri = _excelUri.asStateFlow()
     private val _excelError = MutableStateFlow<String?>(null)
     val excelError = _excelError.asStateFlow()
-    private val _restoreCompleted = MutableStateFlow(false)
-    val restoreCompleted = _restoreCompleted.asStateFlow()
+    private val _restoreCompleted = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val restoreCompleted = _restoreCompleted.asSharedFlow()
+    private val _pendingRestoreUri = MutableStateFlow<Uri?>(null)
     private val _saleDetail = MutableStateFlow<SaleDetail?>(null)
     val saleDetail = _saleDetail.asStateFlow()
     private val _shiftSummary = MutableStateFlow<ShiftSummary?>(null)
@@ -485,7 +488,14 @@ class OperationsViewModel(
             throw IllegalArgumentException("PIN Owner salah")
         }
         loadReport()
-        _message.value = "Mode Owner aktif"
+        val pendingUri = _pendingRestoreUri.value
+        if (pendingUri != null) {
+            _backupPreview.value = backups.preview(pendingUri)
+            _pendingRestoreUri.value = null
+            _message.value = "Salinan valid. Periksa identitas sebelum memulihkan data."
+        } else {
+            _message.value = "Mode Owner aktif"
+        }
     }
 
     fun lockReport() {
@@ -571,7 +581,12 @@ class OperationsViewModel(
 
     fun finishRestoreFileSelection(uri: Uri?) {
         reports.session.endExternalOwnerFlow()
-        uri?.let(::inspectBackup)
+        if (uri == null) {
+            _pendingRestoreUri.value = null
+            return
+        }
+        _pendingRestoreUri.value = uri
+        _message.value = "Berkas dipilih. Masukkan PIN Owner lagi untuk memeriksa."
     }
 
     fun createBackup() = execute("Salinan data siap dibagikan") {
@@ -609,7 +624,7 @@ class OperationsViewModel(
         val preview = requireNotNull(_backupPreview.value) { "Pilih berkas salinan dulu" }
         backups.restore(preview)
         _backupPreview.value = null
-        _restoreCompleted.value = true
+        _restoreCompleted.tryEmit(Unit)
     }
 
     fun saveTopping(
@@ -639,7 +654,6 @@ class OperationsViewModel(
         viewModelScope.launch {
             val hasPin = reports.hasPin()
             _reportHasPin.value = hasPin
-            application.restoreOwnerModeDefaultIfUnset(hasPin)
             if (hasPin && reports.session.isUnlocked) {
                 loadReport()
             }

@@ -31,6 +31,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.sp
 import com.bimacore.usahakecil.domain.BusinessType
 import com.bimacore.usahakecil.ui.theme.BrandColors
+import kotlinx.coroutines.flow.collect
 
 @Composable
 fun HomeScreen(
@@ -57,7 +58,6 @@ fun HomeScreen(
     val hasOwnerPin by operationsViewModel.reportHasPin.collectAsState()
     val activeShift by operationsViewModel.openShift.collectAsState()
     val message by operationsViewModel.message.collectAsState()
-    val restoreCompleted by operationsViewModel.restoreCompleted.collectAsState()
     val snackbar = remember { SnackbarHostState() }
     val compactNavigation = LocalConfiguration.current.screenWidthDp < 600
 
@@ -66,8 +66,10 @@ fun HomeScreen(
         snackbar.showSnackbar(value)
         operationsViewModel.consumeMessage()
     }
-    LaunchedEffect(restoreCompleted) {
-        if (restoreCompleted) onRecreate()
+    LaunchedEffect(operationsViewModel) {
+        operationsViewModel.restoreCompleted.collect {
+            onRecreate()
+        }
     }
     LaunchedEffect(ownerUnlocked) {
         destination = if (ownerUnlocked) AppDestination.REPORTS else AppDestination.POS

@@ -2,6 +2,8 @@ package com.bimacore.usahakecil.report
 
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.filterToOne
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -291,7 +293,9 @@ class ReportDemoTest {
         assertTrue(dailyEntries.values.any { it.contains("Periode") && it.contains("Hari ini") })
 
         unlockOwner()
-        composeRule.onNodeWithText("Laporan").performClick()
+        composeRule.onAllNodesWithText("Laporan")
+            .filterToOne(hasClickAction())
+            .performClick()
         composeRule.waitUntil(timeoutMillis = 5_000) {
             composeRule.onAllNodesWithText("Omzet hari ini")
                 .fetchSemanticsNodes().isNotEmpty()

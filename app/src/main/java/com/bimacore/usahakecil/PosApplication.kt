@@ -21,26 +21,7 @@ class PosApplication : Application() {
     val capabilities: BusinessCapabilities by lazy {
         BusinessCapabilities.forType(businessType)
     }
-    private val ownerModePreferences by lazy {
-        getSharedPreferences(OWNER_MODE_PREFERENCES, MODE_PRIVATE)
-    }
-
-    val reportSession: ReportSession by lazy {
-        ReportSession(
-            initiallyUnlocked = ownerModePreferences.getBoolean(OWNER_MODE_ACTIVE, false),
-            onStateChanged = { unlocked ->
-                ownerModePreferences.edit()
-                    .putBoolean(OWNER_MODE_ACTIVE, unlocked)
-                    .apply()
-            },
-        )
-    }
-
-    fun restoreOwnerModeDefaultIfUnset(hasPin: Boolean) {
-        if (hasPin && !ownerModePreferences.contains(OWNER_MODE_ACTIVE)) {
-            reportSession.unlock()
-        }
-    }
+    val reportSession: ReportSession by lazy(::ReportSession)
 
     @Volatile
     private var databaseInstance: PosDatabase? = null
@@ -88,8 +69,4 @@ class PosApplication : Application() {
         databaseInstance = null
     }
 
-    private companion object {
-        const val OWNER_MODE_PREFERENCES = "owner_mode_state"
-        const val OWNER_MODE_ACTIVE = "active"
-    }
 }

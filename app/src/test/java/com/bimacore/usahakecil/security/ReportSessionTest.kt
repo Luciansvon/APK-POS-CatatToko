@@ -6,36 +6,25 @@ import org.junit.Test
 
 class ReportSessionTest {
     @Test
-    fun owner_session_stays_open_until_explicit_lock() {
+    fun owner_session_starts_locked_and_external_flow_locks_on_return() {
         val session = ReportSession()
+
+        assertFalse(session.isUnlocked)
         session.unlock()
 
         session.beginExternalOwnerFlow()
         session.endExternalOwnerFlow()
 
-        assertTrue(session.isUnlocked)
-
-        session.lock()
-
         assertFalse(session.isUnlocked)
     }
 
     @Test
-    fun owner_session_can_be_restored_until_explicit_lock() {
-        var persisted = false
-        val session = ReportSession(
-            initiallyUnlocked = persisted,
-            onStateChanged = { persisted = it },
-        )
-
+    fun a_new_session_never_inherits_previous_unlock_state() {
+        val session = ReportSession()
         session.unlock()
-        val reopened = ReportSession(
-            initiallyUnlocked = persisted,
-            onStateChanged = { persisted = it },
-        )
+        val reopened = ReportSession()
 
-        assertTrue(reopened.isUnlocked)
-        reopened.lock()
-        assertFalse(persisted)
+        assertTrue(session.isUnlocked)
+        assertFalse(reopened.isUnlocked)
     }
 }

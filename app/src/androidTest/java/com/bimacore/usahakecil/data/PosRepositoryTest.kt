@@ -141,4 +141,33 @@ class PosRepositoryTest {
 
         assertEquals(null, database.saleDao().getSale(result.receipt.saleId)?.shiftId)
     }
+
+    @Test
+    fun partial_credit_down_payment_reconciles_as_cash_in_shift() = runTest {
+        repository.seedIfNeeded()
+        val operations = OperationsRepository(database)
+        val customerId = operations.saveParty(null, PartyKind.CUSTOMER, "Pelanggan Test", "", "")
+
+        assertEquals(AddToCartResult.Added, repository.addProduct(101))
+        val result = repository.completeSale(
+            CheckoutRequest(
+                method = PaymentMethod.CREDIT,
+                amountReceived = 5_000,
+                externalPaymentConfirmed = false,
+                customerId = customerId,
+            ),
+        ) as CheckoutResult.Success
+
+        val sale = requireNotNull(database.saleDao().getSale(result.receipt.saleId))
+        val shiftId = requireNotNull(sale.shiftId)
+        val cashEntry = database.operationsDao().getCashEntriesForShift(shiftId)
+            .single { it.referenceId == sale.id }
+        assertEquals("RECEIVABLE_IN", cashEntry.type)
+        assertEquals("CASH", cashEntry.paymentMethod)
+        assertEquals(5_000L, cashEntry.amount)
+
+        val summary = requireNotNull(operations.readOpenShiftSummary())
+        assertEquals(5_000L, summary.otherCashIn)
+        assertEquals(5_000L, summary.expectedCash)
+    }
 }

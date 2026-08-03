@@ -144,6 +144,28 @@ Status: Selesai dan siap diaudit sebagai APK debug `0.4.8`.
 - `app/src/androidTest/java/com/bimacore/usahakecil/MainActivitySmokeTest.kt`
 - `app/src/androidTest/java/com/bimacore/usahakecil/report/ReportDemoTest.kt`
 
+## 2026-08-03 - Audit ulang dan hardening tiga P0 CatatToko
+
+Status: Diimplementasikan dan diverifikasi lintas unit, build, dan connected test dua device MuMu.
+
+### Perubahan
+
+- Memastikan restore membuang `ViewModelStore` sebelum Activity dibuka ulang agar dependency Room tidak menunjuk database lama yang sudah ditutup.
+- Menghapus persistensi status Owner; sesi selalu mulai terkunci, dikunci saat Activity berhenti, dan meminta PIN ulang setelah file picker.
+- Mengubah event restore menjadi one-shot dan menahan URI restore sampai PIN Owner diverifikasi ulang.
+- Memperbaiki rekonsiliasi pembayaran awal piutang: entry `RECEIVABLE_IN` memakai metode `CASH` sehingga kas shift mencatat uang yang benar-benar diterima.
+- Menambahkan regression test sesi Owner dan pembayaran kredit parsial.
+
+### Verifikasi aktual
+
+- Red-green TDD: `ReportSessionTest` gagal pada perilaku lama, lalu lulus setelah fix.
+- Unit test Retail, Wholesale, dan Culinary lulus.
+- `assembleDebug` lulus untuk tiga flavor.
+- AndroidTest APK tiga flavor berhasil dikompilasi.
+- Connected Retail lulus `49/49` pada ASUS portrait dan `49/49` pada ALT landscape.
+- Connected Wholesale dan Culinary masing-masing menjalankan `49` target test per device; `2` test flavor-specific dilewati dan `0` failure.
+- Visual QA manual belum dijalankan pada patch ini.
+
 ---
 
 ## 2026-08-02 - Dashboard laporan dan tren monitoring

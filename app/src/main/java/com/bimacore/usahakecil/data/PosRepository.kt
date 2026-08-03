@@ -666,7 +666,11 @@ class PosRepository(
                             },
                             category = "Penjualan",
                             note = "Penjualan $receiptNumber",
-                            paymentMethod = request.method.name,
+                            paymentMethod = if (request.method == PaymentMethod.CREDIT) {
+                                "CASH"
+                            } else {
+                                request.method.name
+                            },
                             referenceType = "SALE",
                             referenceId = saleId,
                             createdAt = now,
