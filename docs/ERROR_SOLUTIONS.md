@@ -1439,6 +1439,50 @@ Mengubah kontrol Laporan Owner menjadi `Column` dengan tombol lebar penuh dan me
 - `app/src/main/java/com/bimacore/usahakecil/ui/ManagementScreens.kt`
 - `app/src/androidTest/java/com/bimacore/usahakecil/MainActivitySmokeTest.kt`
 
+## ERR-049 - Restore memakai database baru, sesi Owner, dan piutang parsial tidak konsisten
+
+Tanggal: 2026-08-03
+
+Varian dan versi: Semua flavor, branch `codex/report-refresh-button`
+
+### Kondisi/gejala
+
+- Setelah restore, ViewModel Activity masih dapat memegang repository/database lama yang sudah ditutup.
+- Status Owner sebelumnya dapat terbawa lewat preference atau tetap terbuka setelah aplikasi ditinggalkan.
+- Pembayaran awal penjualan kredit tercatat sebagai `paymentMethod = CREDIT`, sehingga tidak masuk rekonsiliasi kas shift walaupun uang tunai benar-benar diterima.
+
+### Root cause
+
+- Restore membuka ulang Room database, tetapi callback sebelumnya hanya memanggil `recreate()` tanpa membuang `ViewModelStore` yang memegang dependency lama.
+- `ReportSession` membaca status aktif dari preference dan `endExternalOwnerFlow()` tidak mengunci sesi.
+- `PosRepository` memakai nama metode pembayaran penjualan (`CREDIT`) untuk cash entry `RECEIVABLE_IN`, sementara rekonsiliasi shift hanya menghitung entry tunai.
+
+### Solusi
+
+- ViewModelStore dibersihkan sebelum Activity dibuat ulang setelah restore.
+- Sesi Owner selalu mulai terkunci, dikunci saat Activity berhenti, dan dikunci kembali setelah alur file eksternal. URI restore yang dipilih disimpan sementara dan baru diperiksa setelah PIN Owner diverifikasi ulang.
+- Cash entry pembayaran awal piutang memakai `paymentMethod = CASH`, tanpa mengubah metode pembayaran pada histori penjualan.
+- Event restore diubah menjadi one-shot `SharedFlow` agar tidak memicu recreate berulang.
+
+### Bukti verifikasi aktual
+
+- Test-first `ReportSessionTest`: baseline gagal pada `owner_session_starts_locked_and_external_flow_locks_on_return`; setelah fix targeted test lulus (`BUILD SUCCESSFUL`).
+- Unit test tiga flavor lulus: `testRetailDebugUnitTest testWholesaleDebugUnitTest testCulinaryDebugUnitTest` (`BUILD SUCCESSFUL`, 84 actionable tasks).
+- `assembleDebug` lulus untuk Retail, Wholesale, dan Culinary.
+- `assembleRetailDebugAndroidTest assembleWholesaleDebugAndroidTest assembleCulinaryDebugAndroidTest` lulus; regression `partial_credit_down_payment_reconciles_as_cash_in_shift` berhasil dikompilasi pada tiga flavor.
+- Connected/smoke test belum dijalankan karena pada verifikasi aktual `adb devices -l` tidak menemukan device.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/MainActivity.kt`
+- `app/src/main/java/com/bimacore/usahakecil/PosApplication.kt`
+- `app/src/main/java/com/bimacore/usahakecil/security/ReportSession.kt`
+- `app/src/main/java/com/bimacore/usahakecil/data/PosRepository.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/HomeScreen.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/OperationsViewModel.kt`
+- `app/src/test/java/com/bimacore/usahakecil/security/ReportSessionTest.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/data/PosRepositoryTest.kt`
+
 ## ERR-048 - Rentang tanggal laporan tampil sebagai karakter asing
 
 Tanggal: 2026-08-02

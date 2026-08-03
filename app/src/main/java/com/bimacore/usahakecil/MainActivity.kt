@@ -44,7 +44,10 @@ class MainActivity : ComponentActivity() {
                     businessType = posApplication.businessType,
                     posViewModel = posViewModel,
                     operationsViewModel = operationsViewModel,
-                    onRecreate = ::recreate,
+                    onRecreate = {
+                        viewModelStore.clear()
+                        recreate()
+                    },
                     showFirstRunGuide = showFirstRunGuide,
                     onFirstRunGuideComplete = {
                         guidePreferences.edit()
@@ -55,5 +58,10 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
+    }
+
+    override fun onStop() {
+        super.onStop()
+        (application as PosApplication).reportSession.lock()
     }
 }

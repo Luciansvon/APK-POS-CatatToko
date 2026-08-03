@@ -544,7 +544,11 @@ class PosRepository(
                             receiptNumber = receiptNumber,
                             businessName = activeBusinessName,
                             createdAt = now,
-                            paymentMethod = request.method.name,
+                            paymentMethod = if (request.method == PaymentMethod.CREDIT) {
+                                "CASH"
+                            } else {
+                                request.method.name
+                            },
                             total = total,
                             amountReceived = amountReceived,
                             changeAmount = MoneyMath.change(total, amountReceived),
