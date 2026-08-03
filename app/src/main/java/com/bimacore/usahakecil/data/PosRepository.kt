@@ -544,11 +544,7 @@ class PosRepository(
                             receiptNumber = receiptNumber,
                             businessName = activeBusinessName,
                             createdAt = now,
-                            paymentMethod = if (request.method == PaymentMethod.CREDIT) {
-                                "CASH"
-                            } else {
-                                request.method.name
-                            },
+                            paymentMethod = request.method.name,
                             total = total,
                             amountReceived = amountReceived,
                             changeAmount = MoneyMath.change(total, amountReceived),
@@ -670,7 +666,11 @@ class PosRepository(
                             },
                             category = "Penjualan",
                             note = "Penjualan $receiptNumber",
-                            paymentMethod = request.method.name,
+                            paymentMethod = if (request.method == PaymentMethod.CREDIT) {
+                                "CASH"
+                            } else {
+                                request.method.name
+                            },
                             referenceType = "SALE",
                             referenceId = saleId,
                             createdAt = now,

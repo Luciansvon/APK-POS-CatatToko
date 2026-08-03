@@ -1470,7 +1470,8 @@ Varian dan versi: Semua flavor, branch `codex/report-refresh-button`
 - Unit test tiga flavor lulus: `testRetailDebugUnitTest testWholesaleDebugUnitTest testCulinaryDebugUnitTest` (`BUILD SUCCESSFUL`, 84 actionable tasks).
 - `assembleDebug` lulus untuk Retail, Wholesale, dan Culinary.
 - `assembleRetailDebugAndroidTest assembleWholesaleDebugAndroidTest assembleCulinaryDebugAndroidTest` lulus; regression `partial_credit_down_payment_reconciles_as_cash_in_shift` berhasil dikompilasi pada tiga flavor.
-- Connected/smoke test belum dijalankan karena pada verifikasi aktual `adb devices -l` tidak menemukan device.
+- Connected Retail lulus `49/49` pada ASUS portrait dan `49/49` pada ALT landscape.
+- Connected Wholesale dan Culinary masing-masing menjalankan `49` target test per device; `2` test flavor-specific dilewati dan `0` failure.
 
 ### File terdampak
 
@@ -1482,6 +1483,8 @@ Varian dan versi: Semua flavor, branch `codex/report-refresh-button`
 - `app/src/main/java/com/bimacore/usahakecil/ui/OperationsViewModel.kt`
 - `app/src/test/java/com/bimacore/usahakecil/security/ReportSessionTest.kt`
 - `app/src/androidTest/java/com/bimacore/usahakecil/data/PosRepositoryTest.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/MainActivitySmokeTest.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/report/ReportDemoTest.kt`
 
 ## ERR-048 - Rentang tanggal laporan tampil sebagai karakter asing
 

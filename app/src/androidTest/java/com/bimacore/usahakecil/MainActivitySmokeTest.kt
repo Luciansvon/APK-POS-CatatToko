@@ -4,8 +4,10 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.click
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.filterToOne
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -275,7 +277,7 @@ class MainActivitySmokeTest {
     fun protected_reports_and_backup_are_reachable() {
         composeRule.onNodeWithText("Laporan").assertDoesNotExist()
         unlockOwner()
-        composeRule.onNodeWithText("Laporan").performClick()
+        clickReportDestination()
         composeRule.onNodeWithText("Omzet hari ini").assertIsDisplayed()
         composeRule.onNodeWithTag("report-period-selector").assertIsDisplayed()
         composeRule.onNodeWithTag("report-refresh").assertIsDisplayed()
@@ -316,7 +318,7 @@ class MainActivitySmokeTest {
         composeRule.waitForIdle()
 
         unlockOwner()
-        composeRule.onNodeWithText("Laporan").performClick()
+        clickReportDestination()
         waitForText("Omzet hari ini")
         composeRule.onNodeWithTag("excel-export").performScrollTo().assertIsDisplayed()
         waitForEnabledTag("excel-export")
@@ -377,7 +379,7 @@ class MainActivitySmokeTest {
         composeRule.onAllNodesWithText("Kas")[0].performClick()
         waitForText("Shift kasir")
 
-        composeRule.onNodeWithText("Laporan").performClick()
+        clickReportDestination()
         waitForText("Omzet hari ini")
         composeRule.onNodeWithTag("report-full-details")
             .performScrollTo()
@@ -413,10 +415,16 @@ class MainActivitySmokeTest {
             composeRule.onAllNodesWithText("Laporan")
                 .fetchSemanticsNodes().isNotEmpty()
         }
-        composeRule.onNodeWithText("Laporan").performClick()
+        clickReportDestination()
         waitForText("Omzet hari ini")
         composeRule.onNodeWithText("Kasir").performClick()
         composeRule.waitForIdle()
+    }
+
+    private fun clickReportDestination() {
+        composeRule.onAllNodesWithText("Laporan")
+            .filterToOne(hasClickAction())
+            .performClick()
     }
 
     private fun dismissFirstRunGuideIfPresent() {
