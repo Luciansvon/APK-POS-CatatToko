@@ -85,6 +85,8 @@ class BackupManager(
         val safetyDir = File(context.cacheDir, BACKUP_DIRECTORY).apply { mkdirs() }
         val safety = File(safetyDir, "sebelum-restore-${clock()}.db")
 
+        val currentSecurity = currentDatabase().securityDao().getReportSecurity()
+
         checkpoint(currentDatabase())
         active.copyTo(safety, overwrite = true)
         closeDatabase()
@@ -100,8 +102,14 @@ class BackupManager(
             require(integrity.equals("ok", ignoreCase = true)) {
                 "Pemeriksaan data hasil pemulihan gagal"
             }
+            if (currentSecurity != null) {
+                reopened.securityDao().saveReportSecurity(currentSecurity)
+            }
             val restoredProfile = requireNotNull(reopened.profileDao().getProfile()) {
                 "Profil usaha pada salinan tidak valid"
+            }
+            require(restoredProfile.businessUid == preview.manifest.businessUid) {
+                "Identitas usaha pada salinan tidak sesuai dengan keterangan"
             }
             if (profile != null) {
                 require(restoredProfile.businessType == profile.businessType) {
@@ -219,6 +227,8 @@ class BackupManager(
     )
 
     companion object {
+        const val SENSITIVITY_WARNING = "Salinan data berisi informasi usaha, transaksi, pelanggan, dan pekerja. Bagikan hanya kepada pihak yang dipercaya."
+        
         private const val DEFAULT_DATABASE_NAME = "usaha-kecil-pos.db"
         private const val DATABASE_SCHEMA_VERSION = 4
         private const val BACKUP_DIRECTORY = "backups"

@@ -187,6 +187,14 @@ class PosViewModel(
         }
     }
 
+    fun incrementQuantity(lineId: String, delta: Int) {
+        viewModelScope.launch {
+            if (!repository.incrementQuantity(lineId, delta)) {
+                showMessage("Stok tidak cukup")
+            }
+        }
+    }
+
     fun showCart() {
         _screen.value = PosScreen.CART
     }

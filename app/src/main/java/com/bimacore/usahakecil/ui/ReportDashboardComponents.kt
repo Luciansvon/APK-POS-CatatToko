@@ -503,7 +503,7 @@ private fun ReportProductSettingsMenu(
 ) {
     var expanded by remember { mutableStateOf(false) }
     val displayedMeasure = if (selectedProduct == ProductOption.All) ReportProductMeasure.SALES else measure
-    val productOptions = listOf<ProductOption>(ProductOption.All) + products.take(5).map {
+    val productOptions = listOf<ProductOption>(ProductOption.All) + products.map {
         ProductOption.Specific(it.productId, it.productName)
     }
     Box {

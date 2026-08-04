@@ -36,7 +36,13 @@ fun SalesForecastSection(
     report: ProductForecastReport?,
     isLoading: Boolean,
     error: String?,
+    onLoadForecast: (() -> Unit)? = null,
 ) {
+    if (report == null && !isLoading && error == null && onLoadForecast != null) {
+        androidx.compose.runtime.LaunchedEffect(Unit) {
+            onLoadForecast()
+        }
+    }
     SectionTitle("Perkiraan penjualan")
     Text(
         "Perkiraan 7 hari dari histori penjualan di HP ini. Hasilnya membantu rencana stok, bukan janji penjualan.",

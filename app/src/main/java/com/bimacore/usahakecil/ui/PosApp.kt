@@ -199,6 +199,7 @@ fun PosApp(
                         ownerUnlocked = ownerUnlocked,
                         onOwnerAccess = onOwnerAccess,
                         onQuantityChange = viewModel::setQuantity,
+                        onIncrementQuantity = viewModel::incrementQuantity,
                         onContinue = viewModel::showPayment,
                         onCustomize = if (viewModel.supportsCulinaryCustomization) {
                             viewModel::customize

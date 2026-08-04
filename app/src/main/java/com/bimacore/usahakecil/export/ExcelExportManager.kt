@@ -249,7 +249,7 @@ class ExcelExportManager(
                    COALESCE(SUM(subtotal), 0), COUNT(DISTINCT saleId)
             FROM sale_items INNER JOIN sales s ON s.id = sale_items.saleId
             WHERE ${range.where("s.createdAt")}
-            GROUP BY productName, variantName, categoryName, unitLabel
+            GROUP BY productId, variantId, categoryName, unitLabel
             ORDER BY SUM(subtotal) DESC, productName
             """.trimIndent(),
         ).mapIndexed { index, row ->

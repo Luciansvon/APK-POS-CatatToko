@@ -104,6 +104,17 @@ class PosRepository(
         val toppingMap = pricing.toppings.associateBy { it.id }
         val cartToppingsByLine = pricing.cartToppings.groupBy { it.lineId }
         val tiersByProduct = pricing.tiers.groupBy { it.productId }
+
+        val combinedBaseQuantities = mutableMapOf<Pair<Long, Long?>, Int>()
+        cart.lines.forEach { line ->
+            val parsed = parseLineId(line.id)
+            val unit = parsed.unitId?.let(unitMap::get)
+            val factor = unit?.factorToBase ?: 1
+            val baseQuantity = InventoryRules.toBaseQuantity(line.quantity, factor)
+            val key = Pair(line.productId, line.variantId)
+            combinedBaseQuantities[key] = (combinedBaseQuantities[key] ?: 0) + baseQuantity
+        }
+
         CatalogSnapshot(
             categories = catalog.categories.filter { it.isActive }.map {
                 Category(it.id, it.name, it.iconKey)
@@ -118,10 +129,11 @@ class PosRepository(
                 val unit = parsed.unitId?.let(unitMap::get)
                 val factor = unit?.factorToBase ?: 1
                 val baseQuantity = InventoryRules.toBaseQuantity(line.quantity, factor)
+                val combinedBaseQuantity = combinedBaseQuantities[Pair(product.id, variant?.id)] ?: baseQuantity
                 val basePrice = variant?.priceOverride ?: product.basePrice
                 val applicableTier = tiersByProduct[product.id]
                     .orEmpty()
-                    .filter { baseQuantity >= it.minimumBaseQuantity }
+                    .filter { combinedBaseQuantity >= it.minimumBaseQuantity }
                     .maxByOrNull { it.minimumBaseQuantity }
                 val selectedUnitPrice = if (applicableTier != null) {
                     MoneyMath.multiply(applicableTier.unitPrice, factor)
@@ -330,6 +342,13 @@ class PosRepository(
         true
     }
 
+    suspend fun incrementQuantity(lineId: String, delta: Int): Boolean = database.withTransaction {
+        if (cartDao.getDraft()?.completedSaleId != null) return@withTransaction false
+        val line = cartDao.getLine(lineId) ?: return@withTransaction false
+        val targetQuantity = line.quantity + delta
+        setQuantity(lineId, targetQuantity)
+    }
+
     suspend fun completeSale(request: CheckoutRequest): CheckoutResult =
         checkoutMutex.withLock {
             try {
@@ -343,6 +362,16 @@ class PosRepository(
 
                     val lines = cartDao.getLines()
                     require(lines.isNotEmpty()) { "Keranjang masih kosong" }
+
+                    val combinedBaseQuantities = mutableMapOf<Pair<Long, Long?>, Int>()
+                    for (line in lines) {
+                        val parsed = parseLineId(line.id)
+                        val unit = parsed.unitId?.let { inventoryDao.getUnit(it) }
+                        val factor = unit?.factorToBase ?: 1
+                        val baseQuantity = InventoryRules.toBaseQuantity(line.quantity, factor)
+                        val key = Pair(line.productId, line.variantId)
+                        combinedBaseQuantities[key] = (combinedBaseQuantities[key] ?: 0) + baseQuantity
+                    }
 
                     val snapshots = lines.map { line ->
                         val product = requireNotNull(catalogDao.getProduct(line.productId)) {
@@ -371,6 +400,7 @@ class PosRepository(
                         }
                         val factor = unit?.factorToBase ?: 1
                         val baseQuantity = InventoryRules.toBaseQuantity(line.quantity, factor)
+                        val combinedBaseQuantity = combinedBaseQuantities[Pair(product.id, variant?.id)] ?: baseQuantity
                         val available = when {
                             variant != null -> variant.stock
                             product.stockTrackingEnabled -> product.stock
@@ -383,7 +413,7 @@ class PosRepository(
                         val basePrice = variant?.priceOverride ?: product.basePrice
                         val applicableTier = if (businessType == BusinessType.WHOLESALE) {
                             inventoryDao.getPriceTiers(product.id)
-                                .filter { baseQuantity >= it.minimumBaseQuantity }
+                                .filter { combinedBaseQuantity >= it.minimumBaseQuantity }
                                 .maxByOrNull { it.minimumBaseQuantity }
                         } else {
                             null

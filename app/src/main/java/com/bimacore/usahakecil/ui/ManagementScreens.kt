@@ -1067,6 +1067,7 @@ fun ReportsScreen(viewModel: OperationsViewModel) {
                         report = forecastReport,
                         isLoading = forecastLoading,
                         error = forecastError,
+                        onLoadForecast = viewModel::loadProductForecasts,
                     )
                     OwnerEmptyState(
                         title = "Laba belum dihitung",
@@ -1091,6 +1092,7 @@ fun MoreScreen(
     val preview by viewModel.backupPreview.collectAsState()
     var showProfile by remember { mutableStateOf(false) }
     var showChangePin by remember { mutableStateOf(false) }
+    var showShareBackup by remember { mutableStateOf(false) }
     val openBackup = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
     ) { uri ->
@@ -1141,18 +1143,7 @@ fun MoreScreen(
             }
             if (backupUri != null) {
                 OutlinedButton(
-                    onClick = {
-                        context.startActivity(
-                            Intent.createChooser(
-                                Intent(Intent.ACTION_SEND).apply {
-                                    type = "application/zip"
-                                    putExtra(Intent.EXTRA_STREAM, backupUri)
-                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                },
-                                "Bagikan salinan keluar HP",
-                            ),
-                        )
-                    },
+                    onClick = { showShareBackup = true },
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                 ) {
                     Icon(Icons.Outlined.Share, contentDescription = null)
@@ -1232,6 +1223,7 @@ fun MoreScreen(
                     Text("Jenis: ${item.manifest.businessType}")
                     Text("Dibuat: ${formatDate(item.manifest.createdAt)}")
                     Text("Data aktif akan diamankan dulu sebelum diganti.")
+                    Text("PIN Owner saat ini akan tetap berlaku setelah pemulihan.")
                 }
             },
             confirmButton = {
@@ -1240,6 +1232,32 @@ fun MoreScreen(
             dismissButton = {
                 TextButton(onClick = viewModel::cancelRestore) { Text("Batal") }
             },
+        )
+    }
+
+    if (showShareBackup) {
+        AlertDialog(
+            onDismissRequest = { showShareBackup = false },
+            title = { Text("Peringatan Privasi") },
+            text = { Text(com.bimacore.usahakecil.backup.BackupManager.SENSITIVITY_WARNING) },
+            confirmButton = {
+                Button(onClick = {
+                    showShareBackup = false
+                    context.startActivity(
+                        Intent.createChooser(
+                            Intent(Intent.ACTION_SEND).apply {
+                                type = "application/zip"
+                                putExtra(Intent.EXTRA_STREAM, backupUri)
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            },
+                            "Bagikan salinan keluar HP",
+                        ),
+                    )
+                }) { Text("Lanjutkan") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showShareBackup = false }) { Text("Batal") }
+            }
         )
     }
 }

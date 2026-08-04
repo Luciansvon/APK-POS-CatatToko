@@ -20,6 +20,45 @@ dist/debug/CatatToko-Grosir.apk
 dist/debug/CatatToko-Kuliner.apk
 ```
 
+## Versi 0.4.9 - 2026-08-04
+
+Status: Siap dibagikan sebagai APK debug
+
+### Kenapa versi ini dibuat
+
+- Hasil audit menyeluruh CatatToko (AUDIT_CATATTOKO_2026-08-03.md) menemukan masalah prioritas P0-P2 pada pemulihan salinan data (PIN Owner dapat terganti), tier grosir lintas satuan, responsivitas laporan, varian produk pada grafik/rekap, serta format ekspor Excel.
+
+### Perubahan
+
+- **Perbaikan Keamanan & Pemulihan (CT-P0-01, CT-P1-07, CT-P1-06)**:
+  - Restore backup kini mempertahankan PIN Owner yang sedang aktif agar pemilik tidak terkunci jika file backup berisi PIN lama.
+  - Menambahkan validasi `businessUid` manifest vs profil hasil restore.
+  - Menambahkan peringatan privasi sebelum membagikan file salinan data.
+- **Perbaikan Tier Grosir (CT-P1-05)**:
+  - Mengagregasi total `baseQuantity` per `(productId, variantId)` dari seluruh baris keranjang sebelum menentukan harga tier grosir.
+- **Perbaikan Laporan & ViewModel (CT-P1-04, CT-P1-01, CT-P1-02, CT-P1-03, CT-P2-04)**:
+  - Menangani reload laporan via `executeReport` berbasis `Job` agar pergantian filter/periode tidak ter-drop secara diam-diam.
+  - Memisahkan dan menampilkan varian produk (`variantId` & `variantName`) pada grafik dan rekap tren laporan. Filter `orderStatus` diterapkan untuk membuang transaksi batal.
+  - Menghapus batas `products.take(5)` sehingga semua produk dan varian dapat dicari dan dipilih.
+  - Pemuatan perkiraan stok (forecast) dipindahkan menjadi *lazy loading*.
+  - Menambahkan `formatCompactRupiah()` untuk format label angka grafik singkat ("84 rb", "1,5 jt").
+- **Keandalan & Format Excel (CT-P2-10, CT-P2-11, CT-P2-12, CT-P2-06, CT-P2-08)**:
+  - Perubahan kuantitas keranjang (`+` / `-`) menggunakan transaksi atomik `incrementQuantity`.
+  - Menambahkan formatter bahasa Indonesia untuk status absensi, skema pekerja, status pesanan, jenis pergerakan stok, dan arus kas.
+  - Memblokir pencatatan kehadiran atau pekerjaan panggilan baru untuk pekerja nonaktif.
+  - Sel numerik Excel (Rupiah & Qty) diekspor sebagai nilai angka `<v>` agar dapat dihitung `SUM` di spreadsheet.
+  - Rekap produk Excel dikelompokkan berdasarkan `productId, variantId`.
+- **Maintainability & Test (Tahap 3)**:
+  - Memperbarui teks onboarding agar sesuai dengan perilaku keamanan (aplikasi selalu mulai dalam Mode Kasir).
+  - Menambahkan test migrasi database `2->4` dan `3->4`.
+  - Menambahkan test varian produk & >5 produk pada `ReportTrendRepositoryTest`.
+- Menaikkan `versionCode` ke `18` dan `versionName` ke `0.4.9`.
+
+### Bukti pengujian
+
+- Unit test lulus pada seluruh flavor (`testRetailDebugUnitTest`, `testWholesaleDebugUnitTest`, `testCulinaryDebugUnitTest`).
+- Build `assembleDebug` sukses tanpa error.
+
 ## Versi 0.4.8 - 2026-08-02
 
 Status: Siap dibagikan sebagai APK debug
