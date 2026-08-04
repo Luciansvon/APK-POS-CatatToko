@@ -123,6 +123,105 @@ class BackupRestoreTest {
         assertEquals("Usaha Awal", database.profileDao().getProfile()?.businessName)
     }
 
+    @Test
+    fun restore_preserves_current_owner_PIN() = runBlocking {
+        database.profileDao().saveProfile(
+            BusinessProfileEntity(
+                businessUid = "test-business",
+                businessName = "Usaha Awal",
+                businessType = "RETAIL",
+                createdAt = 1,
+                updatedAt = 1,
+            ),
+        )
+        database.securityDao().saveReportSecurity(
+            com.bimacore.usahakecil.data.ReportSecurityEntity(
+                pinHash = "hash-A",
+                salt = "salt-A",
+                updatedAt = 1,
+            )
+        )
+        val manager = BackupManager(
+            context = context,
+            currentDatabase = { database },
+            closeDatabase = { database.close() },
+            reopenDatabase = { openDatabase().also { database = it } },
+            clock = { 100L },
+            databaseName = databaseName,
+        )
+        val backupUri = manager.createBackup()
+        val preview = manager.preview(backupUri)
+
+        database.securityDao().saveReportSecurity(
+            com.bimacore.usahakecil.data.ReportSecurityEntity(
+                pinHash = "hash-B",
+                salt = "salt-B",
+                updatedAt = 2,
+            )
+        )
+
+        manager.restore(preview)
+
+        val security = database.securityDao().getReportSecurity()
+        assertEquals("hash-B", security?.pinHash)
+        assertEquals("salt-B", security?.salt)
+    }
+
+    @Test
+    fun restore_validates_manifest_identity_matches_database() = runBlocking {
+        database.profileDao().saveProfile(
+            BusinessProfileEntity(
+                businessUid = "business-B",
+                businessName = "Usaha B",
+                businessType = "RETAIL",
+                createdAt = 1,
+                updatedAt = 1,
+            ),
+        )
+        val manager = BackupManager(
+            context = context,
+            currentDatabase = { database },
+            closeDatabase = { database.close() },
+            reopenDatabase = { openDatabase().also { database = it } },
+            clock = { 100L },
+            databaseName = databaseName,
+        )
+        manager.createBackup()
+
+        val source = context.getDatabasePath(databaseName)
+        val bytes = source.readBytes()
+        val tamperedManifest = BackupManifest.create(
+            schemaVersion = 4,
+            businessUid = "business-A",
+            businessName = "Usaha A",
+            businessType = "RETAIL",
+            createdAt = 100L,
+            databaseBytes = bytes,
+        )
+
+        val directory = java.io.File(context.cacheDir, "backups").apply { mkdirs() }
+        val output = java.io.File(directory, "tampered.ukbackup")
+        java.util.zip.ZipOutputStream(java.io.FileOutputStream(output)).use { zip ->
+            zip.putNextEntry(java.util.zip.ZipEntry("manifest.txt"))
+            zip.write(tamperedManifest.serialize().toByteArray(Charsets.UTF_8))
+            zip.closeEntry()
+            zip.putNextEntry(java.util.zip.ZipEntry("database.db"))
+            zip.write(bytes)
+            zip.closeEntry()
+        }
+
+        val tamperedUri = androidx.core.content.FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            output,
+        )
+        val preview = manager.preview(tamperedUri)
+
+        val result = runCatching { manager.restore(preview) }
+        assertTrue(result.isFailure)
+        assertEquals("Identitas usaha pada salinan tidak sesuai dengan keterangan", result.exceptionOrNull()?.message)
+    }
+
     private fun openDatabase(): PosDatabase =
         Room.databaseBuilder(context, PosDatabase::class.java, databaseName)
             .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)

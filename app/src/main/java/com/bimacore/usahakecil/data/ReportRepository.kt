@@ -168,9 +168,10 @@ class ReportRepository(
             }
         }
 
-        val productsById = productRows.groupBy { it.productId }
-        val productTrends = productsById.map { (productId, rows) ->
+        val productsByKey = productRows.groupBy { Pair(it.productId, it.variantId) }
+        val productTrends = productsByKey.map { (key, rows) ->
             val first = rows.first()
+            val (productId, variantId) = key
             val productAccumulators = buckets.associate { it.start to TrendAccumulator() }
             rows.forEach { row ->
                 findTrendBucket(buckets, row.createdAt)?.let { bucket ->
@@ -182,9 +183,16 @@ class ReportRepository(
                     )
                 }
             }
+            val displayName = if (first.variantName.isNullOrBlank()) {
+                first.productName
+            } else {
+                "${first.productName} (${first.variantName})"
+            }
             ReportProductTrend(
                 productId = productId,
-                productName = first.productName,
+                productName = displayName,
+                variantId = variantId,
+                variantName = first.variantName,
                 unitLabel = first.unitLabel,
                 points = buckets.map { bucket ->
                     productAccumulators.getValue(bucket.start).toPoint(bucket.start)

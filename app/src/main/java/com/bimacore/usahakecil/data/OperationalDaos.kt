@@ -306,6 +306,8 @@ data class SalesTrendRow(
 data class ProductTrendRow(
     val productId: Long,
     val productName: String,
+    val variantId: Long? = null,
+    val variantName: String? = null,
     val unitLabel: String,
     val quantity: Int,
     val baseQuantity: Int,
@@ -381,7 +383,6 @@ interface ReportDao {
         FROM cash_entries
         WHERE createdAt BETWEEN :fromInclusive AND :toInclusive
         GROUP BY type
-        ORDER BY type
         """,
     )
     suspend fun cashSummary(
@@ -394,6 +395,7 @@ interface ReportDao {
         SELECT createdAt, total
         FROM sales
         WHERE createdAt BETWEEN :fromInclusive AND :toInclusive
+          AND orderStatus IN ('COMPLETED', 'NEW', 'PROCESSING', 'READY')
         ORDER BY createdAt, id
         """,
     )
@@ -406,6 +408,8 @@ interface ReportDao {
         """
         SELECT sale_items.productId AS productId,
                sale_items.productName AS productName,
+               sale_items.variantId AS variantId,
+               sale_items.variantName AS variantName,
                sale_items.unitLabel AS unitLabel,
                sale_items.quantity AS quantity,
                sale_items.baseQuantity AS baseQuantity,
@@ -414,6 +418,7 @@ interface ReportDao {
         FROM sale_items
         INNER JOIN sales ON sales.id = sale_items.saleId
         WHERE sales.createdAt BETWEEN :fromInclusive AND :toInclusive
+          AND sales.orderStatus IN ('COMPLETED', 'NEW', 'PROCESSING', 'READY')
         ORDER BY sales.createdAt, sale_items.id
         """,
     )

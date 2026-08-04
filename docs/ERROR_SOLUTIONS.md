@@ -24,6 +24,81 @@ Source aplikasi sudah dibuat. Entri di bawah mencatat error build dan pengujian 
 - Jika pengujian perangkat fisik belum dilakukan, nyatakan batas verifikasinya.
 - Jangan menghapus entri lama. Perbarui status atau tambahkan entri lanjutan.
 
+## ERR-052 - Perbaikan temuan audit CatatToko v0.4.8 (P0-P2)
+
+Tanggal: 2026-08-04
+
+Varian dan versi: Semua varian (Retail, Wholesale, Culinary); Versi 0.4.9 (code 18)
+
+### Kondisi/gejala
+
+Audit menemukan beberapa masalah kritis dan UX:
+1. **CT-P0-01 (Restore PIN)**: Restore backup lama menggantikan seluruh database termasuk `report_security`, menyebabkan Owner terkunci dari aplikasinya sendiri jika PIN backup berbeda dari PIN aktif.
+2. **CT-P1-07 (Validasi Manifest)**: `BackupManager` tidak mencocokkan `businessUid` manifest dengan profil hasil restore.
+3. **CT-P1-05 (Tier Grosir Lintas Satuan)**: Perhitungan tier grosir dihitung dari `baseQuantity` per baris keranjang secara terpisah, bukan total agregat per produk.
+4. **CT-P1-04 (ViewModel Busy Flag)**: Flag `_busy` global memblokir reload laporan secara diam-diam saat ada aksi lain yang aktif.
+5. **CT-P1-03 (Varian Laporan)**: Rekap produk terjual tidak memperhitungkan varian dan tidak membuang transaksi batal.
+6. **CT-P1-02 (Pembatasan 5 Produk)**: Dropdown produk laporan membatasi pilihan hanya 5 produk.
+7. **CT-P2-10 (Tap Kuantitas Atomik)**: Perubahan jumlah barang `+`/`-` di keranjang tidak atomik pada level database.
+8. **CT-P2-06 (Excel Typed Cells)**: Nilai Rupiah dan Qty di Excel diekspor sebagai string teks (`t="inlineStr"`), sehingga tidak dapat dihitung `SUM` di spreadsheet.
+
+### Root cause
+
+- `BackupManager.kt`: Mengoverwrite tabel `report_security` tanpa menyimpan record PIN aktif terlebih dahulu.
+- `PosRepository.kt`: Menggunakan `baseQuantity` per baris keranjang untuk menentukan `applicableTier`, bukan menjumlahkan `baseQuantity` semua baris produk tersebut.
+- `OperationsViewModel.kt`: Menggunakan satu flag boolean `_busy` untuk seluruh coroutine ViewModel.
+- `OperationalDaos.kt` & `ReportRepository.kt`: Query `productTrendRows` tidak menyertakan `variantId` & `variantName`, dan `ReportProductSettingsMenu` memanggil `products.take(5)`.
+- `ExcelWorkbookExporter.kt`: Sel data selalu menggunakan atribut `t="inlineStr"`.
+
+### Solusi
+
+- **Backup Safety**: `BackupManager` menyimpan `report_security` aktif sebelum database ditutup dan menulisnya kembali ke database hasil restore setelah integrity check. `businessUid` manifest dicocokkan dengan profil restore.
+- **Tier Grosir**: `PosRepository` mengagregasi total `baseQuantity` per `(productId, variantId)` dari seluruh baris keranjang sebelum menentukan tier grosir.
+- **ViewModel Laporan**: Memisahkan pemuatan laporan menggunakan `executeReport` berbasis `Job` (cancel-and-reload pattern).
+- **Varian & Produk Laporan**: `ProductTrendRow` dan `ReportProductTrend` menyertakan `variantId` & `variantName`. Query `productTrendRows` memfilter `orderStatus IN ('COMPLETED', 'NEW', 'PROCESSING', 'READY')`. `ReportDashboardComponents` menghapus `products.take(5)`. Forecast produk dipindahkan ke `loadProductForecasts()` (*lazy loading*).
+- **Tap Atomik**: Menambahkan `PosRepository.incrementQuantity()` yang berjalan di dalam transaksi Room.
+- **Excel Typed Cells**: Sel numerik pada `ExcelWorkbookExporter.kt` ditulis sebagai `<v>$value</v>` jika bernilai angka. `ExcelExportManager.kt` mengelompokkan rekap produk berdasarkan `productId, variantId`.
+- **Maintainability & Documentation**: Memperbarui teks onboarding `FirstRunGuide.kt`, menambahkan test migrasi database `2->4` & `3->4` pada `DatabaseMigrationTest.kt`, serta menambahkan test varian pada `ReportTrendRepositoryTest.kt`.
+
+### Perlindungan regresi
+
+- `BackupRestoreTest`: `restore_preserves_current_owner_PIN`, `restore_validates_manifest_identity_matches_database`.
+- `PosRepositoryTest`: `wholesale_tier_uses_combined_quantity_across_units`.
+- `DatabaseMigrationTest`: `migration_2_4_validates_schema`, `migration_3_4_validates_schema`.
+- `ReportTrendRepositoryTest`: `trend_groups_by_variant_and_supports_more_than_5_products`.
+- `FormattersTest`: `compact_rupiah_keeps_currency_context_for_chart_values`.
+
+### Bukti verifikasi aktual
+
+- Unit test: Lulus pada ketiga flavor (`testRetailDebugUnitTest`, `testWholesaleDebugUnitTest`, `testCulinaryDebugUnitTest`).
+- Build: `assembleDebug` sukses membangun APK 0.4.9 (code 18) untuk ketiga flavor.
+- Packaging: `scripts/package-apks.ps1` menyalin APK ke `dist/debug/`.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/backup/BackupManager.kt`
+- `app/src/main/java/com/bimacore/usahakecil/data/PosRepository.kt`
+- `app/src/main/java/com/bimacore/usahakecil/data/OperationalDaos.kt`
+- `app/src/main/java/com/bimacore/usahakecil/data/ReportRepository.kt`
+- `app/src/main/java/com/bimacore/usahakecil/data/ReportTrend.kt`
+- `app/src/main/java/com/bimacore/usahakecil/data/WorkforceRepository.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/OperationsViewModel.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/PosViewModel.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/CartScreen.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/PosApp.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/Formatters.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/ReportDashboardComponents.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/ManagementScreens.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/ForecastScreen.kt`
+- `app/src/main/java/com/bimacore/usahakecil/FirstRunGuide.kt`
+- `app/src/main/java/com/bimacore/usahakecil/export/ExcelWorkbookExporter.kt`
+- `app/src/main/java/com/bimacore/usahakecil/export/ExcelExportManager.kt`
+- `app/src/test/java/com/bimacore/usahakecil/ui/FormattersTest.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/backup/BackupRestoreTest.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/data/PosRepositoryTest.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/data/DatabaseMigrationTest.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/data/ReportTrendRepositoryTest.kt`
+
 ## ERR-051 - Sesi Owner kembali ke Mode Kasir setelah APK dibuka ulang
 
 Tanggal: 2026-08-02

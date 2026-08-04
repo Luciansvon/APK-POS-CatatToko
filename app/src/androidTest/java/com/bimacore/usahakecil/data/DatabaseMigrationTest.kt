@@ -90,6 +90,31 @@ class DatabaseMigrationTest {
         migrated.close()
     }
 
+    @Test
+    fun migration_2_4_validates_schema() {
+        helper.createDatabase("migration-2-4-test", 2).close()
+        val migrated = helper.runMigrationsAndValidate(
+            "migration-2-4-test",
+            4,
+            true,
+            MIGRATION_2_3,
+            MIGRATION_3_4,
+        )
+        migrated.close()
+    }
+
+    @Test
+    fun migration_3_4_validates_schema() {
+        helper.createDatabase("migration-3-4-test", 3).close()
+        val migrated = helper.runMigrationsAndValidate(
+            "migration-3-4-test",
+            4,
+            true,
+            MIGRATION_3_4,
+        )
+        migrated.close()
+    }
+
     companion object {
         private const val TEST_DATABASE = "migration-1-4-test"
     }

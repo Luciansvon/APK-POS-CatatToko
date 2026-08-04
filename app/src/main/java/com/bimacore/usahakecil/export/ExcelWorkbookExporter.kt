@@ -139,7 +139,14 @@ object ExcelWorkbookExporter {
                     rowIndex in sheet.headerRows -> " s=\"1\""
                     else -> ""
                 }
-                append("<c r=\"$cellReference\"$style t=\"inlineStr\"><is><t xml:space=\"preserve\">${xml(value)}</t></is></c>")
+                val isDataRow = rowIndex !in sheet.titleRows && rowIndex !in sheet.subtitleRows && rowIndex !in sheet.headerRows
+                val longVal = if (isDataRow && !value.startsWith("0") || value == "0") value.toLongOrNull() else null
+                val doubleVal = if (isDataRow && longVal == null && (!value.startsWith("0") || value == "0")) value.toDoubleOrNull() else null
+                when {
+                    longVal != null -> append("<c r=\"$cellReference\"$style><v>$longVal</v></c>")
+                    doubleVal != null -> append("<c r=\"$cellReference\"$style><v>$doubleVal</v></c>")
+                    else -> append("<c r=\"$cellReference\"$style t=\"inlineStr\"><is><t xml:space=\"preserve\">${xml(value)}</t></is></c>")
+                }
             }
             append("</row>")
         }

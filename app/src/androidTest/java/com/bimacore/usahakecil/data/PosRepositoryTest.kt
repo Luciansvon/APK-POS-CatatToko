@@ -170,4 +170,76 @@ class PosRepositoryTest {
         assertEquals(5_000L, summary.otherCashIn)
         assertEquals(5_000L, summary.expectedCash)
     }
+
+    @Test
+    fun wholesale_tier_uses_combined_quantity_across_units() = runTest {
+        val wholesaleRepo = PosRepository(
+            database = database,
+            businessType = BusinessType.WHOLESALE,
+            businessName = "Wholesale Test",
+            clock = { 1_700_000_000_000L },
+        )
+        wholesaleRepo.seedIfNeeded()
+        
+        val productId = 999L
+        database.catalogDao().insertProduct(
+            ProductEntity(
+                id = productId,
+                categoryId = 1,
+                name = "Kopi",
+                basePrice = 1000,
+                stock = 100,
+                stockTrackingEnabled = false,
+                hasVariants = false,
+                lowStockThreshold = 5,
+                imageUri = null,
+                sortOrder = 1,
+                unitLabel = "pcs",
+            )
+        )
+        
+        val unitId = database.inventoryAdminDao().insertUnit(
+            UnitConversionEntity(
+                productId = productId,
+                label = "dus",
+                factorToBase = 12,
+                salePrice = 12000,
+                createdAt = 0L,
+                updatedAt = 0L,
+            )
+        )
+        
+        database.inventoryAdminDao().insertPriceTier(
+            PriceTierEntity(
+                productId = productId,
+                minimumBaseQuantity = 24,
+                unitPrice = 900,
+                createdAt = 0L,
+                updatedAt = 0L,
+            )
+        )
+        
+        assertEquals(AddToCartResult.Added, wholesaleRepo.addProduct(productId, unitId = unitId))
+        assertEquals(AddToCartResult.Added, wholesaleRepo.addProduct(productId, unitId = null))
+        
+        val initialItems = wholesaleRepo.snapshot.first().cartItems
+        val pcsLine = initialItems.find { it.unitLabel == "pcs" }!!
+        wholesaleRepo.setQuantity(pcsLine.lineId, 12)
+        
+        val items = wholesaleRepo.snapshot.first().cartItems
+        assertEquals(2, items.size)
+        
+        val pcsItem = items.find { it.unitLabel == "pcs" }!!
+        val dusItem = items.find { it.unitLabel == "dus" }!!
+        
+        assertEquals(900L, pcsItem.unitPrice)
+        assertEquals(10800L, dusItem.unitPrice)
+        
+        val result = wholesaleRepo.completeSale(
+            CheckoutRequest(PaymentMethod.CASH, 21600, false)
+        )
+        assertTrue(result is CheckoutResult.Success)
+        val receipt = (result as CheckoutResult.Success).receipt
+        assertEquals(21600L, receipt.total)
+    }
 }

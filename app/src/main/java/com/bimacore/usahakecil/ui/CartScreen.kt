@@ -56,6 +56,7 @@ fun CartScreen(
     onQuantityChange: (String, Int) -> Unit,
     onContinue: () -> Unit,
     onCustomize: ((CartItem) -> Unit)? = null,
+    onIncrementQuantity: ((String, Int) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val total = items.sumOf { it.subtotal }
@@ -99,6 +100,9 @@ fun CartScreen(
                         onQuantityChange = { quantity ->
                             onQuantityChange(item.lineId, quantity)
                         },
+                        onIncrementQuantity = if (onIncrementQuantity != null) {
+                            { delta -> onIncrementQuantity(item.lineId, delta) }
+                        } else null,
                     )
                 }
             }
@@ -111,6 +115,7 @@ private fun CartLineCard(
     item: CartItem,
     onCustomize: ((CartItem) -> Unit)?,
     onQuantityChange: (Int) -> Unit,
+    onIncrementQuantity: ((Int) -> Unit)? = null,
 ) {
     Card(
         shape = RoundedCornerShape(14.dp),
@@ -200,7 +205,13 @@ private fun CartLineCard(
                 }
                 Spacer(Modifier.weight(1f))
                 FilledTonalIconButton(
-                    onClick = { onQuantityChange(item.quantity - 1) },
+                    onClick = {
+                        if (onIncrementQuantity != null) {
+                            onIncrementQuantity(-1)
+                        } else {
+                            onQuantityChange(item.quantity - 1)
+                        }
+                    },
                     modifier = Modifier.size(36.dp),
                 ) {
                     Icon(
@@ -220,7 +231,13 @@ private fun CartLineCard(
                     fontWeight = FontWeight.Bold,
                 )
                 FilledTonalIconButton(
-                    onClick = { onQuantityChange(item.quantity + 1) },
+                    onClick = {
+                        if (onIncrementQuantity != null) {
+                            onIncrementQuantity(1)
+                        } else {
+                            onQuantityChange(item.quantity + 1)
+                        }
+                    },
                     enabled = item.availableStock == null || item.quantity < item.availableStock,
                     modifier = Modifier.size(36.dp),
                 ) {

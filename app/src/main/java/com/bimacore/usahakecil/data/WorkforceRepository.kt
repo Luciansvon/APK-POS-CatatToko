@@ -123,6 +123,7 @@ class WorkforceRepository(
         val employee = requireNotNull(workforceDao.getEmployee(employeeId)) {
             "Pekerja tidak tersedia"
         }
+        require(employee.isActive) { "Pekerja nonaktif tidak dapat dicatat kehadirannya" }
         require(employee.scheme == WorkerScheme.DAILY.name) {
             "Kehadiran hanya untuk pekerja harian"
         }
@@ -204,6 +205,7 @@ class WorkforceRepository(
         val employee = requireNotNull(workforceDao.getEmployee(employeeId)) {
             "Pekerja tidak tersedia"
         }
+        require(employee.isActive) { "Pekerja nonaktif tidak dapat diberi pekerjaan baru" }
         require(employee.scheme == WorkerScheme.FREELANCE.name) {
             "Pekerjaan panggilan hanya untuk pekerja panggilan"
         }

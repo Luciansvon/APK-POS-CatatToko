@@ -38,6 +38,8 @@ data class ReportTrendPoint(
 data class ReportProductTrend(
     val productId: Long,
     val productName: String,
+    val variantId: Long? = null,
+    val variantName: String? = null,
     val unitLabel: String,
     val points: List<ReportTrendPoint>,
 )

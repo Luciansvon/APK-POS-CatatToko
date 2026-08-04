@@ -50,4 +50,48 @@ class ReportTrendRepositoryTest {
         })
         assertTrue(trend.products.isEmpty())
     }
+
+    @Test
+    fun trend_groups_by_variant_and_supports_more_than_5_products() = runBlocking {
+        val now = 1_754_147_100_000L
+        val saleId = database.operationalDao().insertSale(
+            SaleEntity(
+                businessType = "RETAIL",
+                total = 60_000,
+                cashReceived = 60_000,
+                changeAmount = 0,
+                paymentMethod = "CASH",
+                orderStatus = "COMPLETED",
+                createdAt = now,
+                updatedAt = now,
+            ),
+        )
+        for (i in 1..6) {
+            database.operationalDao().insertSaleItem(
+                SaleItemEntity(
+                    saleId = saleId,
+                    productId = i.toLong(),
+                    variantId = if (i == 1) 10L else null,
+                    productName = "Produk $i",
+                    variantName = if (i == 1) "Varian A" else null,
+                    categoryName = "Kategori",
+                    unitPrice = 10_000,
+                    quantity = 1,
+                    subtotal = 10_000,
+                    baseQuantity = 1,
+                    unitLabel = "pcs",
+                ),
+            )
+        }
+
+        val repository = ReportRepository(database, ReportSession().also { it.unlock() })
+        val trend = repository.readTrend(ReportChartGranularity.DAILY, now = now)
+
+        assertEquals(6, trend.products.size)
+        val variantProduct = trend.products.firstOrNull { it.productId == 1L }
+        assertTrue(variantProduct != null)
+        assertEquals("Produk 1 (Varian A)", variantProduct?.productName)
+        assertEquals(10L, variantProduct?.variantId)
+        assertEquals("Varian A", variantProduct?.variantName)
+    }
 }

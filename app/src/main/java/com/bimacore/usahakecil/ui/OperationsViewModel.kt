@@ -40,6 +40,8 @@ import com.bimacore.usahakecil.domain.BusinessCapabilities
 import com.bimacore.usahakecil.domain.OrderStatus
 import com.bimacore.usahakecil.export.ExcelExportManager
 import java.util.Calendar
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -199,6 +201,10 @@ class OperationsViewModel(
     val shiftSummary = _shiftSummary.asStateFlow()
     private val _shiftLoading = MutableStateFlow(false)
     val shiftLoading = _shiftLoading.asStateFlow()
+
+    private var reportJob: Job? = null
+    private val _reportLoading = MutableStateFlow(false)
+    val reportLoading = _reportLoading.asStateFlow()
 
     init {
         refreshPinState()
@@ -523,7 +529,7 @@ class OperationsViewModel(
         reports.changePin(currentPin, newPin)
     }
 
-    fun refreshReport() = execute {
+    fun refreshReport() = executeReport {
         loadReport()
     }
 
@@ -540,7 +546,7 @@ class OperationsViewModel(
         _excelUri.value = null
         _excelError.value = null
         if (reports.session.isUnlocked) {
-            execute { loadReport() }
+            executeReport { loadReport() }
         }
     }
 
@@ -552,7 +558,7 @@ class OperationsViewModel(
         if (_reportChartGranularity.value == granularity) return
         _reportChartGranularity.value = granularity
         if (reports.session.isUnlocked) {
-            execute { loadReportTrend() }
+            executeReport { loadReportTrend() }
         }
     }
 
@@ -667,6 +673,10 @@ class OperationsViewModel(
         val previousRange = _reportPeriod.value.previousRange(now)
         _previousReportSummary.value = reports.readSummary(previousRange.first, previousRange.last)
         loadReportTrend()
+    }
+
+    fun loadProductForecasts() = executeReport {
+        val now = System.currentTimeMillis()
         _forecastLoading.value = true
         _forecastError.value = null
         try {
@@ -699,6 +709,22 @@ class OperationsViewModel(
             _shiftSummary.value = operations.readOpenShiftSummary()
         } finally {
             _shiftLoading.value = false
+        }
+    }
+
+    private fun executeReport(action: suspend () -> Unit) {
+        reportJob?.cancel()
+        reportJob = viewModelScope.launch {
+            _reportLoading.value = true
+            try {
+                action()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                _message.value = error.message ?: "Laporan gagal dimuat"
+            } finally {
+                _reportLoading.value = false
+            }
         }
     }
 
