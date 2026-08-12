@@ -6,9 +6,19 @@ Satu source Android offline-first untuk tiga APK operasional:
 - Grosir dan Agen;
 - Kuliner dan Pedagang Kaki Lima.
 
-Versi fitur saat ini: `0.4.8` (`versionCode 17`). Semua fungsi utama berjalan lokal di HP owner tanpa akun, server, atau internet.
+Versi fitur saat ini: `0.6.0` (`versionCode 20`). Semua fungsi utama berjalan lokal di HP owner tanpa akun, server, atau internet.
 
-Aplikasi selalu mulai dalam Mode Kasir/Pekerja. Pada pemasangan pertama, panduan wajib menjelaskan Mode Kasir/Pekerja dan Mode Owner tanpa tombol lewati. Pekerja hanya dapat memakai kasir, melihat stok produk dan total transaksi aktif, serta membuka shift. Owner dapat memakai kasir tanpa membuka shift pekerja. Operasional, keuangan, laporan, profil, backup, restore, dan export Excel tetap baru muncul setelah PIN Owner benar.
+## Download APK v0.6.0
+
+Pilih APK sesuai jenis usaha:
+
+- [Download CatatToko Retail dan UMKM](https://github.com/Luciansvon/APK-POS-CatatToko/releases/download/v0.6.0/CatatToko-Retail.apk)
+- [Download CatatToko Grosir dan Agen](https://github.com/Luciansvon/APK-POS-CatatToko/releases/download/v0.6.0/CatatToko-Grosir.apk)
+- [Download CatatToko Kuliner dan PKL](https://github.com/Luciansvon/APK-POS-CatatToko/releases/download/v0.6.0/CatatToko-Kuliner.apk)
+
+[Lihat catatan rilis CatatToko v0.6.0](https://github.com/Luciansvon/APK-POS-CatatToko/releases/tag/v0.6.0).
+
+Aplikasi selalu mulai dalam Mode Kasir/Pekerja. Pada pemasangan pertama, panduan wajib menjelaskan Mode Kasir/Pekerja dan Mode Owner tanpa tombol lewati. Pekerja hanya dapat memakai kasir, melihat stok produk dan total transaksi aktif, serta membuka shift. Owner dapat memakai kasir tanpa membuka shift pekerja. Operasional, keuangan, laporan, profil, backup, restore, impor catatan lama, dan export Excel tetap baru muncul setelah PIN Owner benar.
 
 ## Fungsi bersama
 
@@ -22,6 +32,7 @@ Aplikasi selalu mulai dalam Mode Kasir/Pekerja. Pada pemasangan pertama, panduan
 - pekerja harian, freelancer/panggilan, kehadiran, pekerjaan, dan pembayaran;
 - profil usaha;
 - backup lokal berversi, pemeriksaan integritas, berbagi file, dan restore aman;
+- impor histori dari JSON hasil AI eksternal dengan validasi, review Owner, dan deteksi duplikat tanpa API key di APK;
 - export `.xlsx` offline terstruktur dengan `Info Export`, `Ringkasan`, tabel operasional, dan lebar kolom otomatis untuk dibagikan Owner;
 - struk dan berbagi PNG.
 
