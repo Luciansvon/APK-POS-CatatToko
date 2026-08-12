@@ -27,10 +27,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.sp
 import com.bimacore.usahakecil.domain.BusinessType
-import com.bimacore.usahakecil.ui.theme.BrandColors
 import kotlinx.coroutines.flow.collect
 
 @Composable
@@ -79,7 +79,7 @@ fun HomeScreen(
         bottomBar = {
             if (ownerUnlocked) {
                 NavigationBar(
-                    containerColor = BrandColors.NavigationBackground,
+                    containerColor = MaterialTheme.colorScheme.surface,
                     contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 ) {
                     destinations.forEach { item ->
@@ -87,9 +87,9 @@ fun HomeScreen(
                             selected = destination == item,
                             onClick = { destination = item },
                             colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = MaterialTheme.colorScheme.onSurface,
-                                selectedTextColor = MaterialTheme.colorScheme.onSurface,
-                                indicatorColor = BrandColors.NavigationIndicator,
+                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                indicatorColor = Color.Transparent,
                                 unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                                 unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                             ),

@@ -25,8 +25,6 @@ import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -56,14 +54,18 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.bimacore.usahakecil.data.DebtEntity
 import com.bimacore.usahakecil.data.DebtKind
+import com.bimacore.usahakecil.data.CategoryEntity
 import com.bimacore.usahakecil.data.EmployeeEntity
 import com.bimacore.usahakecil.data.ManualCashType
 import com.bimacore.usahakecil.data.PartyKind
 import com.bimacore.usahakecil.data.ProductEntity
+import com.bimacore.usahakecil.data.ProductVariantEntity
 import com.bimacore.usahakecil.data.ReportPeriod
+import com.bimacore.usahakecil.data.ReportChartMode
 import com.bimacore.usahakecil.data.WorkerScheme
 import com.bimacore.usahakecil.domain.AttendanceStatus
 import com.bimacore.usahakecil.domain.OrderStatus
+import com.bimacore.usahakecil.export.ExcelExportMode
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -71,7 +73,9 @@ import java.util.Locale
 @Composable
 private fun ownerTopAppBarColors() = TopAppBarDefaults.topAppBarColors(
     containerColor = MaterialTheme.colorScheme.surface,
-    titleContentColor = MaterialTheme.colorScheme.primary,
+    titleContentColor = MaterialTheme.colorScheme.onSurface,
+    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
+    actionIconContentColor = MaterialTheme.colorScheme.primary,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -107,6 +111,7 @@ fun OperationsScreen(
     var selectedCategoryId by remember { mutableStateOf<Long?>(null) }
     var selectedEmployee by remember { mutableStateOf<EmployeeEntity?>(null) }
     var selectedJobId by remember { mutableStateOf<Long?>(null) }
+    var archiveTarget by remember { mutableStateOf<ArchiveTarget?>(null) }
 
     Scaffold(
         topBar = {
@@ -153,6 +158,13 @@ fun OperationsScreen(
                                 selectedCategoryId = category.id
                                 dialog = "category"
                             },
+                            onArchive = { category ->
+                                if (category.isActive) {
+                                    archiveTarget = ArchiveTarget.Category(category)
+                                } else {
+                                    viewModel.setCategoryActive(category.id, true)
+                                }
+                            },
                         )
                         products.forEach { product ->
                             val displayStock = if (product.hasVariants) {
@@ -163,9 +175,14 @@ fun OperationsScreen(
                             ItemCard(
                                 title = product.name,
                                 subtitle = "${formatRupiah(product.basePrice)} • stok $displayStock ${product.unitLabel}",
-                                action = if (product.isActive) "Nonaktifkan" else "Aktifkan",
+                                action = if (product.isActive) "Arsipkan" else "Aktifkan kembali",
+                                actionTestTag = "archive-product-${product.id}",
                                 onAction = {
-                                    viewModel.setProductActive(product.id, !product.isActive)
+                                    if (product.isActive) {
+                                        archiveTarget = ArchiveTarget.Product(product)
+                                    } else {
+                                        viewModel.setProductActive(product.id, true)
+                                    }
                                 },
                                 secondaryAction = "Ubah",
                                 onSecondaryAction = {
@@ -181,9 +198,14 @@ fun OperationsScreen(
                                 title = "${productName} • ${variant.label}",
                                 subtitle = variant.priceOverride?.let(::formatRupiah)
                                     ?: "Mengikuti harga produk",
-                                action = if (variant.isActive) "Nonaktifkan" else "Aktifkan",
+                                action = if (variant.isActive) "Arsipkan" else "Aktifkan kembali",
+                                actionTestTag = "archive-variant-${variant.id}",
                             ) {
-                                viewModel.setVariantActive(variant.id, !variant.isActive)
+                                if (variant.isActive) {
+                                    archiveTarget = ArchiveTarget.Variant(variant, productName)
+                                } else {
+                                    viewModel.setVariantActive(variant.id, true)
+                                }
                             }
                         }
                     }
@@ -220,6 +242,11 @@ fun OperationsScreen(
                             )
                         }
                         SectionTitle("Daftar stok")
+                        Text(
+                            "Pilih produk untuk mencatat stok masuk, keluar, rusak, atau hilang. Setiap perubahan wajib punya alasan.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
                         if (stockItems.isEmpty()) {
                             OwnerEmptyState(
                                 title = "Belum ada produk aktif",
@@ -248,7 +275,7 @@ fun OperationsScreen(
                                 OwnerDetailCard(
                                     title = product.name,
                                     subtitle = "$displayStock ${product.unitLabel} • $status",
-                                    action = "Atur stok",
+                                    action = "Penyesuaian stok",
                                 ) {
                                     selectedProductId = product.id
                                     dialog = "stock"
@@ -280,10 +307,12 @@ fun OperationsScreen(
                         Button(
                             onClick = { dialog = "purchase" },
                             modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                            shape = OwnerActionShape,
                         ) { Text("Catat pembelian") }
                         OutlinedButton(
                             onClick = { dialog = "supplier" },
                             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                            shape = OwnerActionShape,
                         ) { Text("Tambah pemasok") }
                         SectionTitle("Riwayat pembelian")
                         if (purchases.isEmpty()) {
@@ -337,6 +366,7 @@ fun OperationsScreen(
                         Button(
                             onClick = { dialog = "worker" },
                             modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                            shape = OwnerActionShape,
                         ) { Text("Tambah pekerja") }
                         SectionTitle("Daftar pekerja")
                         if (employees.isEmpty()) {
@@ -589,6 +619,21 @@ fun OperationsScreen(
             },
         )
     }
+
+    archiveTarget?.let { target ->
+        ArchiveConfirmationDialog(
+            target = target,
+            onDismiss = { archiveTarget = null },
+            onConfirm = {
+                when (target) {
+                    is ArchiveTarget.Category -> viewModel.setCategoryActive(target.category.id, false)
+                    is ArchiveTarget.Product -> viewModel.setProductActive(target.product.id, false)
+                    is ArchiveTarget.Variant -> viewModel.setVariantActive(target.variant.id, false)
+                }
+                archiveTarget = null
+            },
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -651,6 +696,7 @@ fun FinanceScreen(
                         Button(
                             onClick = { dialog = "cash" },
                             modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                            shape = OwnerActionShape,
                         ) { Text("Tambah catatan kas") }
                         if (cash.isEmpty()) {
                             OwnerEmptyState(
@@ -697,15 +743,18 @@ fun FinanceScreen(
                             Button(
                                 onClick = { dialog = "receivable" },
                                 modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                                shape = OwnerActionShape,
                             ) { Text("Tambah piutang") }
                             OutlinedButton(
                                 onClick = { dialog = "customer" },
                                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                                shape = OwnerActionShape,
                             ) { Text("Tambah pelanggan") }
                         }
                         OutlinedButton(
                             onClick = { dialog = "payable" },
                             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                            shape = OwnerActionShape,
                         ) { Text("Tambah utang") }
                         SectionTitle("Daftar utang & piutang")
                         if (debts.isEmpty()) {
@@ -883,6 +932,7 @@ fun ReportsScreen(viewModel: OperationsViewModel) {
     val forecastError by viewModel.forecastError.collectAsState()
     val busy by viewModel.busy.collectAsState()
     val excelUri by viewModel.excelUri.collectAsState()
+    val excelExportMode by viewModel.excelExportMode.collectAsState()
     val excelError by viewModel.excelError.collectAsState()
     val context = LocalContext.current
     val periods = remember { ReportPeriod.values().toList() }
@@ -897,8 +947,12 @@ fun ReportsScreen(viewModel: OperationsViewModel) {
         },
     ) { padding ->
         Column(
-            Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (summary == null) {
                 Text(
@@ -922,6 +976,7 @@ fun ReportsScreen(viewModel: OperationsViewModel) {
                     },
                     enabled = pin.length in 4..8,
                     modifier = Modifier.fillMaxWidth(),
+                    shape = OwnerActionShape,
                 ) {
                     Text(if (hasPin == false) "Buat PIN & Buka" else "Buka Laporan")
                 }
@@ -931,37 +986,61 @@ fun ReportsScreen(viewModel: OperationsViewModel) {
                     selected = reportPeriod,
                     onSelected = viewModel::selectReportPeriod,
                 )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    TextButton(
+                        onClick = viewModel::refreshReport,
+                        enabled = !busy,
+                        modifier = Modifier
+                            .heightIn(min = 48.dp)
+                            .testTag("report-refresh"),
+                    ) {
+                        Icon(Icons.Outlined.Refresh, contentDescription = null)
+                        Spacer(Modifier.width(6.dp))
+                        Text("Muat ulang")
+                    }
+                }
+                ReportOverviewCard(
+                    summary = requireNotNull(summary),
+                    previous = previousSummary,
+                    period = reportPeriod,
+                )
+                SectionTitle("Ekspor Excel")
                 OutlinedButton(
-                    onClick = viewModel::refreshReport,
+                    onClick = { viewModel.createExcelExport(ExcelExportMode.SUMMARY) },
                     enabled = !busy,
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(min = 52.dp)
-                        .testTag("report-refresh"),
+                        .testTag("excel-export-summary"),
+                    shape = OwnerActionShape,
                 ) {
-                    Icon(Icons.Outlined.Refresh, contentDescription = null)
+                    Icon(Icons.Outlined.TableView, contentDescription = null)
                     Spacer(Modifier.width(10.dp))
-                    Text("Muat ulang laporan")
+                    Text(if (busy) "Menyiapkan Excel..." else "Ekspor Ringkasan")
                 }
                 Text(
-                    "Setelah ada transaksi baru, tekan tombol ini untuk mengambil data laporan terbaru.",
+                    "Satu sheet Ringkasan berisi angka utama dan disiapkan agar muat satu halaman cetak.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall,
                 )
                 Button(
-                    onClick = viewModel::createExcelExport,
+                    onClick = { viewModel.createExcelExport(ExcelExportMode.FULL) },
                     enabled = !busy,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 54.dp)
-                        .testTag("excel-export"),
+                        .heightIn(min = 52.dp)
+                        .testTag("excel-export-full"),
+                    shape = OwnerActionShape,
                 ) {
                     Icon(Icons.Outlined.TableView, contentDescription = null)
                     Spacer(Modifier.width(10.dp))
-                    Text(if (busy) "Menyiapkan Excel..." else "Simpan Laporan Excel")
+                    Text(if (busy) "Menyiapkan Excel..." else "Ekspor Lengkap")
                 }
                 Text(
-                    "Simpan laporan ${reportPeriod.label.lowercase(Locale.forLanguageTag("id-ID"))} sebagai berkas Excel.",
+                    "Ringkasan dan seluruh sheet detail untuk periode ${reportPeriod.label.lowercase(Locale.forLanguageTag("id-ID"))}.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall,
                 )
@@ -981,58 +1060,42 @@ fun ReportsScreen(viewModel: OperationsViewModel) {
                                         putExtra(Intent.EXTRA_STREAM, excelUri)
                                         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                     },
-                                    "Bagikan Excel",
+                                    if (excelExportMode == ExcelExportMode.SUMMARY) {
+                                        "Bagikan Ringkasan Excel"
+                                    } else {
+                                        "Bagikan Laporan Lengkap"
+                                    },
                                 ),
                             )
                         },
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(min = 52.dp),
+                        shape = OwnerActionShape,
                     ) {
                         Icon(Icons.Outlined.Share, contentDescription = null)
                         Spacer(Modifier.width(10.dp))
-                        Text("Bagikan Excel")
+                        Text(
+                            if (excelExportMode == ExcelExportMode.SUMMARY) {
+                                "Bagikan Ringkasan Excel"
+                            } else {
+                                "Bagikan Laporan Lengkap"
+                            },
+                        )
                     }
                 }
-                ReportOverviewCard(
-                    summary = requireNotNull(summary),
-                    previous = previousSummary,
-                    period = reportPeriod,
-                )
                 ReportSalesMovementCard(
                     trend = reportTrend,
                     period = reportPeriod,
                     error = reportTrendError,
                 )
                 OwnerLinkCard(
-                    title = "Lihat arus kas",
-                    subtitle = "Ringkasan uang masuk dan keluar",
-                    onClick = {
-                        detailMode = if (detailMode == ReportDetailMode.CASH) null else ReportDetailMode.CASH
-                    },
-                    testTag = "report-cash-details",
-                )
-                if (detailMode == ReportDetailMode.CASH) {
-                    OwnerHeroCard(
-                        eyebrow = "Selisih kas tercatat",
-                        value = formatRupiah(requireNotNull(summary).netCash),
-                        supportingText = "Uang masuk dikurangi uang keluar.",
-                    ) {
-                        OwnerMetricStrip(
-                            listOf(
-                                formatRupiah(requireNotNull(summary).cashIn) to "Uang masuk",
-                                formatRupiah(requireNotNull(summary).cashOut) to "Uang keluar",
-                                formatRupiah(requireNotNull(summary).expenses) to "Pengeluaran",
-                            ),
-                        )
-                    }
-                }
-                OwnerLinkCard(
-                    title = "Lihat rincian lengkap",
+                    title = "Lihat transaksi",
                     subtitle = "Pembayaran, produk, perkiraan, dan saldo",
                     onClick = {
                         detailMode = if (detailMode == ReportDetailMode.FULL) null else ReportDetailMode.FULL
                     },
+                    actionLabel = if (detailMode == ReportDetailMode.FULL) "Tutup" else "Buka",
                     testTag = "report-full-details",
                 )
                 if (detailMode == ReportDetailMode.FULL) {
@@ -1074,6 +1137,40 @@ fun ReportsScreen(viewModel: OperationsViewModel) {
                         message = "Metode HPP belum ditentukan, jadi angka omzet tidak boleh dianggap sebagai laba.",
                     )
                 }
+                Text(
+                    "Data tersimpan di perangkat.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                OwnerLinkCard(
+                    title = "Lihat arus kas",
+                    subtitle = "Ringkasan uang masuk dan keluar",
+                    onClick = {
+                        if (detailMode == ReportDetailMode.CASH) {
+                            detailMode = null
+                        } else {
+                            detailMode = ReportDetailMode.CASH
+                            viewModel.selectReportChartMode(ReportChartMode.CASH_FLOW)
+                        }
+                    },
+                    actionLabel = if (detailMode == ReportDetailMode.CASH) "Tutup" else "Buka",
+                    testTag = "report-cash-details",
+                )
+                if (detailMode == ReportDetailMode.CASH) {
+                    SectionTitle("Rincian arus kas")
+                    ReportTrendSection(
+                        trend = reportTrend,
+                        mode = reportChartMode,
+                        granularity = reportChartGranularity,
+                        productMeasure = reportProductMeasure,
+                        selectedProductId = selectedReportProductId,
+                        error = reportTrendError,
+                        onModeSelected = viewModel::selectReportChartMode,
+                        onGranularitySelected = viewModel::selectReportChartGranularity,
+                        onProductMeasureSelected = viewModel::selectReportProductMeasure,
+                        onProductSelected = viewModel::selectReportProduct,
+                    )
+                }
             }
         }
     }
@@ -1094,7 +1191,7 @@ fun MoreScreen(
     var showChangePin by remember { mutableStateOf(false) }
     var showShareBackup by remember { mutableStateOf(false) }
     val openBackup = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocument(),
+        ActivityResultContracts.GetContent(),
     ) { uri ->
         viewModel.finishRestoreFileSelection(uri)
     }
@@ -1120,6 +1217,7 @@ fun MoreScreen(
             OutlinedButton(
                 onClick = { showProfile = true },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                shape = OwnerActionShape,
             ) {
                 Text("Ubah nama usaha")
             }
@@ -1135,20 +1233,39 @@ fun MoreScreen(
                 },
             )
             Button(
-                onClick = viewModel::createBackup,
+                onClick = {
+                    if (backupUri == null) viewModel.createBackup() else showShareBackup = true
+                },
                 enabled = !busy,
-                modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 52.dp)
+                    .testTag(if (backupUri == null) "backup-create" else "backup-share"),
+                shape = OwnerActionShape,
             ) {
-                Text(if (busy) "Menyiapkan salinan..." else "Buat salinan sekarang")
+                if (backupUri != null) {
+                    Icon(Icons.Outlined.Share, contentDescription = null)
+                    Spacer(Modifier.width(10.dp))
+                }
+                Text(
+                    when {
+                        busy -> "Menyiapkan salinan..."
+                        backupUri == null -> "Buat salinan sekarang"
+                        else -> "Bagikan salinan data"
+                    },
+                )
             }
             if (backupUri != null) {
                 OutlinedButton(
-                    onClick = { showShareBackup = true },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    onClick = viewModel::createBackup,
+                    enabled = !busy,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp)
+                        .testTag("backup-create-new"),
+                    shape = OwnerActionShape,
                 ) {
-                    Icon(Icons.Outlined.Share, contentDescription = null)
-                    Spacer(Modifier.width(10.dp))
-                    Text("Bagikan salinan data")
+                    Text("Buat salinan baru")
                 }
             }
             OwnerEmptyState(
@@ -1158,7 +1275,7 @@ fun MoreScreen(
                 onAction = {
                     viewModel.beginRestoreFileSelection()
                     try {
-                        openBackup.launch(arrayOf("*/*"))
+                        openBackup.launch("*/*")
                     } catch (error: Exception) {
                         viewModel.finishRestoreFileSelection(null)
                         throw error
@@ -1174,6 +1291,7 @@ fun MoreScreen(
                     .fillMaxWidth()
                     .heightIn(min = 48.dp)
                     .testTag("report-change-pin"),
+                shape = OwnerActionShape,
             ) { Text("Ganti PIN Owner") }
             OutlinedButton(
                 onClick = onExitOwner,
@@ -1181,6 +1299,7 @@ fun MoreScreen(
                     .fillMaxWidth()
                     .heightIn(min = 48.dp)
                     .testTag("owner-exit"),
+                shape = OwnerActionShape,
             ) {
                 Text("Keluar Mode Owner")
             }
@@ -1295,6 +1414,7 @@ private fun CompactGrid(
                             onClick = action,
                             modifier = buttonModifier,
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                            shape = OwnerActionShape,
                         ) {
                             Text(
                                 label,
@@ -1308,6 +1428,7 @@ private fun CompactGrid(
                             onClick = action,
                             modifier = buttonModifier,
                             contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                            shape = OwnerActionShape,
                         ) {
                             Text(
                                 label,
@@ -1326,63 +1447,97 @@ private fun CompactGrid(
 
 @Composable
 private fun CategoryGrid(
-    categories: List<com.bimacore.usahakecil.data.CategoryEntity>,
-    onEdit: (com.bimacore.usahakecil.data.CategoryEntity) -> Unit,
+    categories: List<CategoryEntity>,
+    onEdit: (CategoryEntity) -> Unit,
+    onArchive: (CategoryEntity) -> Unit,
 ) {
     Column(
         Modifier
             .fillMaxWidth()
             .testTag("category-grid"),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        categories.chunked(2).forEach { rowItems ->
+        categories.forEachIndexed { index, category ->
             Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 64.dp),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
             ) {
-                rowItems.forEach { category ->
-                    Card(
-                        modifier = Modifier
-                            .weight(1f)
-                            .heightIn(min = 92.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                        ),
-                    ) {
-                        Column(
-                            Modifier
-                                .fillMaxSize()
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
-                            verticalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Text(
-                                category.name,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            Row(
-                                Modifier.fillMaxWidth(),
-                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-                            ) {
-                                Text(
-                                    "Aktif",
-                                    modifier = Modifier.weight(1f),
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                    style = MaterialTheme.typography.bodySmall,
-                                )
-                                TextButton(
-                                    onClick = { onEdit(category) },
-                                    contentPadding = PaddingValues(0.dp),
-                                ) { Text("Ubah") }
-                            }
-                        }
-                    }
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        category.name,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        if (category.isActive) "Aktif" else "Diarsipkan",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
                 }
-                if (rowItems.size == 1) Spacer(Modifier.weight(1f))
+                TextButton(
+                    onClick = { onArchive(category) },
+                    modifier = Modifier
+                        .heightIn(min = 48.dp)
+                        .testTag("archive-category-${category.id}"),
+                    contentPadding = PaddingValues(horizontal = 8.dp),
+                ) { Text(if (category.isActive) "Arsipkan" else "Aktifkan kembali") }
+                TextButton(
+                    onClick = { onEdit(category) },
+                    modifier = Modifier.heightIn(min = 48.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp),
+                ) { Text("Ubah") }
+            }
+            if (index < categories.lastIndex) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f))
             }
         }
     }
+}
+
+private sealed interface ArchiveTarget {
+    val title: String
+    val impact: String
+
+    data class Category(val category: CategoryEntity) : ArchiveTarget {
+        override val title = "Arsipkan kategori ${category.name}?"
+        override val impact = "Kategori hilang dari pilihan kasir. Produk aktif di dalamnya harus diarsipkan lebih dulu. Riwayat tetap aman."
+    }
+
+    data class Product(val product: ProductEntity) : ArchiveTarget {
+        override val title = "Arsipkan produk ${product.name}?"
+        override val impact = "Produk hilang dari kasir dan transaksi baru. Stok serta riwayat penjualan lama tetap tersimpan."
+    }
+
+    data class Variant(
+        val variant: ProductVariantEntity,
+        val productName: String,
+    ) : ArchiveTarget {
+        override val title = "Arsipkan varian ${variant.label}?"
+        override val impact = "Varian $productName ini hilang dari transaksi baru. Stok dan riwayat lama tetap tersimpan."
+    }
+}
+
+@Composable
+private fun ArchiveConfirmationDialog(
+    target: ArchiveTarget,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.testTag("archive-confirmation"),
+        title = { Text(target.title) },
+        text = { Text(target.impact) },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                modifier = Modifier.testTag("confirm-archive"),
+            ) { Text("Arsipkan") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Batal") } },
+    )
 }
 
 @Composable
@@ -1392,14 +1547,14 @@ fun SectionTitle(text: String) {
 
 @Composable
 fun InfoCard(title: String, subtitle: String) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        modifier = Modifier.fillMaxWidth(),
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Column(Modifier.padding(14.dp)) {
-            Text(title, fontWeight = FontWeight.SemiBold)
-            Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
+        Text(title, fontWeight = FontWeight.SemiBold)
+        Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -1408,20 +1563,40 @@ private fun ItemCard(
     title: String,
     subtitle: String,
     action: String?,
+    actionTestTag: String? = null,
     secondaryAction: String? = null,
     onSecondaryAction: () -> Unit = {},
     onAction: () -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(14.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Column(Modifier.weight(1f)) {
-                Text(title, fontWeight = FontWeight.SemiBold)
-                Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            if (action != null) TextButton(onClick = onAction) { Text(action) }
-            if (secondaryAction != null) {
-                TextButton(onClick = onSecondaryAction) { Text(secondaryAction) }
-            }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 72.dp)
+            .padding(vertical = 8.dp),
+        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(title, fontWeight = FontWeight.SemiBold)
+            Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        if (action != null) {
+            TextButton(
+                onClick = onAction,
+                modifier = Modifier
+                    .heightIn(min = 48.dp)
+                    .then(
+                        if (actionTestTag == null) Modifier else Modifier.testTag(actionTestTag),
+                    ),
+                contentPadding = PaddingValues(horizontal = 8.dp),
+            ) { Text(action) }
+        }
+        if (secondaryAction != null) {
+            TextButton(
+                onClick = onSecondaryAction,
+                modifier = Modifier.heightIn(min = 48.dp),
+                contentPadding = PaddingValues(horizontal = 8.dp),
+            ) { Text(secondaryAction) }
         }
     }
 }

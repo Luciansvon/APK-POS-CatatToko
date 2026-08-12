@@ -7,7 +7,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -40,26 +40,31 @@ fun ShiftSection(
     when {
         isLoading -> Text("Memuat posisi kas...")
         summary != null -> {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    "Shift aktif - ${summary.shift.cashierName}",
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Text(
+                    "Buka ${formatShiftDate(summary.shift.openedAt)} | Modal awal ${formatRupiah(summary.shift.openingCash)}",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                ShiftMetric("Penjualan tunai", summary.cashSales)
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f))
+                ShiftMetric("Pemasukan lain", summary.otherCashIn)
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f))
+                ShiftMetric("Pengeluaran", summary.cashOut)
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f))
+                ShiftMetric("Kas seharusnya", summary.expectedCash)
+                Button(
+                    onClick = onCloseRequest,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = OwnerActionShape,
                 ) {
-                    Text(
-                        "Shift aktif - ${summary.shift.cashierName}",
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    Text(
-                        "Buka ${formatShiftDate(summary.shift.openedAt)} | Modal awal ${formatRupiah(summary.shift.openingCash)}",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    ShiftMetric("Penjualan tunai", summary.cashSales)
-                    ShiftMetric("Pemasukan lain", summary.otherCashIn)
-                    ShiftMetric("Pengeluaran", summary.cashOut)
-                    ShiftMetric("Kas seharusnya", summary.expectedCash)
-                    Button(onClick = onCloseRequest, modifier = Modifier.fillMaxWidth()) {
-                        Text("Tutup Shift")
-                    }
+                    Text("Tutup Shift")
                 }
             }
         }
@@ -68,7 +73,11 @@ fun ShiftSection(
                 "Belum ada shift aktif",
                 "Buka shift untuk mulai mencatat modal awal dan selisih kas.",
             )
-            Button(onClick = onOpenRequest, modifier = Modifier.fillMaxWidth()) {
+            Button(
+                onClick = onOpenRequest,
+                modifier = Modifier.fillMaxWidth(),
+                shape = OwnerActionShape,
+            ) {
                 Text("Buka Shift")
             }
         }

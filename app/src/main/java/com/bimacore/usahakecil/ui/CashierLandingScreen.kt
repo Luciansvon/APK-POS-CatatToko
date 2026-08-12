@@ -4,7 +4,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -40,9 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -85,27 +82,12 @@ fun CashierLandingScreen(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Box(
-                modifier = Modifier
-                    .size(88.dp)
-                    .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                Image(
-                    painter = painterResource(R.drawable.ic_launcher_foreground_v2),
-                    contentDescription = stringResource(R.string.brand_logo_description),
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier
-                        .size(76.dp)
-                        .testTag("catattoko-brand"),
-                )
-            }
-            Spacer(Modifier.height(8.dp))
             Text(
                 text = stringResource(R.string.brand_name),
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.testTag("catattoko-brand"),
             )
             Spacer(Modifier.height(8.dp))
             Text(
@@ -269,7 +251,7 @@ fun CashierHeader(
             )
             Spacer(Modifier.size(4.dp))
             Text(
-                text = if (ownerUnlocked) "Mode Owner" else "Mode Kasir",
+                text = if (ownerUnlocked) "Owner Aktif" else "Mode Owner",
                 color = MaterialTheme.colorScheme.onPrimary,
                 style = MaterialTheme.typography.labelLarge,
                 maxLines = 1,

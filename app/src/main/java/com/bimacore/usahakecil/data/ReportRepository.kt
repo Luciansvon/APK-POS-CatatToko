@@ -47,6 +47,7 @@ class ReportRepository(
 ) {
     private val securityDao = database.securityDao()
     private val reportDao = database.reportDao()
+    private val catalogDao = database.catalogDao()
 
     suspend fun hasPin(): Boolean = securityDao.getReportSecurity() != null
 
@@ -150,14 +151,20 @@ class ReportRepository(
     suspend fun readTrend(
         granularity: ReportChartGranularity,
         now: Long = clock(),
+        fromInclusive: Long? = null,
     ): ReportTrendReport {
         ensureUnlocked()
-        val buckets = createTrendBuckets(granularity, now)
-        val fromInclusive = buckets.first().start
+        val buckets = if (fromInclusive == null) {
+            createTrendBuckets(granularity, now)
+        } else {
+            require(fromInclusive <= now) { "Rentang grafik tidak valid" }
+            createTrendBucketsForRange(granularity, fromInclusive, now)
+        }
+        val rangeStart = buckets.first().start
         val toInclusive = now
-        val salesRows = reportDao.salesTrendRows(fromInclusive, toInclusive)
-        val productRows = reportDao.productTrendRows(fromInclusive, toInclusive)
-        val cashRows = reportDao.cashTrendRows(fromInclusive, toInclusive)
+        val salesRows = reportDao.salesTrendRows(rangeStart, toInclusive)
+        val productRows = reportDao.productTrendRows(rangeStart, toInclusive)
+        val cashRows = reportDao.cashTrendRows(rangeStart, toInclusive)
 
         val salesByBucket = buckets.associate { it.start to TrendAccumulator() }
         salesRows.forEach { row ->
@@ -169,8 +176,43 @@ class ReportRepository(
         }
 
         val productsByKey = productRows.groupBy { Pair(it.productId, it.variantId) }
-        val productTrends = productsByKey.map { (key, rows) ->
+        val productMetadata = linkedMapOf<Pair<Long, Long?>, ProductTrendMetadata>()
+        productsByKey.forEach { (key, rows) ->
             val first = rows.first()
+            productMetadata[key] = ProductTrendMetadata(
+                productName = first.productName,
+                variantName = first.variantName,
+                unitLabel = first.unitLabel,
+            )
+        }
+        val activeProducts = catalogDao.getActiveProducts()
+        val activeVariants = catalogDao.getActiveVariants().groupBy(ProductVariantEntity::productId)
+        activeProducts.forEach { product ->
+            val variants = activeVariants[product.id].orEmpty()
+            if (product.hasVariants && variants.isNotEmpty()) {
+                variants.forEach { variant ->
+                    productMetadata.putIfAbsent(
+                        Pair(product.id, variant.id),
+                        ProductTrendMetadata(
+                            productName = product.name,
+                            variantName = variant.label,
+                            unitLabel = product.unitLabel,
+                        ),
+                    )
+                }
+            } else {
+                productMetadata.putIfAbsent(
+                    Pair(product.id, null),
+                    ProductTrendMetadata(
+                        productName = product.name,
+                        variantName = null,
+                        unitLabel = product.unitLabel,
+                    ),
+                )
+            }
+        }
+        val productTrends = productMetadata.map { (key, metadata) ->
+            val rows = productsByKey[key].orEmpty()
             val (productId, variantId) = key
             val productAccumulators = buckets.associate { it.start to TrendAccumulator() }
             rows.forEach { row ->
@@ -183,17 +225,17 @@ class ReportRepository(
                     )
                 }
             }
-            val displayName = if (first.variantName.isNullOrBlank()) {
-                first.productName
+            val displayName = if (metadata.variantName.isNullOrBlank()) {
+                metadata.productName
             } else {
-                "${first.productName} (${first.variantName})"
+                "${metadata.productName} (${metadata.variantName})"
             }
             ReportProductTrend(
                 productId = productId,
                 productName = displayName,
                 variantId = variantId,
-                variantName = first.variantName,
-                unitLabel = first.unitLabel,
+                variantName = metadata.variantName,
+                unitLabel = metadata.unitLabel,
                 points = buckets.map { bucket ->
                     productAccumulators.getValue(bucket.start).toPoint(bucket.start)
                 },
@@ -225,7 +267,7 @@ class ReportRepository(
         }
         return ReportTrendReport(
             granularity = granularity,
-            fromInclusive = fromInclusive,
+            fromInclusive = rangeStart,
             toInclusive = toInclusive,
             points = points,
             products = productTrends,
@@ -313,6 +355,32 @@ class ReportRepository(
         }
     }
 
+    private fun createTrendBucketsForRange(
+        granularity: ReportChartGranularity,
+        fromInclusive: Long,
+        toInclusive: Long,
+    ): List<TrendBucket> {
+        val buckets = mutableListOf<TrendBucket>()
+        var start = fromInclusive
+        while (start <= toInclusive) {
+            val nextStart = Calendar.getInstance().apply {
+                timeInMillis = start
+                when (granularity) {
+                    ReportChartGranularity.DAILY -> add(Calendar.DAY_OF_MONTH, 1)
+                    ReportChartGranularity.WEEKLY -> add(Calendar.DAY_OF_MONTH, 7)
+                    ReportChartGranularity.MONTHLY -> add(Calendar.MONTH, 1)
+                    ReportChartGranularity.YEARLY -> add(Calendar.YEAR, 1)
+                }
+            }.timeInMillis
+            buckets += TrendBucket(
+                start = start,
+                end = minOf(nextStart - 1L, toInclusive),
+            )
+            start = nextStart
+        }
+        return buckets
+    }
+
     private fun findTrendBucket(
         buckets: List<TrendBucket>,
         timestamp: Long,
@@ -351,6 +419,12 @@ class ReportRepository(
     private data class TrendBucket(
         val start: Long,
         val end: Long,
+    )
+
+    private data class ProductTrendMetadata(
+        val productName: String,
+        val variantName: String?,
+        val unitLabel: String,
     )
 
     private class TrendAccumulator {

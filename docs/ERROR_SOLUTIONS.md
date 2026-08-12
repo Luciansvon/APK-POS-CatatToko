@@ -1946,3 +1946,152 @@ Top bar Owner dibuat putih dengan judul hijau yang lebih hemat secara visual. Na
 
 - `app/src/main/java/com/bimacore/usahakecil/ui/ManagementScreens.kt`
 - `app/src/androidTest/java/com/bimacore/usahakecil/MainActivitySmokeTest.kt`
+
+## ERR-042 - Grafik laporan nol terlihat seperti data dan sulit dibaca
+
+Tanggal: 2026-08-12
+
+Varian dan versi: Semua flavor, `0.5.0`
+
+### Kondisi/gejala
+
+Kontrol grafik menampilkan `Rentang: Harian`, sumbu tanggal hanya berisi angka hari, area grafik menyisakan ruang kosong besar, dan nilai nol tetap digambar sebagai deretan batang kecil. Pengguna sulit membedakan data nyata, periode aktif, dan keadaan belum ada transaksi.
+
+### Root cause
+
+Granularitas data diberi label seperti rentang tanggal. Tinggi batang selalu ditambah `8dp`, termasuk ketika nilainya nol. Label diberikan pada setiap bucket sempit dan area sentuh hanya mengikuti kolom batang tanpa highlight yang jelas.
+
+### Solusi
+
+- Mengganti pemilih mode menjadi tab teks `Arus kas`, `Penjualan`, dan `Produk`.
+- Mengganti label waktu menjadi `Dikelompokkan` dan nilai `Per hari/minggu/bulan/tahun`.
+- Menampilkan kondisi nol sebagai baseline `Rp0` dengan pesan kosong, tanpa batang palsu.
+- Menambahkan rentang tanggal yang memuat nama bulan, ringkasan Masuk/Keluar/Bersih sebelum grafik, highlight periode aktif, dan area sentuh selebar bucket.
+- Memisahkan ekspor menjadi Ringkasan satu sheet dan Lengkap multi-sheet agar tujuan file tidak ambigu.
+
+### Bukti verifikasi aktual
+
+- Unit test Retail, Wholesale, dan Culinary lulus.
+- Build debug serta AndroidTest APK Retail, Wholesale, dan Culinary lulus.
+- Connected Retail lulus `60/60` pada MuMu `emulator-5554`.
+- Regression UI membuktikan tab grafik, baseline nol, periode, rincian, dan dua mode ekspor; regression workbook membuktikan nama/jumlah sheet serta angka utama Ringkasan.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/ui/ReportDashboardComponents.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/ManagementScreens.kt`
+- `app/src/main/java/com/bimacore/usahakecil/export/ExcelExportManager.kt`
+- `app/src/main/java/com/bimacore/usahakecil/export/ExcelWorkbookExporter.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/report/ReportDemoTest.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/export/ExcelExportTest.kt`
+
+## ERR-043 - Aksi menghilangkan produk tidak menjelaskan bahwa data diarsipkan
+
+Tanggal: 2026-08-12
+
+Varian dan versi: Semua flavor, `0.5.0`
+
+### Kondisi/gejala
+
+Produk dan varian memakai aksi `Nonaktifkan` tanpa dialog dampak. Pengguna menganggap fitur hapus belum ada, sedangkan aksi stok hanya tertulis `Atur stok` dan sulit ditemukan.
+
+### Root cause
+
+Data master memang sengaja tidak memiliki hard delete agar histori transaksi tetap utuh, tetapi istilah UI dan konfirmasinya tidak menjelaskan keputusan tersebut. Kategori juga memiliki `isActive` tanpa aksi arsip di UI.
+
+### Solusi
+
+- Mengganti copy menjadi `Arsipkan` dan `Aktifkan kembali`.
+- Menambahkan dialog yang menjelaskan item hilang dari transaksi baru tetapi stok dan riwayat lama tetap tersimpan.
+- Menambahkan arsip kategori dengan guard: kategori tidak dapat diarsipkan selama masih memiliki produk aktif.
+- Mengganti aksi stok menjadi `Penyesuaian stok` dan menjelaskan jenis perubahan serta alasan wajib.
+- Tidak menambahkan hard delete baru.
+
+### Bukti verifikasi aktual
+
+- Unit test dan build debug seluruh flavor lulus.
+- Connected Retail lulus `60/60` pada MuMu `emulator-5554`.
+- Regression test repository memastikan kategori aktif ditolak untuk diarsipkan, lalu berhasil setelah produknya diarsipkan tanpa menghapus record.
+- Regression UI memastikan dialog dampak muncul sebelum produk diarsipkan.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/data/Daos.kt`
+- `app/src/main/java/com/bimacore/usahakecil/data/InventoryRepository.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/OperationsViewModel.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/ManagementScreens.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/data/OperationalRepositoryTest.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/MainActivitySmokeTest.kt`
+
+## ERR-044 - Grafik produk mencampur pilihan produk dan jenis angka
+
+Tanggal: 2026-08-12
+
+Varian dan versi: Semua flavor, `0.5.0`
+
+### Kondisi/gejala
+
+Pilihan `Semua produk / Omzet` tampil sebagai satu nilai dan menu bertingkat memisahkan label `Produk` serta `Tampilkan sebagai`. Pengguna sulit memahami cara melihat performa satu produk maupun membandingkan seluruh produk.
+
+### Root cause
+
+Pemilih produk dan metrik disatukan dalam satu dropdown. Mode semua produk juga belum mempunyai perbandingan yang dapat dipindai, sedangkan tren memakai riwayat tetap dan tidak mengikuti rentang laporan yang dipilih.
+
+### Solusi
+
+- Memisahkan kontrol menjadi `Produk yang dilihat` dan `Angka yang ditampilkan`.
+- Menampilkan seluruh produk sebagai ranking omzet atau jumlah terjual, termasuk produk bernilai nol tanpa batang palsu.
+- Menjadikan baris produk dapat diketuk untuk membuka tren produk tersebut.
+- Membatasi tren pada periode Laporan aktif dan mengelompokkan varian ke produk induknya.
+- Mengubah pintasan rincian transaksi dan arus kas menjadi aksi `Buka`/`Tutup` yang benar-benar menampilkan isi.
+
+### Bukti verifikasi aktual
+
+- Regression repository mencakup produk aktif tanpa transaksi dan rentang tren yang dipilih.
+- Regression UI mencakup ranking seluruh produk, pemilihan satu produk, serta rincian transaksi dan arus kas.
+- Unit test serta build app/test APK seluruh flavor lulus; connected Retail lulus `60/60` pada MuMu `emulator-5554`.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/data/Daos.kt`
+- `app/src/main/java/com/bimacore/usahakecil/data/ReportRepository.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/OperationsViewModel.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/ReportDashboardComponents.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/ManagementScreens.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/data/ReportTrendRepositoryTest.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/report/ReportDemoTest.kt`
+
+## ERR-045 - Salinan data sudah dibuat tetapi aksi lanjutannya tidak jelas
+
+Tanggal: 2026-08-12
+
+Varian dan versi: Semua flavor, `0.5.0`
+
+### Kondisi/gejala
+
+Setelah salinan data dibuat, pengguna sulit menemukan langkah untuk membagikannya. Nama berkas berakhiran `.ukbackup` juga dikenali sebagian pengelola berkas sebagai `BIN`, sehingga terlihat seperti berkas yang tidak dapat dipakai.
+
+### Root cause
+
+Aksi utama tetap menonjolkan pembuatan salinan, sementara aksi berbagi berada lebih bawah. Format isi sebenarnya ZIP, tetapi ekstensi terakhir tidak memberi petunjuk itu kepada pengelola berkas Android.
+
+### Solusi
+
+- Setelah pembuatan selesai, tombol utama berubah menjadi `Bagikan salinan data`; pembuatan ulang menjadi aksi sekunder.
+- Berkas baru memakai nama `CatatToko-<waktu>.ukbackup.zip` agar dikenali sebagai arsip ZIP.
+- Pemilih pemulihan menerima semua jenis berkas supaya backup lama `.ukbackup` tetap kompatibel.
+- Pemulihan tetap memeriksa integritas, jenis usaha, meminta PIN Owner, membuat salinan pengaman, dan baru kemudian mengganti data aktif secara atomik.
+
+### Bukti verifikasi aktual
+
+- Regression backup membuat berkas `.ukbackup.zip`, membaca preview, mengubah data aktif, lalu mengembalikan data asli.
+- Regression UI membuktikan tombol berbagi dan peringatan privasi muncul setelah salinan dibuat.
+- Pemulihan berkas yang rusak tetap ditolak sebelum data aktif diganti.
+- Connected Retail lulus `60/60` pada MuMu `emulator-5554`, termasuk test backup/restore, integritas, dan perlindungan PIN Owner.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/backup/BackupManager.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/ManagementScreens.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/backup/BackupRestoreTest.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/MainActivitySmokeTest.kt`

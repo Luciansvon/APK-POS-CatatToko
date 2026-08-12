@@ -1118,3 +1118,85 @@ Status: Selesai, diverifikasi lintas flavor, dan dipackage sebagai `0.4.6` / `ve
 - `app/src/main/java/com/bimacore/usahakecil/ui/ForecastScreen.kt`
 - `app/src/androidTest/java/com/bimacore/usahakecil/export/ExcelExportTest.kt`
 - `app/src/androidTest/java/com/bimacore/usahakecil/report/ReportDemoTest.kt`
+
+---
+
+## 2026-08-05 - Audit Menyeluruh Sistem CatatToko (v0.4.9)
+
+Status: Diverifikasi menyeluruh pada 3 varian (Retail, Grosir, Kuliner); 100% lulus.
+
+### Ringkasan Audit
+- Menjalankan audit menyeluruh pada seluruh modul utama (Kasir Offline, Keamanan PIN Owner, Backup & Restore, Multivariasi Grosir, Laporan & Ekspor Excel).
+- Memastikan seluruh aturan produk pada `AGENTS.md` (Mode Kasir default, Tombol `Bayar & Selesai`, proteksi uang kurang, snapshot finansial, pemulihan data aman tanpa mengunci PIN HP) terpenuhi.
+- Mencatat dokumentasi audit lengkap di `docs/AUDIT_MENYELURUH_2026-08-05.md`.
+
+### Bukti Verifikasi Aktual
+- `testRetailDebugUnitTest`, `testWholesaleDebugUnitTest`, `testCulinaryDebugUnitTest` ➔ ✅ **LULUS** (24s).
+- `assembleDebug` (Retail, Grosir, Kuliner) ➔ ✅ **BERHASIL** (25s).
+- `assembleRetailDebugAndroidTest`, `assembleWholesaleDebugAndroidTest`, `assembleCulinaryDebugAndroidTest` ➔ ✅ **BERHASIL** (26s).
+
+### Dokumentasi Terkait
+- `docs/AUDIT_MENYELURUH_2026-08-05.md`
+- `user.md`
+
+---
+
+## 2026-08-11 - Redesign UI Owner dengan Stitch
+
+Status: Implementasi Owner selesai pada shared Compose source; UI kasir/pekerja tetap dipertahankan.
+
+### Perubahan
+
+- Mengunci empat referensi visual Owner final di Stitch: Stok, Kas, Laporan, dan Backup/Keamanan.
+- Menghapus pola hero besar, kartu bertumpuk, tab berbentuk pill, dan CTA global yang tidak punya konteks dari area Owner.
+- Mengubah tab Owner menjadi tab teks dengan underline, daftar menjadi baris dengan divider, dan metrik menjadi baris yang tetap terbaca untuk nominal Rupiah panjang.
+- Menyederhanakan Laporan: periode, ringkasan omzet, export Excel, pergerakan penjualan, dan rincian lanjutan; data kosong memakai nilai nyata seperti `Rp0`.
+- Menjaga copy offline-first dan tidak menambahkan klaim cloud/sinkronisasi.
+
+### Bukti verifikasi aktual
+
+- Empat screen Stitch final sudah diperiksa satu per satu; screen eksplorasi awal yang memakai frame ungu, hero besar, data palsu, atau navigasi terpotong ditolak dan tidak dijadikan acuan.
+- `compileRetailDebugKotlin` lulus.
+- `testRetailDebugUnitTest`, `testWholesaleDebugUnitTest`, dan `testCulinaryDebugUnitTest` lulus; masing-masing 59 test case, 0 failure, 0 error.
+- `assembleDebug`, `assembleRetailDebugAndroidTest`, `assembleWholesaleDebugAndroidTest`, dan `assembleCulinaryDebugAndroidTest` lulus.
+- Connected/emulator test belum dijalankan karena belum ada izin target device; visual runtime APK juga belum diklaim.
+
+---
+
+## 2026-08-12 - Keterbacaan Laporan, branding flavor, arsip aman, dan mode Excel
+
+Status: Implementasi, verifikasi, dan packaging APK lokal selesai untuk `0.5.0` / `versionCode 19`; PR sedang diselesaikan.
+
+### Applied
+
+- Grafik Laporan memakai tab mode, kontrol waktu yang benar, baseline nol, label bulan, highlight pilihan, dan ringkasan angka yang terbaca.
+- Mode Produk memisahkan pilihan produk dan metrik. Semua produk tampil sebagai ranking; produk yang diketuk membuka tren sesuai periode laporan aktif.
+- Rincian transaksi dan arus kas sekarang benar-benar dapat dibuka dan ditutup dari Laporan.
+- Ekspor Excel dipisah menjadi Ringkasan satu sheet dan Lengkap 20 sheet.
+- Produk, varian, dan kategori memakai arsip aman; kategori dengan produk aktif ditolak untuk diarsipkan.
+- Aksi stok dipertegas menjadi Penyesuaian stok dengan alasan wajib.
+- Launcher dan logo pemuatan memakai aset baru khusus Retail, Grosir, dan Kuliner tanpa mengubah rasio logo atau menambah delay palsu.
+- Requirement printer struk dicatat sebagai tahap berikutnya tanpa implementasi hardware.
+- Salinan data memakai aksi lanjutan yang terlihat, nama berkas `.ukbackup.zip`, dan pemilih yang tetap menerima backup lama.
+- Masukan user tentang ESC/POS universal dan MP-58ECO/RPP02N disimpan di `docs/PRINTER_REQUIREMENTS.md`; statusnya masih rancangan sampai keputusan hardware V1 dikunci.
+- Arah impor catatan fisik dicatat di `docs/PHYSICAL_RECORD_IMPORT_REQUIREMENTS.md`: pengguna memakai Gemini/GPT/aplikasi AI lain miliknya, hasil masuk lewat tempel teks atau file JSON, dan Owner wajib review sebelum data masuk histori.
+- Keputusan user dikunci: APK hanya menerima data yang sudah dikonversi menjadi format CatatToko dan tidak memproses foto atau menjalankan AI.
+- Prompt konversi v1 ditambahkan di `docs/templates/CATATTOKO_CONVERT_PHYSICAL_NOTES_PROMPT_V1.md`; output memakai JSON `catattoko.history-import.v1` dan data yang tidak jelas menjadi `UNRESOLVED`/`Perlu dicek`, bukan ditebak.
+- Prompt mewajibkan panduan setelah konversi: ringkasan hasil, daftar bagian ragu, cara menyimpan file, jalur menu importer, larangan memakai menu Backup, dan fallback jujur ketika importer belum tersedia.
+
+### Pending
+
+- Konsistensi arsip pelanggan, pemasok, pekerja, topping, dan satuan menunggu spesifikasi layar lanjutan.
+- Hapus permanen data master belum disetujui dan tidak diimplementasikan.
+- CatatToko tidak akan menyediakan SDK AI atau API key. Format JSON, validasi batch, deteksi duplikasi, dan jenis catatan pertama belum dipilih; importer hasil AI eksternal belum diimplementasikan.
+- Importer hasil AI eksternal, hard delete, arsip entitas lanjutan, dan hardware printer tetap belum diimplementasikan.
+- Verifikasi pemulihan isi file dilakukan lewat connected AndroidTest; percobaan memilih file hasil injeksi ADB di DocumentsUI MuMu dibatasi konteks akses file emulator dan tidak dianggap bukti UI restore fisik.
+
+### Verifikasi final
+
+- Unit test Retail, Wholesale, dan Culinary lulus.
+- Build debug dan AndroidTest APK tiga flavor lulus.
+- Connected Retail lulus `60/60` pada MuMu `emulator-5554`.
+- Visual portrait Retail diperiksa untuk launcher, loading, kasir, laporan, performa produk, dan backup.
+- Visual landscape tertahan karena device landscape `emulator-5556` tidak tersedia dan MuMu portrait tidak menerima rotasi paksa; hasil landscape tidak diklaim.
+- APK final dipackage: Retail `3A85A448AE5B9D9C032349AF327608676AA5D5293553B26D44F0519B66E7AD6B`, Grosir `EAEE700536BD139A02F38BE3C3404EC271E7E321854B3E83343EB853187491A9`, Kuliner `0CB147B927B056777230EC6C9257E2A375F01C13506EAAC33C15E761B6CE2AFB`.

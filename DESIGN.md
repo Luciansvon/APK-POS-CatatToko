@@ -30,6 +30,15 @@ A practical Android point-of-sale interface for Indonesian small-business owners
 
 Jade is the only brand accent. Amber and red are semantic status colors, never decorative accents. No purple, neon blue, gradient text, or outer glow.
 
+## 2.1 Identitas flavor dan aset awal aplikasi
+
+- Retail dan UMKM memakai logo etalase hijau.
+- Grosir dan Agen memakai logo etalase biru dengan simbol paket.
+- Kuliner dan PKL memakai logo etalase jingga dengan simbol struk.
+- Launcher memakai versi tanpa teks pada latar warna muda per flavor. Logo berada di safe zone tengah agar tidak terpotong mask bulat atau squircle Android.
+- Layar pemuatan awal memakai versi logo bertulisan sesuai flavor dengan `ContentScale.Fit`; logo tidak boleh diregangkan, dipotong, atau dipakai untuk menambah jeda palsu.
+- `master-logo.png` tidak dipakai sebagai pengganti identitas tiga flavor.
+
 ## 3. Typography Rules
 
 - **Display and financial numbers:** `Roboto Condensed`, tabular figures when available, weight `700`.
@@ -179,3 +188,40 @@ Never use serif fonts, Inter, decorative display fonts, or thin text for financi
 - No fake cloud or synchronization copy.
 - No unapproved E-Wallet, `Lainnya`, barcode, printer, marketplace, or payment-gateway controls.
 - No generic AI marketing copy.
+
+## 9. Owner UI Direction — Stitch 2026-08-11
+
+The approved cashier/worker UI is frozen. The existing cashier references and Compose flow remain the source of truth; no cashier redesign is part of this pass. Any cashier screens that were generated in Stitch during exploration are drafts only and must not be implemented over the approved cashier screens.
+
+This pass redesigns the Owner area after Owner PIN verification: report reading, stock attention, cash overview, and backup/security. It keeps the offline-first product truth and shared Compose source.
+
+The Owner report screen extends the same Retail Pragmatist system after Owner PIN verification. It is an operational reading surface, not a decorative dashboard.
+
+- Keep the white header compact and show only the screen title; Owner access is already established by the surrounding shell.
+- Put the period selector first, then the main sales summary, then the full-width `Simpan Laporan Excel` action.
+- Keep `Omzet hari ini` or the active period label readable, but state that it is total sales value, not profit.
+- Keep `Transaksi`, `Uang masuk`, and `Pengeluaran` visible without truncating long Rupiah values; switch to rows when the screen is narrow.
+- Show `Pergerakan penjualan` with visible date/value labels and a semantic description; do not rely on color alone.
+- Use `Lihat transaksi` as the next clear action, followed by deeper cash/detail sections only when opened.
+- Show `Data tersimpan di perangkat.` and never imply cloud sync, upload, profit, or HPP calculation.
+- On an empty period, use real zero values such as `Rp0`; do not invent example revenue, dates, or percentages.
+- For Stock, Kas, and Backup, use one clear task per screen: flat sections, text tabs, divider-separated rows, and one primary action per state.
+
+Stitch handoff used for this direction:
+
+- Project: `CatatToko UI Redesign - Owner & Cashier 2026-08-11` (`5839994889813616259`).
+- Final generated screen: `Laporan Owner (Revised Final)` (`203fd8ae97dd49199cb395c205e33e7a`).
+- Generated design system asset: `a6dbd2c2601448e8b6ddbb9eabe82c9d`.
+- Owner-only reference screens:
+  - `Operasional - Stok Owner Final` (`27a28e73ec6845d5bb04bbaa5649cf5b`).
+  - `Keuangan - Kas Owner (Empty State)` (`315cbf64dad04a12b093f39c116e228e`).
+  - `Lainnya - Backup & Keamanan (Final)` (`60f6e98df53a4fc9b858c3f0233063a8`).
+
+The earlier purple-frame, large-hero, card-heavy explorations were rejected as visual drafts. They are not acceptance references. These final references were checked for truthful empty states, readable bottom navigation, no fake dates or values, and no global stock action when only row-level stock actions are needed.
+
+Acceptance criteria for Compose:
+
+- At `360 x 800dp`, the period selector, summary, export action, and chart remain reachable by scrolling without overlap or clipped bottom navigation.
+- Every primary action keeps at least a `48dp` touch target.
+- The report remains Owner-only and continues to use the existing period, refresh, chart, Excel, and detail behaviors.
+- Retail, Wholesale, and Culinary continue to use the shared screen structure; only capabilities, labels, and flavor colors vary.

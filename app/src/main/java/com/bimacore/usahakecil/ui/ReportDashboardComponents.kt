@@ -7,21 +7,20 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -83,7 +82,7 @@ fun ReportPeriodPicker(
                 .fillMaxWidth()
                 .heightIn(min = 56.dp)
                 .testTag("report-period-selector"),
-            shape = RoundedCornerShape(18.dp),
+            shape = RoundedCornerShape(16.dp),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         ) {
             Icon(Icons.Outlined.CalendarMonth, contentDescription = null)
@@ -128,36 +127,33 @@ fun ReportOverviewCard(
     previous: ReportSummary?,
     period: ReportPeriod,
 ) {
-    val comparison = reportComparison(summary.totalSales, previous?.totalSales, period)
+    val comparison = previous?.let { reportComparison(summary.totalSales, it.totalSales, period) }
     OwnerHeroCard(
         eyebrow = "Omzet ${period.label.lowercase(Locale.forLanguageTag("id-ID"))}",
         value = formatRupiah(summary.totalSales),
-        supportingText = comparison.text,
+        supportingText = "Total nilai penjualan, bukan laba.",
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Icon(
-                imageVector = when (comparison.direction) {
-                    MetricDirection.POSITIVE -> Icons.AutoMirrored.Outlined.TrendingUp
-                    MetricDirection.NEGATIVE -> Icons.AutoMirrored.Outlined.TrendingDown
-                    MetricDirection.NEUTRAL -> Icons.Outlined.Remove
-                },
-                contentDescription = null,
-                tint = comparison.color(),
-            )
-            Text(
-                "Dibandingkan pada waktu yang sama",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodySmall,
-            )
+        comparison?.let {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Icon(
+                    imageVector = when (it.direction) {
+                        MetricDirection.POSITIVE -> Icons.AutoMirrored.Outlined.TrendingUp
+                        MetricDirection.NEGATIVE -> Icons.AutoMirrored.Outlined.TrendingDown
+                        MetricDirection.NEUTRAL -> Icons.Outlined.Remove
+                    },
+                    contentDescription = null,
+                    tint = it.color(),
+                )
+                Text(
+                    it.text,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
         }
-        Text(
-            "Total nilai penjualan, bukan laba.",
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodySmall,
-        )
         OwnerMetricStrip(
             listOf(
                 summary.transactionCount.toString() to "Transaksi",
@@ -178,36 +174,32 @@ fun ReportSalesMovementCard(
     val visiblePoints = remember(trend, range) {
         trend?.points.orEmpty().filter { it.bucketStart in range }.takeLast(12)
     }
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Text(
-                "Pergerakan omzet ${period.label.lowercase(Locale.forLanguageTag("id-ID"))}",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
+        Text(
+            "Pergerakan penjualan ${period.label.lowercase(Locale.forLanguageTag("id-ID"))}",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+        )
+        when {
+            error != null -> Text(
+                error,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodyMedium,
             )
-            when {
-                error != null -> Text(
-                    error,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                trend == null -> Text(
-                    "Grafik sedang dimuat.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                visiblePoints.isEmpty() -> Text(
-                    "Belum ada penjualan pada periode ini.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                else -> SalesLineChart(visiblePoints, trend.granularity)
-            }
+            trend == null -> Text(
+                "Grafik sedang dimuat.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            visiblePoints.isEmpty() -> Text(
+                "Belum ada penjualan pada periode ini.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            else -> SalesLineChart(visiblePoints, trend.granularity)
         }
     }
 }
@@ -313,59 +305,43 @@ fun ReportMetricGrid(
             add(ReportMetricData("Saldo piutang saat ini", formatRupiah(summary.outstandingReceivables), null, null, null))
         }
     }
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        metrics.chunked(2).forEach { rowItems ->
-            Row(
-                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+    Column(modifier = Modifier.fillMaxWidth()) {
+        metrics.forEachIndexed { index, metric ->
+            val delta = metric.delta()
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(5.dp),
             ) {
-                rowItems.forEach { metric ->
-                    ReportMetricCard(metric, Modifier.weight(1f))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        metric.label,
+                        modifier = Modifier.weight(1f),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                    Text(
+                        metric.value,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
-                if (rowItems.size == 1) Spacer(Modifier.weight(1f))
+                Text(
+                    delta.text,
+                    color = delta.accentColor(),
+                    style = MaterialTheme.typography.labelMedium,
+                )
             }
-        }
-    }
-}
-
-@Composable
-private fun ReportMetricCard(
-    metric: ReportMetricData,
-    modifier: Modifier,
-) {
-    val delta = metric.delta()
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = delta.containerColor()),
-        shape = RoundedCornerShape(16.dp),
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(5.dp),
-        ) {
-            Text(
-                metric.label,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelLarge,
-                minLines = 2,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                metric.value,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                delta.text,
-                color = delta.accentColor(),
-                style = MaterialTheme.typography.labelMedium,
-                minLines = 2,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+            if (index < metrics.lastIndex) {
+                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f))
+            }
         }
     }
 }
@@ -385,40 +361,31 @@ fun ReportTrendSection(
 ) {
     SectionTitle("Grafik laporan")
     Text(
-        "Pilih data yang ingin dipantau.",
+        "Pilih jenis laporan, lalu baca perubahannya di grafik.",
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        ReportChoiceMenu(
-            label = "Tampilan",
-            selected = mode,
-            options = ReportChartMode.values().toList(),
-            optionLabel = { it.label },
-            onSelected = onModeSelected,
-            testTag = "report-chart-mode",
-            optionTagPrefix = "report-chart-mode-option",
-            modifier = Modifier.weight(1f),
-        )
-        ReportChoiceMenu(
-            label = "Rentang",
-            selected = granularity,
-            options = ReportChartGranularity.values().toList(),
-            optionLabel = { it.label },
-            onSelected = onGranularitySelected,
-            testTag = "report-chart-granularity",
-            optionTagPrefix = "report-chart-granularity-option",
-            modifier = Modifier.weight(1f),
-        )
-    }
+    ReportModeTabs(
+        selected = mode,
+        onSelected = onModeSelected,
+    )
+    ReportChoiceMenu(
+        label = "Dikelompokkan",
+        selected = granularity,
+        options = ReportChartGranularity.values().toList(),
+        optionLabel = { it.controlLabel() },
+        onSelected = onGranularitySelected,
+        testTag = "report-chart-granularity",
+        optionTagPrefix = "report-chart-granularity-option",
+    )
 
     val products = trend?.products.orEmpty()
     if (mode == ReportChartMode.PRODUCT) {
         val selectedProduct = selectedProductId?.let { id ->
-            products.firstOrNull { it.productId == id }?.let {
-                ProductOption.Specific(it.productId, it.productName)
+            products.firstOrNull { it.productId == id }?.let { product ->
+                val name = product.variantName?.let { variant ->
+                    product.productName.removeSuffix(" ($variant)")
+                } ?: product.productName
+                ProductOption.Specific(product.productId, name)
             }
         } ?: ProductOption.All
         Box(
@@ -426,7 +393,7 @@ fun ReportTrendSection(
                 .fillMaxWidth()
                 .testTag("report-product-selector"),
         ) {
-            ReportProductSettingsMenu(
+            ReportProductControls(
                 selectedProduct = selectedProduct,
                 products = products,
                 measure = productMeasure,
@@ -441,7 +408,59 @@ fun ReportTrendSection(
         trend == null -> InfoCard("Grafik belum tersedia", "Buka ulang Laporan untuk memuat grafik.")
         mode == ReportChartMode.CASH_FLOW -> CashFlowTrendCard(trend)
         mode == ReportChartMode.SALES -> SalesTrendCard(trend)
-        else -> ProductTrendCard(trend, selectedProductId, productMeasure)
+        else -> ProductTrendCard(trend, selectedProductId, productMeasure, onProductSelected)
+    }
+}
+
+@Composable
+private fun ReportModeTabs(
+    selected: ReportChartMode,
+    onSelected: (ReportChartMode) -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("report-chart-mode"),
+    ) {
+        ReportChartMode.values().forEach { mode ->
+            val isSelected = mode == selected
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 48.dp)
+                    .clickable { onSelected(mode) }
+                    .semantics {
+                        contentDescription = if (isSelected) {
+                            "${mode.label}, dipilih"
+                        } else {
+                            "Tampilkan ${mode.label}"
+                        }
+                    }
+                    .testTag("report-chart-mode-option-${mode.label}"),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Bottom,
+            ) {
+                Text(
+                    mode.label,
+                    color = if (isSelected) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                )
+                Spacer(Modifier.height(10.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(3.dp)
+                        .background(
+                            if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                        ),
+                )
+            }
+        }
     }
 }
 
@@ -460,18 +479,28 @@ private fun <T> ReportChoiceMenu(
     Box(modifier = modifier) {
         OutlinedButton(
             onClick = { expanded = true },
-            modifier = Modifier.fillMaxWidth().testTag(testTag),
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 48.dp)
+                .testTag(testTag),
+            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+            shape = OwnerActionShape,
         ) {
-            Column(Modifier.weight(1f), horizontalAlignment = Alignment.Start) {
-                Text(label, style = MaterialTheme.typography.labelSmall)
-                Text(
-                    optionLabel(selected),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.labelLarge,
-                )
-            }
+            Text(
+                label,
+                modifier = Modifier.weight(1f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelLarge,
+                textAlign = TextAlign.Start,
+            )
+            Text(
+                optionLabel(selected),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(Modifier.width(8.dp))
             Icon(
                 imageVector = Icons.Outlined.ExpandMore,
                 contentDescription = "Buka pilihan $label",
@@ -493,79 +522,76 @@ private fun <T> ReportChoiceMenu(
 }
 
 @Composable
-private fun ReportProductSettingsMenu(
+private fun ReportProductControls(
     selectedProduct: ProductOption,
     products: List<ReportProductTrend>,
     measure: ReportProductMeasure,
     onProductSelected: (Long?) -> Unit,
     onMeasureSelected: (ReportProductMeasure) -> Unit,
-    testTag: String = "report-product-measure",
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    val displayedMeasure = if (selectedProduct == ProductOption.All) ReportProductMeasure.SALES else measure
-    val productOptions = listOf<ProductOption>(ProductOption.All) + products.map {
-        ProductOption.Specific(it.productId, it.productName)
-    }
-    Box {
-        OutlinedButton(
-            onClick = { expanded = true },
-            modifier = Modifier.fillMaxWidth().testTag(testTag),
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-        ) {
-            Column(Modifier.weight(1f), horizontalAlignment = Alignment.Start) {
-                Text("Produk", style = MaterialTheme.typography.labelSmall)
-                Text(
-                    "${selectedProduct.label()} / ${displayedMeasure.label}",
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.labelLarge,
-                )
-            }
-            Icon(
-                imageVector = Icons.Outlined.ExpandMore,
-                contentDescription = "Buka pilihan produk dan ukuran",
-            )
+    val displayedMeasure = measure
+    val productOptions = listOf<ProductOption>(ProductOption.All) + products
+        .groupBy(ReportProductTrend::productId)
+        .map { (productId, entries) ->
+            val first = entries.first()
+            val name = first.variantName?.let { variant ->
+                first.productName.removeSuffix(" ($variant)")
+            } ?: first.productName
+            ProductOption.Specific(productId, name)
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        .sortedBy(ProductOption.Specific::name)
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        ReportChoiceMenu(
+            label = "Produk yang dilihat",
+            selected = selectedProduct,
+            options = productOptions,
+            optionLabel = { it.label() },
+            onSelected = { option ->
+                val productId = (option as? ProductOption.Specific)?.id
+                onProductSelected(productId)
+            },
+            testTag = "report-product-measure",
+            optionTagPrefix = "report-product-selector-option",
+        )
+        Text(
+            "Angka yang ditampilkan",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            ReportProductMeasure.values().forEach { option ->
+                val isSelected = displayedMeasure == option
+                OutlinedButton(
+                    onClick = { onMeasureSelected(option) },
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = 48.dp)
+                        .testTag("report-product-measure-option-${option.label}"),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = if (isSelected) {
+                            MaterialTheme.colorScheme.primaryContainer
+                        } else {
+                            Color.Transparent
+                        },
+                    ),
+                    shape = OwnerActionShape,
+                ) {
+                    Text(
+                        if (option == ReportProductMeasure.QUANTITY) "Jumlah terjual" else option.label,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                    )
+                }
+            }
+        }
+        if (selectedProduct == ProductOption.All) {
             Text(
-                "Produk",
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                style = MaterialTheme.typography.labelMedium,
+                "Semua produk menampilkan peringkat. Ketuk satu produk untuk melihat tren waktunya.",
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            productOptions.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(option.label()) },
-                    onClick = {
-                        expanded = false
-                        val productId = (option as? ProductOption.Specific)?.id
-                        onProductSelected(productId)
-                        if (productId == null && measure == ReportProductMeasure.QUANTITY) {
-                            onMeasureSelected(ReportProductMeasure.SALES)
-                        }
-                    },
-                    modifier = Modifier.testTag("report-product-selector-option-${option.label()}"),
-                )
-            }
-            HorizontalDivider()
-            Text(
-                "Tampilkan sebagai",
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            ReportProductMeasure.values()
-                .filter { selectedProduct != ProductOption.All || it != ReportProductMeasure.QUANTITY }
-                .forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(option.label) },
-                    onClick = {
-                        expanded = false
-                        onMeasureSelected(option)
-                    },
-                    modifier = Modifier.testTag("report-product-measure-option-${option.label}"),
-                )
-            }
         }
     }
 }
@@ -577,37 +603,91 @@ private fun CashFlowTrendCard(trend: ReportTrendReport) {
         mutableIntStateOf((points.size - 1).coerceAtLeast(0))
     }
     val maxValue = points.maxOfOrNull { maxOf(it.cashIn, it.cashOut) }?.coerceAtLeast(1L) ?: 1L
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = RoundedCornerShape(16.dp),
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .testTag("report-cash-flow-chart"),
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Arus kas tercatat", style = MaterialTheme.typography.titleMedium)
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("Arus kas", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Text(
-                "Kas masuk dan kas keluar per ${trend.granularity.label.lowercase(Locale.forLanguageTag("id-ID"))}.",
+                "${formatTrendRange(trend)} • ${trend.granularity.sentenceLabel()}.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
             )
-            TrendLegend()
-            CashFlowBars(
-                points = points,
-                maxValue = maxValue,
-                selectedIndex = selectedIndex,
-                granularity = trend.granularity,
-                onSelected = { selectedIndex = it },
-            )
-            val selected = points[selectedIndex]
-            Text(
-                "${formatTrendDate(selected.bucketStart, trend.granularity)}: masuk ${formatRupiah(selected.cashIn)} • keluar ${formatRupiah(selected.cashOut)} • bersih ${formatRupiah(selected.netCash)}",
-                style = MaterialTheme.typography.labelMedium,
-            )
-            Text(
-                "Ketuk batang untuk melihat angka periode tersebut.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelSmall,
-            )
+            if (points.isEmpty()) {
+                ZeroTrendChart(
+                    points = emptyList(),
+                    granularity = trend.granularity,
+                    selectedIndex = 0,
+                    emptyMessage = "Belum ada arus kas pada rentang ini.",
+                    onSelected = {},
+                )
+            } else {
+                val selected = points[selectedIndex]
+                Text(
+                    formatTrendDate(selected.bucketStart, trend.granularity),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                CashFlowSummary(selected)
+                TrendLegend()
+                CashFlowBars(
+                    points = points,
+                    maxValue = maxValue,
+                    selectedIndex = selectedIndex,
+                    granularity = trend.granularity,
+                    onSelected = { selectedIndex = it },
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun CashFlowSummary(point: ReportTrendPoint) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        CashFlowMetric("Masuk", point.cashIn, Color(0xFF2E7D32), Modifier.weight(1f))
+        CashFlowMetric("Keluar", point.cashOut, Color(0xFFC62828), Modifier.weight(1f))
+        CashFlowMetric(
+            label = "Bersih",
+            value = point.netCash,
+            color = when {
+                point.netCash > 0L -> Color(0xFF2E7D32)
+                point.netCash < 0L -> Color(0xFFC62828)
+                else -> MaterialTheme.colorScheme.onSurface
+            },
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+@Composable
+private fun CashFlowMetric(
+    label: String,
+    value: Long,
+    color: Color,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Text(
+            label,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.labelSmall,
+        )
+        Text(
+            formatRupiah(value),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            color = color,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold,
+        )
     }
 }
 
@@ -618,12 +698,12 @@ private fun SalesTrendCard(trend: ReportTrendReport) {
         mutableIntStateOf((points.size - 1).coerceAtLeast(0))
     }
     val maxValue = points.maxOfOrNull { it.sales }?.coerceAtLeast(1L) ?: 1L
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = RoundedCornerShape(16.dp),
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Penjualan", style = MaterialTheme.typography.titleMedium)
             Text(
                 "Omzet dan transaksi per ${trend.granularity.label.lowercase(Locale.forLanguageTag("id-ID"))}.",
@@ -658,10 +738,21 @@ private fun ProductTrendCard(
     trend: ReportTrendReport,
     selectedProductId: Long?,
     measure: ReportProductMeasure,
+    onProductSelected: (Long?) -> Unit,
 ) {
-    val selectedProduct = selectedProductId?.let { id -> trend.products.firstOrNull { it.productId == id } }
-    val series = selectedProduct ?: aggregateProductTrend(trend.products, trend.points)
-    val effectiveMeasure = if (selectedProduct == null) ReportProductMeasure.SALES else measure
+    if (selectedProductId == null) {
+        ProductComparisonChart(trend, measure, onProductSelected)
+        return
+    }
+    val selectedEntries = trend.products.filter { it.productId == selectedProductId }
+    val series = aggregateProductTrend(selectedEntries, trend.points).copy(
+        productId = selectedProductId,
+        productName = selectedEntries.firstOrNull()?.let { first ->
+            first.variantName?.let { variant -> first.productName.removeSuffix(" ($variant)") }
+                ?: first.productName
+        } ?: "Produk",
+    )
+    val effectiveMeasure = measure
     val points = series.points
     var selectedIndex by remember(points) {
         mutableIntStateOf((points.size - 1).coerceAtLeast(0))
@@ -669,12 +760,12 @@ private fun ProductTrendCard(
     val maxValue = points.maxOfOrNull { point ->
         if (effectiveMeasure == ReportProductMeasure.SALES) point.sales else point.quantity
     }?.coerceAtLeast(1L) ?: 1L
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = RoundedCornerShape(16.dp),
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Penjualan produk", style = MaterialTheme.typography.titleMedium)
             Text(
                 "${series.productName} • ${effectiveMeasure.label} per ${trend.granularity.label.lowercase(Locale.forLanguageTag("id-ID"))}",
@@ -711,6 +802,104 @@ private fun ProductTrendCard(
 }
 
 @Composable
+private fun ProductComparisonChart(
+    trend: ReportTrendReport,
+    measure: ReportProductMeasure,
+    onProductSelected: (Long?) -> Unit,
+) {
+    val products = trend.products
+        .groupBy(ReportProductTrend::productId)
+        .map { (productId, entries) ->
+            val first = entries.first()
+            val name = first.variantName?.let { variant ->
+                first.productName.removeSuffix(" ($variant)")
+            } ?: first.productName
+            val value = entries.sumOf { entry ->
+                entry.points.sumOf { point ->
+                    if (measure == ReportProductMeasure.SALES) point.sales else point.quantity
+                }
+            }
+            ProductPerformance(productId, name, first.unitLabel, value)
+        }
+        .sortedWith(compareByDescending<ProductPerformance> { it.value }.thenBy { it.name })
+    val maxValue = products.maxOfOrNull(ProductPerformance::value)?.coerceAtLeast(1L) ?: 1L
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp)
+            .testTag("report-product-comparison"),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text("Performa semua produk", style = MaterialTheme.typography.titleMedium)
+        Text(
+            "${measure.label} pada ${formatTrendRange(trend)} • diurutkan tertinggi.",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodySmall,
+        )
+        if (products.isEmpty()) {
+            Text(
+                "Belum ada produk terjual pada rentang ini.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        } else {
+            products.forEach { product ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable { onProductSelected(product.productId) }
+                        .semantics {
+                            contentDescription = "${product.name}, ${formatProductPerformance(product, measure)}. Buka tren produk"
+                        }
+                        .padding(vertical = 6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            product.name,
+                            modifier = Modifier.weight(1f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            fontWeight = FontWeight.SemiBold,
+                        )
+                        Text(
+                            formatProductPerformance(product, measure),
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(8.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant),
+                    ) {
+                        if (product.value > 0L) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(product.value.toFloat().div(maxValue).coerceIn(0f, 1f))
+                                    .fillMaxHeight()
+                                    .background(MaterialTheme.colorScheme.primary),
+                            )
+                        }
+                    }
+                }
+            }
+            Text(
+                "Ketuk produk untuk melihat grafik per waktunya.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
 private fun TrendBars(
     points: List<ReportTrendPoint>,
     maxValue: Long,
@@ -720,8 +909,22 @@ private fun TrendBars(
     barColor: Color,
     onSelected: (Int) -> Unit,
 ) {
+    if (points.isEmpty() || points.none { value(it) > 0L }) {
+        ZeroTrendChart(
+            points = points,
+            granularity = granularity,
+            selectedIndex = selectedIndex,
+            emptyMessage = "Belum ada data pada rentang ini.",
+            onSelected = onSelected,
+        )
+        return
+    }
+    val selectedBackground = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
     Row(
-        modifier = Modifier.fillMaxWidth().height(176.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(156.dp)
+            .testTag("report-trend-chart"),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.Bottom,
     ) {
@@ -731,7 +934,13 @@ private fun TrendBars(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
-                    .clickable { onSelected(index) },
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(if (index == selectedIndex) selectedBackground else Color.Transparent)
+                    .clickable { onSelected(index) }
+                    .semantics {
+                        contentDescription = "${formatTrendDate(point.bucketStart, granularity)}, ${formatChartValue(amount)}"
+                    }
+                    .padding(horizontal = 1.dp, vertical = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Bottom,
             ) {
@@ -750,18 +959,26 @@ private fun TrendBars(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height((8f + 104f * amount.toFloat().div(maxValue).coerceIn(0f, 1f)).dp)
+                        .height(
+                            if (amount == 0L) 0.dp else {
+                                (6f + 86f * amount.toFloat().div(maxValue).coerceIn(0f, 1f)).dp
+                            },
+                        )
                         .clip(RoundedCornerShape(topStart = 6.dp, topEnd = 6.dp))
                         .background(if (index == selectedIndex) barColor else barColor.copy(alpha = 0.55f)),
                 )
                 Spacer(Modifier.height(5.dp))
-                Text(
-                    formatTrendAxisDate(point.bucketStart, granularity),
-                    maxLines = 1,
-                    overflow = TextOverflow.Clip,
-                    style = MaterialTheme.typography.labelSmall,
-                    textAlign = TextAlign.Center,
-                )
+                Box(Modifier.height(18.dp), contentAlignment = Alignment.Center) {
+                    if (shouldShowAxisLabel(index, points.size)) {
+                        Text(
+                            formatTrendAxisDate(point.bucketStart, granularity),
+                            maxLines = 1,
+                            overflow = TextOverflow.Clip,
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                }
             }
         }
     }
@@ -775,8 +992,22 @@ private fun CashFlowBars(
     granularity: ReportChartGranularity,
     onSelected: (Int) -> Unit,
 ) {
+    if (points.none { it.cashIn > 0L || it.cashOut > 0L }) {
+        ZeroTrendChart(
+            points = points,
+            granularity = granularity,
+            selectedIndex = selectedIndex,
+            emptyMessage = "Belum ada arus kas pada rentang ini.",
+            onSelected = onSelected,
+        )
+        return
+    }
+    val selectedBackground = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
     Row(
-        modifier = Modifier.fillMaxWidth().height(176.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(156.dp)
+            .testTag("report-trend-chart"),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.Bottom,
     ) {
@@ -785,7 +1016,13 @@ private fun CashFlowBars(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
-                    .clickable { onSelected(index) },
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(if (index == selectedIndex) selectedBackground else Color.Transparent)
+                    .clickable { onSelected(index) }
+                    .semantics {
+                        contentDescription = "${formatTrendDate(point.bucketStart, granularity)}, masuk ${formatRupiah(point.cashIn)}, keluar ${formatRupiah(point.cashOut)}"
+                    }
+                    .padding(horizontal = 1.dp, vertical = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Bottom,
             ) {
@@ -802,34 +1039,158 @@ private fun CashFlowBars(
                 }
                 Spacer(Modifier.height(3.dp))
                 Row(
-                    modifier = Modifier.fillMaxWidth().height(112.dp),
+                    modifier = Modifier.fillMaxWidth().height(94.dp),
                     horizontalArrangement = Arrangement.spacedBy(2.dp),
                     verticalAlignment = Alignment.Bottom,
                 ) {
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .height((8f + 104f * point.cashIn.toFloat().div(maxValue).coerceIn(0f, 1f)).dp)
+                            .height(
+                                if (point.cashIn == 0L) 0.dp else {
+                                    (6f + 86f * point.cashIn.toFloat().div(maxValue).coerceIn(0f, 1f)).dp
+                                },
+                            )
                             .clip(RoundedCornerShape(topStart = 5.dp, topEnd = 5.dp))
                             .background(Color(0xFF2E7D32)),
                     )
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .height((8f + 104f * point.cashOut.toFloat().div(maxValue).coerceIn(0f, 1f)).dp)
+                            .height(
+                                if (point.cashOut == 0L) 0.dp else {
+                                    (6f + 86f * point.cashOut.toFloat().div(maxValue).coerceIn(0f, 1f)).dp
+                                },
+                            )
                             .clip(RoundedCornerShape(topStart = 5.dp, topEnd = 5.dp))
                             .background(Color(0xFFC62828)),
                     )
                 }
                 Spacer(Modifier.height(5.dp))
-                Text(
-                    formatTrendAxisDate(point.bucketStart, granularity),
-                    maxLines = 1,
-                    overflow = TextOverflow.Clip,
-                    style = MaterialTheme.typography.labelSmall,
-                    textAlign = TextAlign.Center,
-                )
+                Box(Modifier.height(18.dp), contentAlignment = Alignment.Center) {
+                    if (shouldShowAxisLabel(index, points.size)) {
+                        Text(
+                            formatTrendAxisDate(point.bucketStart, granularity),
+                            maxLines = 1,
+                            overflow = TextOverflow.Clip,
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                }
             }
+        }
+    }
+}
+
+@Composable
+private fun ZeroTrendChart(
+    points: List<ReportTrendPoint>,
+    granularity: ReportChartGranularity,
+    selectedIndex: Int,
+    emptyMessage: String,
+    onSelected: (Int) -> Unit,
+) {
+    val baselineColor = MaterialTheme.colorScheme.outline
+    val selectedColor = MaterialTheme.colorScheme.primary
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("report-trend-zero-chart"),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(118.dp)
+                .semantics {
+                    contentDescription = "$emptyMessage Grafik datar pada Rp0."
+                }
+                .pointerInput(points.size) {
+                    detectTapGestures { offset ->
+                        if (points.isNotEmpty() && size.width > 0) {
+                            val index = (offset.x / size.width * points.size)
+                                .toInt()
+                                .coerceIn(points.indices)
+                            onSelected(index)
+                        }
+                    }
+                },
+        ) {
+            Text(
+                "Rp0",
+                modifier = Modifier.align(Alignment.TopEnd),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelSmall,
+            )
+            Canvas(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(top = 18.dp, bottom = 10.dp),
+            ) {
+                val baselineY = size.height * 0.72f
+                drawLine(
+                    color = baselineColor,
+                    start = Offset(0f, baselineY),
+                    end = Offset(size.width, baselineY),
+                    strokeWidth = 2.dp.toPx(),
+                    cap = StrokeCap.Round,
+                )
+                if (points.isNotEmpty()) {
+                    val safeSelected = selectedIndex.coerceIn(points.indices)
+                    val selectedX = if (points.size == 1) {
+                        size.width / 2f
+                    } else {
+                        size.width * safeSelected / points.lastIndex
+                    }
+                    drawLine(
+                        color = selectedColor.copy(alpha = 0.18f),
+                        start = Offset(selectedX, 0f),
+                        end = Offset(selectedX, baselineY),
+                        strokeWidth = 1.dp.toPx(),
+                    )
+                    drawCircle(
+                        color = selectedColor,
+                        radius = 4.dp.toPx(),
+                        center = Offset(selectedX, baselineY),
+                    )
+                }
+            }
+            Text(
+                emptyMessage,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(horizontal = 24.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
+                textAlign = TextAlign.Center,
+            )
+        }
+        TrendAxisLabels(points, granularity)
+    }
+}
+
+@Composable
+private fun TrendAxisLabels(
+    points: List<ReportTrendPoint>,
+    granularity: ReportChartGranularity,
+) {
+    val indices = when (points.size) {
+        0 -> emptyList()
+        1 -> listOf(0)
+        2 -> listOf(0, 1)
+        else -> listOf(0, points.lastIndex / 2, points.lastIndex).distinct()
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        indices.forEach { index ->
+            Text(
+                formatTrendAxisDate(points[index].bucketStart, granularity),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelSmall,
+            )
         }
     }
 }
@@ -879,6 +1240,22 @@ private sealed interface ProductOption {
         All -> "Semua produk"
         is Specific -> name
     }
+}
+
+private data class ProductPerformance(
+    val productId: Long,
+    val name: String,
+    val unitLabel: String,
+    val value: Long,
+)
+
+private fun formatProductPerformance(
+    product: ProductPerformance,
+    measure: ReportProductMeasure,
+): String = if (measure == ReportProductMeasure.SALES) {
+    formatRupiah(product.value)
+} else {
+    "${product.value} ${product.unitLabel}"
 }
 
 private data class ReportMetricData(
@@ -953,8 +1330,8 @@ private fun formatTrendDate(
     when (granularity) {
         ReportChartGranularity.DAILY,
         ReportChartGranularity.WEEKLY,
-        -> "dd/MM"
-        ReportChartGranularity.MONTHLY -> "MMM"
+        -> "d MMM yyyy"
+        ReportChartGranularity.MONTHLY -> "MMMM yyyy"
         ReportChartGranularity.YEARLY -> "yyyy"
     },
     Locale.forLanguageTag("id-ID"),
@@ -965,13 +1342,45 @@ private fun formatTrendAxisDate(
     granularity: ReportChartGranularity,
 ): String = SimpleDateFormat(
     when (granularity) {
-        ReportChartGranularity.DAILY -> "dd"
-        ReportChartGranularity.WEEKLY -> "dd/MM"
+        ReportChartGranularity.DAILY,
+        ReportChartGranularity.WEEKLY,
+        -> "d MMM"
         ReportChartGranularity.MONTHLY -> "MMM"
         ReportChartGranularity.YEARLY -> "yyyy"
     },
     Locale.forLanguageTag("id-ID"),
 ).format(Date(timestamp))
+
+private fun ReportChartGranularity.controlLabel(): String = when (this) {
+    ReportChartGranularity.DAILY -> "Per hari"
+    ReportChartGranularity.WEEKLY -> "Per minggu"
+    ReportChartGranularity.MONTHLY -> "Per bulan"
+    ReportChartGranularity.YEARLY -> "Per tahun"
+}
+
+private fun ReportChartGranularity.sentenceLabel(): String = when (this) {
+    ReportChartGranularity.DAILY -> "data per hari"
+    ReportChartGranularity.WEEKLY -> "data per minggu"
+    ReportChartGranularity.MONTHLY -> "data per bulan"
+    ReportChartGranularity.YEARLY -> "data per tahun"
+}
+
+private fun formatTrendRange(trend: ReportTrendReport): String {
+    val start = trend.points.firstOrNull()?.bucketStart ?: trend.fromInclusive
+    val end = trend.points.lastOrNull()?.bucketStart ?: trend.toInclusive
+    val locale = Locale.forLanguageTag("id-ID")
+    val startCalendar = Calendar.getInstance().apply { timeInMillis = start }
+    val endCalendar = Calendar.getInstance().apply { timeInMillis = end }
+    val sameYear = startCalendar.get(Calendar.YEAR) == endCalendar.get(Calendar.YEAR)
+    return if (sameYear) {
+        "${SimpleDateFormat("d MMM", locale).format(Date(start))} - ${SimpleDateFormat("d MMM yyyy", locale).format(Date(end))}"
+    } else {
+        "${SimpleDateFormat("d MMM yyyy", locale).format(Date(start))} - ${SimpleDateFormat("d MMM yyyy", locale).format(Date(end))}"
+    }
+}
+
+private fun shouldShowAxisLabel(index: Int, size: Int): Boolean =
+    size <= 5 || index == 0 || index == size / 2 || index == size - 1
 
 private fun formatReportRange(
     period: ReportPeriod,

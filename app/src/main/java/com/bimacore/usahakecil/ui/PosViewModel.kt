@@ -95,12 +95,19 @@ class PosViewModel(
     private val _message = MutableStateFlow<String?>(null)
     val message = _message.asStateFlow()
 
+    private val _isInitializing = MutableStateFlow(true)
+    val isInitializing = _isInitializing.asStateFlow()
+
     init {
         viewModelScope.launch {
-            repository.seedIfNeeded()
-            repository.loadCurrentReceipt()?.let {
-                _receipt.value = it
-                _screen.value = PosScreen.RECEIPT
+            try {
+                repository.seedIfNeeded()
+                repository.loadCurrentReceipt()?.let {
+                    _receipt.value = it
+                    _screen.value = PosScreen.RECEIPT
+                }
+            } finally {
+                _isInitializing.value = false
             }
         }
     }

@@ -95,6 +95,9 @@ class ExcelExportTest {
         }
 
         assertTrue(entries.containsKey("xl/workbook.xml"))
+        assertTrue(
+            Regex("<sheet ").findAll(entries.getValue("xl/workbook.xml")).count() == 20,
+        )
         assertTrue(entries.getValue("xl/workbook.xml").contains("Info Laporan"))
         assertTrue(entries.getValue("xl/workbook.xml").contains("Ringkasan"))
         assertTrue(entries.values.any { it.contains("Laporan Penjualan -") })
@@ -103,6 +106,32 @@ class ExcelExportTest {
         assertTrue(entries.values.any { it.contains("01 Januari 1970") })
         assertTrue(entries.values.any { it.contains("Ringkasan Keuangan") })
         assertTrue(entries.values.none { it.contains("report_security") || it.contains("draft_cart") })
+    }
+
+    @Test
+    fun summary_export_has_one_summary_sheet_with_main_values_and_print_fit() = runBlocking {
+        insertSale("SUMMARY-1", System.currentTimeMillis())
+        val manager = ExcelExportManager(
+            context = context,
+            database = database,
+            ownerSession = ReportSession().also { it.unlock() },
+            businessType = "RETAIL",
+            clock = { System.currentTimeMillis() },
+        )
+
+        val entries = readEntries(manager.createExport(ReportPeriod.DAY, ExcelExportMode.SUMMARY))
+        val workbook = entries.getValue("xl/workbook.xml")
+        val sheet = entries.getValue("xl/worksheets/sheet1.xml")
+
+        assertTrue(Regex("<sheet ").findAll(workbook).count() == 1)
+        assertTrue(workbook.contains("name=\"Ringkasan\""))
+        assertFalse(workbook.contains("Info Laporan"))
+        assertTrue(sheet.contains("Ringkasan Keuangan"))
+        assertTrue(sheet.contains("Jumlah transaksi"))
+        assertTrue(sheet.contains("Penjualan"))
+        assertTrue(sheet.contains("Kas masuk"))
+        assertTrue(sheet.contains("fitToWidth=\"1\""))
+        assertTrue(sheet.contains("fitToHeight=\"1\""))
     }
 
     @Test

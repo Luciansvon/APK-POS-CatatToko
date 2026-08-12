@@ -5,11 +5,13 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import com.bimacore.usahakecil.ui.HomeScreen
+import com.bimacore.usahakecil.ui.BrandLoadingScreen
 import com.bimacore.usahakecil.ui.OperationsViewModel
 import com.bimacore.usahakecil.ui.PosViewModel
 import com.bimacore.usahakecil.ui.theme.UsahaKecilTheme
@@ -39,23 +41,28 @@ class MainActivity : ComponentActivity() {
                 val operationsViewModel: OperationsViewModel = viewModel(
                     factory = OperationsViewModel.Factory(posApplication),
                 )
-                HomeScreen(
-                    businessLabel = getString(R.string.business_label),
-                    businessType = posApplication.businessType,
-                    posViewModel = posViewModel,
-                    operationsViewModel = operationsViewModel,
-                    onRecreate = {
-                        viewModelStore.clear()
-                        recreate()
-                    },
-                    showFirstRunGuide = showFirstRunGuide,
-                    onFirstRunGuideComplete = {
-                        guidePreferences.edit()
-                            .putBoolean(FirstRunGuidePreferences.COMPLETED_KEY, true)
-                            .apply()
-                        showFirstRunGuide = false
-                    },
-                )
+                val isInitializing by posViewModel.isInitializing.collectAsState()
+                if (isInitializing) {
+                    BrandLoadingScreen(getString(R.string.business_label))
+                } else {
+                    HomeScreen(
+                        businessLabel = getString(R.string.business_label),
+                        businessType = posApplication.businessType,
+                        posViewModel = posViewModel,
+                        operationsViewModel = operationsViewModel,
+                        onRecreate = {
+                            viewModelStore.clear()
+                            recreate()
+                        },
+                        showFirstRunGuide = showFirstRunGuide,
+                        onFirstRunGuideComplete = {
+                            guidePreferences.edit()
+                                .putBoolean(FirstRunGuidePreferences.COMPLETED_KEY, true)
+                                .apply()
+                            showFirstRunGuide = false
+                        },
+                    )
+                }
             }
         }
     }

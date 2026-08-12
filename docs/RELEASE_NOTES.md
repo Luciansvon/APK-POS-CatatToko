@@ -20,6 +20,56 @@ dist/debug/CatatToko-Grosir.apk
 dist/debug/CatatToko-Kuliner.apk
 ```
 
+## Versi 0.5.0 - 2026-08-12
+
+Status: Siap dibagikan sebagai APK debug lokal
+
+### Kenapa versi ini dibuat
+
+- Grafik Laporan sulit dibaca dan menampilkan batang seolah ada data saat semua nilai nol.
+- Tujuan ekspor Excel belum membedakan file ringkas untuk dibaca/cetak dengan workbook lengkap untuk audit data.
+- Aksi menghilangkan produk belum menjelaskan mekanisme arsip yang menjaga histori.
+- Identitas launcher dan pemuatan awal perlu memakai logo baru khusus tiap flavor.
+- Pemilih performa produk dan alur salinan data belum menjelaskan langkah yang harus dilakukan pengguna.
+
+### Perubahan
+
+- Merapikan Grafik Laporan menjadi tab mode, kontrol `Dikelompokkan`, rentang tanggal terbaca, ringkasan angka sebelum chart, dan baseline nol tanpa data palsu.
+- Memisahkan pemilih produk dari metrik, menambahkan ranking seluruh produk, dan menyediakan tren satu produk sesuai periode aktif.
+- Membuat rincian transaksi dan arus kas dapat dibuka/tutup dari Laporan.
+- Menambahkan `Ekspor Ringkasan` satu sheet dengan fit satu halaman dan `Ekspor Lengkap` dengan 20 sheet operasional.
+- Mengganti aksi produk/varian/kategori menjadi arsip aman dengan dialog dampak; stok memakai `Penyesuaian stok` dengan alasan wajib.
+- Mengganti launcher Retail/Grosir/Kuliner memakai logo tanpa teks sesuai flavor dan safe zone Android.
+- Menampilkan logo bertulisan sesuai flavor hanya selama inisialisasi data nyata, memakai `ContentScale.Fit` tanpa delay tambahan.
+- Membuat aksi backup mudah ditemukan: tombol utama berubah menjadi `Bagikan salinan data`, file baru memakai `.ukbackup.zip`, dan backup lama tetap dapat dipulihkan.
+- Menaikkan `versionCode` ke `19` dan `versionName` ke `0.5.0`.
+
+### Kekurangan
+
+- Aksi arsip pelanggan, pemasok, pekerja, topping, dan satuan belum dibuat konsisten di UI; repository yang sudah mendukung status aktif tidak diubah menjadi hard delete.
+- Printer struk belum diimplementasikan karena koneksi, protokol, lebar kertas, dan model perangkat belum dipilih.
+- Impor catatan fisik baru dicatat sebagai requirement provider-agnostic. Prompt dan skema awal `catattoko.history-import.v1` sudah disiapkan, tetapi parser, validasi batch, layar review, dan importer belum masuk APK `0.5.0`.
+- Hasil cetak fisik sheet Ringkasan bergantung pada aplikasi spreadsheet/printer; konfigurasi workbook sudah meminta fit satu halaman.
+
+### Masalah yang diketahui
+
+- Belum diuji pada printer fisik atau HP Android fisik.
+- Pemulihan file melalui DocumentsUI MuMu belum dapat dibuktikan memakai berkas yang disuntikkan lewat ADB karena konteks akses file emulator; pemulihan isi file tetap diuji langsung melalui connected AndroidTest.
+
+### Verifikasi
+
+- Unit test Retail, Wholesale, dan Culinary lulus.
+- `assembleDebug` serta AndroidTest APK Retail, Wholesale, dan Culinary lulus.
+- Connected Retail lulus `60/60` pada MuMu `emulator-5554` (Android 12), termasuk backup/restore, laporan, ekspor Excel, arsip, dan smoke UI.
+- Visual portrait Retail diperiksa pada loading logo, launcher aktual, landing CatatToko tanpa ikon tengah, grafik Arus kas nol, ranking seluruh produk, tren satu produk, serta status backup siap dibagikan.
+- Visual landscape final tidak diklaim: hanya `emulator-5554` yang tersedia dan MuMu tersebut tidak mengizinkan rotasi paksa; target landscape `emulator-5556` tidak terhubung.
+
+### APK final
+
+- Retail: `dist/debug/CatatToko-Retail.apk` | SHA256 `3A85A448AE5B9D9C032349AF327608676AA5D5293553B26D44F0519B66E7AD6B`
+- Grosir: `dist/debug/CatatToko-Grosir.apk` | SHA256 `EAEE700536BD139A02F38BE3C3404EC271E7E321854B3E83343EB853187491A9`
+- Kuliner: `dist/debug/CatatToko-Kuliner.apk` | SHA256 `0CB147B927B056777230EC6C9257E2A375F01C13506EAAC33C15E761B6CE2AFB`
+
 ## Versi 0.4.9 - 2026-08-04
 
 Status: Siap dibagikan sebagai APK debug
