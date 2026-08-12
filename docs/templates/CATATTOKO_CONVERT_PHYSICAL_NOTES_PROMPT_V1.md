@@ -1,6 +1,6 @@
 # Prompt Konversi Catatan Fisik CatatToko v1
 
-Status: Kontrak keluaran awal untuk tahap desain importer. CatatToko belum dapat mengimpor format ini pada APK `0.5.0`.
+Status: Kontrak importer v1 yang diterapkan mulai APK `0.6.0`.
 
 ## Cara pakai
 
@@ -8,7 +8,7 @@ Status: Kontrak keluaran awal untuk tahap desain importer. CatatToko belum dapat
 2. Unggah foto catatan fisik.
 3. Salin seluruh isi bagian `PROMPT MULAI` sampai `PROMPT SELESAI`.
 4. Unduh file JSON yang dibuat AI. Jika AI tidak dapat membuat lampiran, salin hanya blok JSON pada bagian `HASIL CATATTOKO`.
-5. Setelah importer tersedia, masukkan hasil tersebut ke CatatToko untuk divalidasi dan diperiksa Owner.
+5. Masukkan hasil tersebut lewat `CatatToko > Lainnya > Import catatan lama` untuk divalidasi dan diperiksa Owner.
 
 ## Prompt siap salin
 
@@ -105,11 +105,11 @@ Setelah file/blok selesai, tulis bagian `PANDUAN SELANJUTNYA` dalam bahasa Indon
 1. menyebut jumlah seluruh record, jumlah siap, jumlah perlu dicek, serta rentang tanggal dari `summary`;
 2. menyebut `sourceRef` yang perlu dicek dan alasan utamanya;
 3. meminta pengguna mengunduh file JSON atau menyalin hanya blok JSON, bukan seluruh jawaban;
-4. mengarahkan pengguna ke `CatatToko > Lainnya > Impor catatan lama`, lalu memilih `Pilih file hasil AI` atau `Tempel hasil AI`;
-5. mengingatkan agar semua baris dibandingkan dengan foto sebelum menekan `Konfirmasi & Masukkan ke Histori`;
+4. mengarahkan pengguna ke `CatatToko > Lainnya > Import catatan lama`, lalu memilih `Pilih file` atau menempel JSON;
+5. mengingatkan agar semua baris dibandingkan dengan foto sebelum menekan `Masukkan catatan siap`;
 6. melarang memasukkan file ini lewat menu `Backup & pemulihan` karena file impor bukan backup database;
 7. mengingatkan agar file yang sama tidak diimpor dua kali;
-8. jika menu `Impor catatan lama` belum tersedia pada APK pengguna, mengatakan dengan jujur: `Simpan file ini dulu. Versi CatatToko Anda belum menyediakan menu impor catatan lama.` Jangan mengklaim data sudah masuk aplikasi;
+8. jika menu `Import catatan lama` belum tersedia pada APK pengguna, mengatakan dengan jujur: `Simpan file ini dulu. Versi CatatToko Anda belum menyediakan menu import catatan lama.` Jangan mengklaim data sudah masuk aplikasi;
 9. tidak meminta API key dan tidak mengarahkan pengguna membeli layanan tertentu.
 
 ### PROMPT SELESAI

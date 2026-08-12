@@ -51,10 +51,12 @@ Desain pertama memakai varian **Retail dan UMKM** sebagai acuan. Setelah style d
 - Catatan arsitektur kandidat printer disimpan di `docs/PRINTER_REQUIREMENTS.md`: ESC/POS universal, transaksi wajib tersimpan sebelum cetak, dan kegagalan printer tidak boleh membatalkan transaksi.
 - Output struk direncanakan memakai logo CatatToko sesuai flavor; printer thermal memakai versi monokrom berskala dengan fallback nama teks bila bitmap tidak didukung.
 - [ ] Hapus permanen data master belum disetujui. Rancangan nanti hanya boleh mempertimbangkan data yang belum pernah direferensikan dan stoknya nol.
-- [ ] Impor catatan fisik menjadi histori CatatToko adalah tahap berikutnya: foto -> aplikasi AI pilihan pengguna -> tempel/pilih JSON -> validasi CatatToko -> review Owner -> impor.
-- CatatToko tidak menyediakan model AI, API key, atau integrasi provider. Requirement awal disimpan di `docs/PHYSICAL_RECORD_IMPORT_REQUIREMENTS.md`; format JSON, jenis catatan pertama, dan batas batch belum dipilih.
+- [x] Impor catatan fisik menjadi histori CatatToko tersedia: foto -> aplikasi AI pilihan pengguna -> tempel/pilih JSON -> validasi CatatToko -> review Owner -> impor.
+- CatatToko tidak menyediakan model AI, API key, atau integrasi provider. Importer v1 menerima maksimal 1 MB/200 record, menolak field asing dan duplikat, serta tidak mengubah stok aktif dari catatan lama.
 - [x] Keputusan integrasi dikunci: APK hanya menerima data yang sudah dikonversi alat eksternal ke format CatatToko; foto catatan tidak diproses oleh APK.
 - [x] Prompt konversi provider-agnostic versi 1 disiapkan dengan skema `catattoko.history-import.v1`, keluaran JSON murni, penanda field ragu, dan larangan mengarang data.
+- [x] Prompt dapat disalin langsung dari layar importer dan mewajibkan AI memberi panduan ekspor/masuk ke menu yang benar.
+- [ ] Edit field rinci, lampiran foto lokal, pemetaan manual ke master, dan penerapan penyesuaian stok lama menunggu contoh catatan nyata tersamarkan.
 
 ### Audit aksi entitas 12 Agustus 2026
 

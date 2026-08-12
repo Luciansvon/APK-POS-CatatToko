@@ -71,7 +71,7 @@ import java.util.Date
 import java.util.Locale
 
 @Composable
-private fun ownerTopAppBarColors() = TopAppBarDefaults.topAppBarColors(
+internal fun ownerTopAppBarColors() = TopAppBarDefaults.topAppBarColors(
     containerColor = MaterialTheme.colorScheme.surface,
     titleContentColor = MaterialTheme.colorScheme.onSurface,
     navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
@@ -1181,6 +1181,7 @@ fun ReportsScreen(viewModel: OperationsViewModel) {
 fun MoreScreen(
     viewModel: OperationsViewModel,
     onExitOwner: () -> Unit,
+    onOpenHistoryImport: () -> Unit,
 ) {
     val context = LocalContext.current
     val profile by viewModel.profile.collectAsState()
@@ -1282,6 +1283,13 @@ fun MoreScreen(
                     }
                 },
                 testTag = "restore-entry",
+            )
+            OwnerLinkCard(
+                title = "Import catatan lama",
+                subtitle = "Masukkan JSON hasil pembacaan catatan fisik dari Gemini, ChatGPT, atau AI lain.",
+                actionLabel = "Buka",
+                onClick = onOpenHistoryImport,
+                testTag = "history-import-entry",
             )
             OwnerSectionDivider()
             SectionTitle("Keamanan Owner")

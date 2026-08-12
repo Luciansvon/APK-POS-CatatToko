@@ -55,6 +55,7 @@ fun HomeScreen(
     }
     var showOwnerAccess by remember { mutableStateOf(false) }
     var showShiftOpen by remember { mutableStateOf(false) }
+    var showHistoryImport by remember { mutableStateOf(false) }
     val hasOwnerPin by operationsViewModel.reportHasPin.collectAsState()
     val activeShift by operationsViewModel.openShift.collectAsState()
     val message by operationsViewModel.message.collectAsState()
@@ -73,6 +74,14 @@ fun HomeScreen(
     }
     LaunchedEffect(ownerUnlocked) {
         destination = if (ownerUnlocked) AppDestination.REPORTS else AppDestination.POS
+    }
+
+    if (showHistoryImport && ownerUnlocked) {
+        HistoryImportScreen(
+            viewModel = operationsViewModel,
+            onBack = { showHistoryImport = false },
+        )
+        return
     }
 
     Scaffold(
@@ -160,6 +169,7 @@ fun HomeScreen(
                 AppDestination.MORE -> MoreScreen(
                     viewModel = operationsViewModel,
                     onExitOwner = operationsViewModel::lockReport,
+                    onOpenHistoryImport = { showHistoryImport = true },
                 )
             }
         }

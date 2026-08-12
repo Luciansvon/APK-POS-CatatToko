@@ -389,3 +389,56 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
         database.execSQL("CREATE INDEX IF NOT EXISTS index_cash_entries_shiftId ON cash_entries(shiftId)")
     }
 }
+
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS history_import_batches (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                schemaVersion TEXT NOT NULL,
+                contentHash TEXT NOT NULL,
+                sourceTitle TEXT NOT NULL,
+                timezone TEXT NOT NULL,
+                importedAt INTEGER NOT NULL,
+                recordCount INTEGER NOT NULL,
+                appliedCount INTEGER NOT NULL,
+                archivedCount INTEGER NOT NULL
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS index_history_import_batches_contentHash ON history_import_batches(contentHash)",
+        )
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS history_import_records (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                batchId INTEGER NOT NULL,
+                sourceRef TEXT NOT NULL,
+                recordType TEXT NOT NULL,
+                status TEXT NOT NULL,
+                originalDate TEXT,
+                originalTime TEXT,
+                timePrecision TEXT NOT NULL,
+                eventAt INTEGER,
+                fingerprint TEXT NOT NULL,
+                targetType TEXT,
+                targetId INTEGER,
+                rawJson TEXT NOT NULL,
+                rawText TEXT NOT NULL,
+                issues TEXT NOT NULL
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS index_history_import_records_batchId_sourceRef ON history_import_records(batchId, sourceRef)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS index_history_import_records_fingerprint ON history_import_records(fingerprint)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS index_history_import_records_targetType_targetId ON history_import_records(targetType, targetId)",
+        )
+    }
+}

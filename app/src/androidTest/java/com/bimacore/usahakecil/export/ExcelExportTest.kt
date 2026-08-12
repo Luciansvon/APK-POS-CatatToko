@@ -10,6 +10,7 @@ import com.bimacore.usahakecil.data.CategoryEntity
 import com.bimacore.usahakecil.data.MIGRATION_1_2
 import com.bimacore.usahakecil.data.MIGRATION_2_3
 import com.bimacore.usahakecil.data.MIGRATION_3_4
+import com.bimacore.usahakecil.data.MIGRATION_4_5
 import com.bimacore.usahakecil.data.PosDatabase
 import com.bimacore.usahakecil.data.ProductEntity
 import com.bimacore.usahakecil.data.ReportPeriod
@@ -34,7 +35,7 @@ class ExcelExportTest {
         context = ApplicationProvider.getApplicationContext()
         context.deleteDatabase(databaseName)
         database = Room.databaseBuilder(context, PosDatabase::class.java, databaseName)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
             .build()
         database.profileDao().saveProfile(
             BusinessProfileEntity(

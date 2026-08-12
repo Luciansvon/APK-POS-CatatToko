@@ -20,12 +20,15 @@ import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.printToString
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.lifecycle.ViewModelProvider
 import com.bimacore.usahakecil.data.ShiftEntity
+import com.bimacore.usahakecil.ui.OperationsViewModel
 import kotlinx.coroutines.runBlocking
 import org.junit.Before
 import org.junit.Rule
@@ -376,6 +379,48 @@ class MainActivitySmokeTest {
     }
 
     @Test
+    fun history_import_previews_json_before_owner_confirmation() {
+        assumeTrue(BuildConfig.BUSINESS_TYPE == "RETAIL")
+        unlockOwner()
+        composeRule.onNodeWithText("Lainnya").performClick()
+        composeRule.onNodeWithTag("history-import-entry")
+            .performScrollTo()
+            .performSemanticsAction(SemanticsActions.OnClick)
+
+        waitForText("Masukkan catatan lama")
+        composeRule.onNodeWithTag("history-import-copy-prompt").assertIsDisplayed()
+        composeRule.onNodeWithTag("history-import-input-list")
+            .performScrollToNode(hasTestTag("history-import-paste"))
+        composeRule.onNodeWithTag("history-import-paste").assertIsDisplayed()
+        composeRule.onNodeWithTag("history-import-input-list")
+            .performScrollToNode(hasTestTag("history-import-input"))
+        composeRule.onNodeWithTag("history-import-input").performTextReplacement(validHistoryImportJson())
+        composeRule.onNodeWithTag("history-import-input-list")
+            .performScrollToNode(hasTestTag("history-import-inspect"))
+        waitForEnabledTag("history-import-inspect")
+        composeRule.onNodeWithTag("history-import-inspect").assertIsEnabled()
+        val viewModel = ViewModelProvider(composeRule.activity)[OperationsViewModel::class.java]
+        composeRule.activity.runOnUiThread {
+            viewModel.inspectHistoryImportText(validHistoryImportJson())
+        }
+
+        composeRule.waitUntil(timeoutMillis = 10_000) {
+            composeRule.onAllNodesWithTag("history-import-row-0").fetchSemanticsNodes().isNotEmpty() ||
+                composeRule.onAllNodesWithTag("history-import-error").fetchSemanticsNodes().isNotEmpty()
+        }
+        if (composeRule.onAllNodesWithTag("history-import-error").fetchSemanticsNodes().isNotEmpty()) {
+            throw AssertionError("Importer menampilkan error:\n${composeRule.onRoot().printToString()}")
+        }
+        composeRule.onNodeWithText("1 catatan ditemukan").assertIsDisplayed()
+        assertTrue(composeRule.onAllNodesWithText("Siap masuk").fetchSemanticsNodes().isNotEmpty())
+        composeRule.onNodeWithTag("history-import-confirm")
+            .performSemanticsAction(SemanticsActions.OnClick)
+        waitForText("Masukkan ke histori?")
+        composeRule.onNodeWithText("Stok aktif tidak diubah", substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText("Batal").performClick()
+    }
+
+    @Test
     fun owner_mode_does_not_require_an_open_shift_for_management_or_export() {
         val application = composeRule.activity.application as PosApplication
         runBlocking {
@@ -495,6 +540,23 @@ class MainActivitySmokeTest {
             .filterToOne(hasClickAction())
             .performClick()
     }
+
+    private fun validHistoryImportJson(): String =
+        """
+        {
+          "schemaVersion":"catattoko.history-import.v1",
+          "source":{"title":"QA UI","pageCount":1,"businessType":"RETAIL","timezone":"Asia/Jakarta"},
+          "records":[{
+            "sourceRef":"qa-ui-1","type":"SALE","date":"2026-08-01","time":null,
+            "partyName":null,"category":"Penjualan","paymentMethod":"CASH","amount":10000,
+            "amountPaid":10000,"items":[{"productName":"Dimsum Mentai","variantName":null,
+            "quantity":1,"unitLabel":"porsi","unitPrice":10000,"subtotal":10000,"uncertainFields":[]}],
+            "stockDelta":null,"note":"QA","rawText":"dimsum 10.000","uncertainFields":[],"warnings":[]
+          }],
+          "summary":{"recordCount":1,"readyCount":1,"needsReviewCount":0,
+          "dateFrom":"2026-08-01","dateTo":"2026-08-01","warnings":[]}
+        }
+        """.trimIndent()
 
     private fun dismissFirstRunGuideIfPresent() {
         composeRule.waitUntil(timeoutMillis = 5_000) {
