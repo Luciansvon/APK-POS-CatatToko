@@ -459,6 +459,46 @@ Test dibuat adaptif: membuka sticky summary bila tersedia, atau langsung memakai
 
 - `app/src/androidTest/java/com/bimacore/usahakecil/MainActivitySmokeTest.kt`
 
+## ERR-053 - Hasil konversi catatan lama belum dapat dimasukkan ke CatatToko
+
+Tanggal: 2026-08-12
+
+Varian dan versi: Semua flavor, `0.6.0`
+
+### Kondisi/gejala
+
+Pengguna dapat meminta Gemini, ChatGPT, atau AI lain membaca foto buku usaha, tetapi APK hanya mempunyai backup/restore database. JSON hasil AI tidak dapat diperiksa atau dimasukkan sebagai histori dan berisiko disalahgunakan sebagai file backup.
+
+### Root cause
+
+Versi `0.5.0` baru mengunci prompt dan skema desain. Belum ada parser, batas input, deteksi duplikat, review Owner, transaksi penyimpanan khusus histori, maupun provenance batch.
+
+### Solusi
+
+- Menambahkan importer khusus Owner untuk tempel JSON atau pilih file, terpisah dari backup/restore.
+- Memvalidasi struktur `catattoko.history-import.v1`, UTF-8, ukuran, jumlah record/item, enum, tanggal, nominal, subtotal, serta jenis usaha.
+- Membagi hasil menjadi siap, perlu dicek, tidak diterapkan, dan data ganda; hanya record siap atau yang disetujui Owner yang diterapkan.
+- Menyimpan seluruh batch secara transaksional dengan raw text, masalah validasi, fingerprint, tanggal sumber, dan target histori.
+- Tidak memakai flow transaksi harian: histori lama tidak membuka shift dan tidak mengubah stok aktif.
+
+### Bukti verifikasi aktual
+
+- Unit parser membuktikan record valid, nilai ragu, field asing, duplikat, dan penyesuaian stok aman.
+- AndroidTest repository membuktikan waktu historis dipertahankan, shift tetap kosong, stok tidak berubah, dan commit file sama ditolak.
+- Unit test Retail, Wholesale, dan Culinary lulus.
+- `assembleDebug` serta AndroidTest APK Retail, Wholesale, dan Culinary lulus.
+- Connected Retail pada MuMu `emulator-5554` lulus `64/64`, termasuk parser/repository, migrasi database 1-5, proteksi sesi Owner, dan smoke UI importer.
+- Visual input importer Retail portrait diperiksa langsung. Target landscape `emulator-5556` tidak tersedia dan MuMu portrait menolak rotasi paksa, sehingga hasil landscape tidak diklaim.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/historyimport/`
+- `app/src/main/java/com/bimacore/usahakecil/data/HistoryImportEntities.kt`
+- `app/src/main/java/com/bimacore/usahakecil/data/HistoricalImportRepository.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/HistoryImportScreen.kt`
+- `app/src/test/java/com/bimacore/usahakecil/historyimport/HistoryImportParserTest.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/data/HistoricalImportRepositoryTest.kt`
+
 ## ERR-038 - Export Excel belum terkurasi dan belum terbukti pada banyak order
 
 Tanggal: 2026-08-01

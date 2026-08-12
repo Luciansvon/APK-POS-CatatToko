@@ -20,7 +20,7 @@ class DatabaseMigrationTest {
     )
 
     @Test
-    fun migration_1_4_preserves_existing_catalog_sales_and_creates_shift_table() {
+    fun migration_1_5_preserves_existing_data_and_creates_history_import_tables() {
         helper.createDatabase(TEST_DATABASE, 1).apply {
             execSQL(
                 """
@@ -57,11 +57,12 @@ class DatabaseMigrationTest {
 
         val migrated = helper.runMigrationsAndValidate(
             TEST_DATABASE,
-            4,
+            5,
             true,
             MIGRATION_1_2,
             MIGRATION_2_3,
             MIGRATION_3_4,
+            MIGRATION_4_5,
         )
 
         migrated.query("SELECT name, stock FROM products WHERE id = 1").use {
@@ -87,35 +88,53 @@ class DatabaseMigrationTest {
             it.moveToFirst()
             assertEquals(0, it.getInt(0))
         }
+        migrated.query("SELECT COUNT(*) FROM history_import_batches").use {
+            it.moveToFirst()
+            assertEquals(0, it.getInt(0))
+        }
         migrated.close()
     }
 
     @Test
-    fun migration_2_4_validates_schema() {
-        helper.createDatabase("migration-2-4-test", 2).close()
+    fun migration_2_5_validates_schema() {
+        helper.createDatabase("migration-2-5-test", 2).close()
         val migrated = helper.runMigrationsAndValidate(
-            "migration-2-4-test",
-            4,
+            "migration-2-5-test",
+            5,
             true,
             MIGRATION_2_3,
             MIGRATION_3_4,
+            MIGRATION_4_5,
         )
         migrated.close()
     }
 
     @Test
-    fun migration_3_4_validates_schema() {
-        helper.createDatabase("migration-3-4-test", 3).close()
+    fun migration_3_5_validates_schema() {
+        helper.createDatabase("migration-3-5-test", 3).close()
         val migrated = helper.runMigrationsAndValidate(
-            "migration-3-4-test",
-            4,
+            "migration-3-5-test",
+            5,
             true,
             MIGRATION_3_4,
+            MIGRATION_4_5,
+        )
+        migrated.close()
+    }
+
+    @Test
+    fun migration_4_5_validates_schema() {
+        helper.createDatabase("migration-4-5-test", 4).close()
+        val migrated = helper.runMigrationsAndValidate(
+            "migration-4-5-test",
+            5,
+            true,
+            MIGRATION_4_5,
         )
         migrated.close()
     }
 
     companion object {
-        private const val TEST_DATABASE = "migration-1-4-test"
+        private const val TEST_DATABASE = "migration-1-5-test"
     }
 }

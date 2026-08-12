@@ -40,6 +40,10 @@ import com.bimacore.usahakecil.domain.BusinessCapabilities
 import com.bimacore.usahakecil.domain.OrderStatus
 import com.bimacore.usahakecil.export.ExcelExportManager
 import com.bimacore.usahakecil.export.ExcelExportMode
+import com.bimacore.usahakecil.historyimport.HistoryImportDraft
+import com.bimacore.usahakecil.historyimport.HistoryImportManager
+import com.bimacore.usahakecil.historyimport.HistoryImportReviewStatus
+import com.bimacore.usahakecil.historyimport.HistoryImportUiState
 import java.util.Calendar
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -67,6 +71,7 @@ class OperationsViewModel(
     private val culinary: CulinaryRepository,
     private val backups: BackupManager,
     private val excelExports: ExcelExportManager,
+    private val historyImports: HistoryImportManager,
 ) : ViewModel() {
     val profile = database.profileDao().observeProfile().stateIn(
         viewModelScope,
@@ -198,6 +203,9 @@ class OperationsViewModel(
     private val _restoreCompleted = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val restoreCompleted = _restoreCompleted.asSharedFlow()
     private val _pendingRestoreUri = MutableStateFlow<Uri?>(null)
+    private val _pendingHistoryImportUri = MutableStateFlow<Uri?>(null)
+    private val _historyImportState = MutableStateFlow<HistoryImportUiState>(HistoryImportUiState.Empty)
+    val historyImportState = _historyImportState.asStateFlow()
     private val _saleDetail = MutableStateFlow<SaleDetail?>(null)
     val saleDetail = _saleDetail.asStateFlow()
     private val _shiftSummary = MutableStateFlow<ShiftSummary?>(null)
@@ -509,6 +517,20 @@ class OperationsViewModel(
             _backupPreview.value = backups.preview(pendingUri)
             _pendingRestoreUri.value = null
             _message.value = "Salinan valid. Periksa identitas sebelum memulihkan data."
+        } else if (_pendingHistoryImportUri.value != null) {
+            val importUri = requireNotNull(_pendingHistoryImportUri.value)
+            _historyImportState.value = HistoryImportUiState.Loading
+            try {
+                _historyImportState.value = HistoryImportUiState.Review(historyImports.inspectUri(importUri))
+                _pendingHistoryImportUri.value = null
+                _message.value = "File terbaca. Periksa catatan sebelum dimasukkan."
+            } catch (error: Exception) {
+                _historyImportState.value = HistoryImportUiState.Error(
+                    error.message ?: "File catatan lama gagal diperiksa",
+                )
+                _pendingHistoryImportUri.value = null
+                throw error
+            }
         } else {
             _message.value = "Mode Owner aktif"
         }
@@ -605,6 +627,66 @@ class OperationsViewModel(
         }
         _pendingRestoreUri.value = uri
         _message.value = "Berkas dipilih. Masukkan PIN Owner lagi untuk memeriksa."
+    }
+
+    fun inspectHistoryImportText(text: String) {
+        requireHistoryImportDraft { historyImports.inspectText(text) }
+    }
+
+    fun beginHistoryImportFileSelection() {
+        reports.session.beginExternalOwnerFlow()
+    }
+
+    fun finishHistoryImportFileSelection(uri: Uri?) {
+        reports.session.endExternalOwnerFlow()
+        if (uri == null) {
+            _pendingHistoryImportUri.value = null
+            return
+        }
+        _pendingHistoryImportUri.value = uri
+        _message.value = "File dipilih. Masukkan PIN Owner lagi untuk memeriksa."
+    }
+
+    fun approveHistoryImportRow(index: Int) {
+        val state = _historyImportState.value as? HistoryImportUiState.Review ?: return
+        val rows = state.draft.rows.map { row ->
+            if (row.index == index &&
+                row.status == HistoryImportReviewStatus.NEEDS_REVIEW &&
+                row.canApprove
+            ) {
+                row.copy(
+                    status = HistoryImportReviewStatus.READY,
+                    canApprove = false,
+                )
+            } else {
+                row
+            }
+        }
+        _historyImportState.value = HistoryImportUiState.Review(state.draft.copy(rows = rows))
+    }
+
+    fun confirmHistoryImport() {
+        val state = _historyImportState.value as? HistoryImportUiState.Review ?: return
+        if (_busy.value) return
+        viewModelScope.launch {
+            _busy.value = true
+            try {
+                _historyImportState.value = HistoryImportUiState.Success(historyImports.commit(state.draft))
+                _message.value = "Catatan lama berhasil dimasukkan"
+            } catch (error: Exception) {
+                _historyImportState.value = HistoryImportUiState.Error(
+                    error.message ?: "Catatan lama gagal dimasukkan",
+                )
+                _message.value = error.message ?: "Catatan lama gagal dimasukkan"
+            } finally {
+                _busy.value = false
+            }
+        }
+    }
+
+    fun clearHistoryImport() {
+        _historyImportState.value = HistoryImportUiState.Empty
+        _pendingHistoryImportUri.value = null
     }
 
     fun createBackup() = execute("Salinan data siap dibagikan") {
@@ -767,6 +849,29 @@ class OperationsViewModel(
         }
     }
 
+    private fun requireHistoryImportDraft(load: suspend () -> HistoryImportDraft) {
+        if (_busy.value) {
+            _historyImportState.value = HistoryImportUiState.Error(
+                "Tunggu proses sebelumnya selesai, lalu periksa lagi.",
+            )
+            return
+        }
+        _busy.value = true
+        _historyImportState.value = HistoryImportUiState.Loading
+        viewModelScope.launch {
+            try {
+                reports.session.requireOwner()
+                _historyImportState.value = HistoryImportUiState.Review(load())
+            } catch (error: Exception) {
+                _historyImportState.value = HistoryImportUiState.Error(
+                    error.message ?: "Catatan lama gagal diperiksa",
+                )
+            } finally {
+                _busy.value = false
+            }
+        }
+    }
+
     private fun startOfToday(): Long = Calendar.getInstance().run {
         set(Calendar.HOUR_OF_DAY, 0)
         set(Calendar.MINUTE, 0)
@@ -791,6 +896,7 @@ class OperationsViewModel(
                 culinary = application.newCulinaryRepository(),
                 backups = application.newBackupManager(),
                 excelExports = application.newExcelExportManager(),
+                historyImports = application.newHistoryImportManager(),
             ) as T
     }
 

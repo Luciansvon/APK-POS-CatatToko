@@ -189,9 +189,10 @@ fun OwnerEmptyState(
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
     testTag: String? = null,
+    modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp)
             .then(if (testTag == null) Modifier else Modifier.testTag(testTag)),

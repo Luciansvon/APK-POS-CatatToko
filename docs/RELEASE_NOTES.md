@@ -20,6 +20,47 @@ dist/debug/CatatToko-Grosir.apk
 dist/debug/CatatToko-Kuliner.apk
 ```
 
+## Versi 0.6.0 - 2026-08-12
+
+Status: Siap dibagikan sebagai APK debug lokal
+
+### Kenapa versi ini dibuat
+
+- Catatan fisik yang sudah dibaca Gemini, ChatGPT, atau AI lain belum dapat dimasukkan ke histori CatatToko.
+- Pengguna membutuhkan format konsisten tanpa menanam model AI atau API key di APK.
+
+### Perubahan
+
+- Menambahkan menu Owner `Import catatan lama` dengan pilihan tempel JSON atau pilih file.
+- Membundel prompt provider-agnostic yang dapat disalin dan meminta AI memberi panduan ekspor serta langkah masuk ke CatatToko.
+- Menambahkan parser ketat `catattoko.history-import.v1`, batas 1 MB/200 record, validasi nominal/tanggal/enum/subtotal, serta deteksi file dan record ganda.
+- Menambahkan review per record: `Siap masuk`, `Perlu dicek`, `Tidak diterapkan`, dan `Data ganda`.
+- Menyimpan penjualan, pembelian, kas, utang, dan piutang lama memakai tanggal aslinya tanpa membuka shift atau mengubah stok aktif.
+- Menyimpan `STOCK_ADJUSTMENT` dan `UNRESOLVED` sebagai jejak review tanpa menerapkannya ke data aktif.
+- Menambahkan migrasi database 4 ke 5 untuk provenance batch/record impor.
+- Menaikkan `versionCode` ke `20` dan `versionName` ke `0.6.0`.
+
+### Kekurangan dan masalah yang diketahui
+
+- Koreksi field rinci, lampiran foto sumber, dan pemetaan manual ke data master belum tersedia.
+- Penyesuaian stok lama tidak diterapkan otomatis karena posisi stok setelah catatan lama tidak dapat dibuktikan aman.
+- Akurasi pembacaan foto bergantung pada AI eksternal; Owner tetap wajib membandingkan hasil dengan catatan asli.
+- Printer struk masih menunggu keputusan hardware dan tidak termasuk versi ini.
+
+### Verifikasi
+
+- Unit test Retail, Wholesale, dan Culinary lulus.
+- `assembleDebug` serta AndroidTest APK Retail, Wholesale, dan Culinary lulus.
+- Connected Retail pada MuMu `emulator-5554` lulus `64/64`, termasuk parser/repository importer, migrasi database 1-5, proteksi sesi Owner, dan smoke UI.
+- Visual input importer Retail portrait diperiksa langsung: layar berdiri sendiri, instruksi tiga langkah terbaca, dan tidak meminta API key.
+- Visual landscape final tidak diklaim: hanya `emulator-5554` yang tersedia dan MuMu tersebut menolak rotasi paksa; target `emulator-5556` tidak terhubung.
+
+### APK final
+
+- Retail: `dist/debug/CatatToko-Retail.apk` | SHA256 `C60E9ABBBE0AFB1721DB446491DF06C71AB8D29DB256825B346B1B760817232A`
+- Grosir: `dist/debug/CatatToko-Grosir.apk` | SHA256 `2C20C56C0AA78A6B044B492967CEA5A0E41C0AE23A151172E88DB65EE339993F`
+- Kuliner: `dist/debug/CatatToko-Kuliner.apk` | SHA256 `5CCA62A9EDA9B8B63DA919995341A5D9BC08A957F9114BD8607401EBC31F756E`
+
 ## Versi 0.5.0 - 2026-08-12
 
 Status: Siap dibagikan sebagai APK debug lokal

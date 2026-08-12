@@ -2,15 +2,15 @@
 
 ## Status dokumen
 
-Dokumen ini mencatat arsitektur produk dan implementasi aktif per 31 Juli 2026.
+Dokumen ini mencatat arsitektur produk dan implementasi aktif per 12 Agustus 2026.
 
 Status saat ini:
 
 - framework aktif: Kotlin 2.3.0 dan Jetpack Compose;
 - database lokal aktif: Room 2.8.4;
 - satu module aplikasi menghasilkan tiga product flavor;
-- database memakai skema versi 4 dengan migrasi eksplisit dari versi 1, 2, dan 3;
-- katalog, kategori, varian, keranjang persisten, pembayaran, transaksi atomik, stok, pembelian, kas, utang-piutang, tenaga kerja, laporan terlindungi, backup/restore, export `.xlsx`, struk PNG, dan kalkulator sudah diimplementasikan;
+- database memakai skema versi 5 dengan migrasi eksplisit dari versi 1, 2, 3, dan 4;
+- katalog, kategori, varian, keranjang persisten, pembayaran, transaksi atomik, stok, pembelian, kas, utang-piutang, tenaga kerja, laporan terlindungi, backup/restore, impor histori hasil AI eksternal, export `.xlsx`, struk PNG, dan kalkulator sudah diimplementasikan;
 - panduan wajib first-run menjelaskan Mode Kasir/Pekerja dan Mode Owner sebelum aplikasi dapat dipakai;
 - kemampuan khusus Grosir dan Kuliner dikendalikan oleh `BusinessCapabilities`;
 - APK debug Retail, Wholesale, dan Culinary dibangun dari shared source;
@@ -40,6 +40,7 @@ flowchart TD
     C --> D["Penyimpanan Lokal"]
     C --> R["Laporan"]
     C --> B["Backup dan Restore"]
+    C --> I["Impor Histori"]
     C --> V{"Varian APK"}
     V --> W["Retail dan UMKM"]
     V --> G["Grosir dan Agen"]
@@ -61,6 +62,7 @@ shared core
 ├─ validasi
 ├─ laporan
 ├─ backup dan restore
+├─ impor histori
 └─ komponen UI bersama
 
 varian aplikasi
@@ -77,6 +79,7 @@ Struktur teknis aktif:
 app/src/main
 ├─ domain
 ├─ data (Room, repository, dan seed catalog)
+├─ historyimport (kontrak JSON dan parser)
 ├─ ui (Compose adaptif HP/tablet)
 ├─ share (struk PNG dan FileProvider)
 └─ shared resources
@@ -113,7 +116,7 @@ Aturan yang sudah dikunci:
 
 - pekerja dapat menjalankan flow penjualan serta melihat total transaksi aktif dan stok produk pada layar kasir;
 - pekerja dapat membuka shift dengan nama kasir, modal awal, dan catatan pembuka dari layar kasir;
-- Owner tidak perlu membuka shift untuk masuk ke Operasional, Keuangan, Laporan, profil, backup, restore, atau Export Excel;
+- Owner tidak perlu membuka shift untuk masuk ke Operasional, Keuangan, Laporan, profil, backup, restore, impor histori, atau Export Excel;
 - shift hanya wajib saat kasir menyelesaikan transaksi penjualan; pembukaan dan penutupan shift tetap dicatat terpisah dari akses Mode Owner;
 - pekerja tidak dapat melihat omzet harian, riwayat penjualan, operasional, keuangan, laporan, profil, backup, atau restore;
 - pekerja tidak dapat melihat ringkasan kas, menutup shift, atau membaca riwayat shift;
@@ -352,6 +355,14 @@ Restore gagal tidak boleh meninggalkan data setengah terpasang.
 
 Backup dianggap selesai hanya setelah proses restore diuji pada data nyata pengujian.
 
+## Impor histori hasil AI eksternal
+
+CatatToko tidak memproses foto dan tidak membawa SDK, API key, atau akun AI. Pengguna membaca catatan fisik memakai Gemini, ChatGPT, atau AI lain miliknya, lalu CatatToko menerima JSON `catattoko.history-import.v1` melalui tempel teks atau pemilih file.
+
+Parser membatasi input menjadi maksimal 1 MB, 200 record per batch, dan 50 item per record. Struktur, jenis usaha, tanggal, nominal, subtotal, enum, file ganda, dan fingerprint record diperiksa sebelum layar review Owner ditampilkan. Field yang ragu harus disetujui Owner; record rusak tidak dapat diterapkan.
+
+Commit memakai repository histori dan satu transaksi Room tersendiri. Tanggal sumber dipertahankan, shift tidak dibuka, dan stok aktif tidak diubah. `STOCK_ADJUSTMENT` serta `UNRESOLVED` hanya disimpan sebagai provenance batch/record sampai aturan koreksinya disetujui. Kembali dari pemilih file mengunci sesi sehingga PIN Owner harus diverifikasi lagi sebelum data dibaca atau diterapkan.
+
 ## Export Excel
 
 Owner dapat membuat file `.xlsx` langsung dari database lokal tanpa internet. Workbook memakai format OpenXML dan berisi `Info Export`, `Ringkasan`, serta tabel operasional seperti produk, transaksi, pembelian, kas, shift, utang-piutang, stok, dan tenaga kerja. Lebar tiap kolom dihitung dari teks terpanjang dengan batas wajar 10–72 karakter. Draft keranjang serta hash PIN Owner tidak ikut diekspor.
@@ -426,6 +437,7 @@ Usaha Kecil Suite dan MAUCAFE adalah project berbeda.
 - Sesi laporan tidak memakai timeout atau auto-lock saat aplikasi kehilangan fokus; Owner menguncinya secara manual.
 - Setelah proses aplikasi dihentikan dan dibuat ulang, aplikasi tetap mulai dalam Mode Kasir/Pekerja dan PIN Owner perlu diverifikasi lagi.
 - Backup melakukan WAL checkpoint, menyimpan manifest dan hash SHA-256, lalu restore membuat backup pengaman sebelum mengganti database.
+- Importer histori menyimpan hash file, fingerprint record, raw source, status review, dan target hasil; commit dilakukan atomik tanpa memakai flow transaksi harian atau mengubah stok aktif.
 - Grosir mengubah satuan jual ke satuan dasar sebelum mengurangi stok.
 - Kuliner menyimpan topping/catatan sebagai snapshot dan mengurangi bahan resep ketika checkout.
 

@@ -12,6 +12,7 @@ import com.bimacore.usahakecil.data.WorkforceRepository
 import com.bimacore.usahakecil.domain.BusinessCapabilities
 import com.bimacore.usahakecil.domain.BusinessType
 import com.bimacore.usahakecil.export.ExcelExportManager
+import com.bimacore.usahakecil.historyimport.HistoryImportManager
 import com.bimacore.usahakecil.security.ReportSession
 
 class PosApplication : Application() {
@@ -61,6 +62,16 @@ class PosApplication : Application() {
         database = database,
         ownerSession = reportSession,
         businessType = businessType.name,
+    )
+
+    fun newHistoryImportManager() = HistoryImportManager(
+        context = this,
+        businessType = businessType,
+        repository = com.bimacore.usahakecil.data.HistoricalImportRepository(
+            database = database,
+            businessType = businessType,
+            ownerSession = reportSession,
+        ),
     )
 
     @Synchronized

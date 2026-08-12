@@ -1200,3 +1200,31 @@ Status: Implementasi, verifikasi, dan packaging APK lokal selesai untuk `0.5.0` 
 - Visual portrait Retail diperiksa untuk launcher, loading, kasir, laporan, performa produk, dan backup.
 - Visual landscape tertahan karena device landscape `emulator-5556` tidak tersedia dan MuMu portrait tidak menerima rotasi paksa; hasil landscape tidak diklaim.
 - APK final dipackage: Retail `3A85A448AE5B9D9C032349AF327608676AA5D5293553B26D44F0519B66E7AD6B`, Grosir `EAEE700536BD139A02F38BE3C3404EC271E7E321854B3E83343EB853187491A9`, Kuliner `0CB147B927B056777230EC6C9257E2A375F01C13506EAAC33C15E761B6CE2AFB`.
+
+---
+
+## 2026-08-12 - Import histori dari hasil AI eksternal (`0.6.0`)
+
+Status: Implementasi, verifikasi, dan packaging APK lokal selesai; GitHub Release tidak dibuat.
+
+### Applied
+
+- Menambahkan importer JSON `catattoko.history-import.v1` tanpa SDK AI, API key, akun, atau internet.
+- Menambahkan prompt siap salin di APK; prompt meminta AI merangkum hasil dan memandu pengguna mengunduh/menyalin JSON lalu membuka menu CatatToko yang benar.
+- Menambahkan layar Owner untuk tempel/pilih file, validasi, ringkasan status, review tiap record, persetujuan nilai ragu, dan konfirmasi commit.
+- Menambahkan penyimpanan provenance batch/record, hash file, fingerprint record, tanggal sumber, raw text, masalah validasi, dan target histori.
+- Catatan lama tidak membuka shift dan tidak mengubah stok aktif. `STOCK_ADJUSTMENT`/`UNRESOLVED` tetap tersimpan sebagai jejak review tetapi tidak diterapkan.
+- Menambahkan test parser, repository impor, migrasi 4 ke 5, dan smoke UI review sebelum konfirmasi.
+
+### Pending
+
+- Editor koreksi field rinci, foto sumber lokal, pemetaan manual data lama ke master aktif, dan aturan penyesuaian stok lama.
+- Hardware printer, format identitas CatatToko pada struk, dan protokol koneksi tetap menunggu spesifikasi terpisah.
+
+### Verifikasi final
+
+- Unit test Retail, Wholesale, dan Culinary lulus.
+- `assembleDebug` serta AndroidTest APK Retail, Wholesale, dan Culinary lulus.
+- Connected Retail pada MuMu `emulator-5554` lulus `64/64`.
+- Visual input importer Retail portrait diperiksa langsung. Landscape tidak diklaim karena `emulator-5556` tidak tersedia dan perangkat portrait menolak rotasi paksa.
+- APK final dipackage: Retail `C60E9ABBBE0AFB1721DB446491DF06C71AB8D29DB256825B346B1B760817232A`, Grosir `2C20C56C0AA78A6B044B492967CEA5A0E41C0AE23A151172E88DB65EE339993F`, Kuliner `5CCA62A9EDA9B8B63DA919995341A5D9BC08A957F9114BD8607401EBC31F756E`.

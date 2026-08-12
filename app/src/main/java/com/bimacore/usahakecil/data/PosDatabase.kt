@@ -36,8 +36,10 @@ import androidx.room.RoomDatabase
         CartLineToppingEntity::class,
         SaleItemToppingEntity::class,
         ReportSecurityEntity::class,
+        HistoryImportBatchEntity::class,
+        HistoryImportRecordEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 abstract class PosDatabase : RoomDatabase() {
@@ -53,6 +55,7 @@ abstract class PosDatabase : RoomDatabase() {
     abstract fun culinaryDao(): CulinaryDao
     abstract fun securityDao(): SecurityDao
     abstract fun reportDao(): ReportDao
+    abstract fun historyImportDao(): HistoryImportDao
 
     companion object {
         fun create(context: Context): PosDatabase =
@@ -61,7 +64,7 @@ abstract class PosDatabase : RoomDatabase() {
                 PosDatabase::class.java,
                 "usaha-kecil-pos.db",
             )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                 .build()
     }
 }

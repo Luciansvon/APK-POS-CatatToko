@@ -4,6 +4,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+    id("org.jetbrains.kotlin.plugin.serialization")
     id("com.google.devtools.ksp")
 }
 
@@ -15,8 +16,8 @@ android {
         applicationId = "com.bimacore.usahakecil"
         minSdk = 23
         targetSdk = 36
-        versionCode = 19
-        versionName = "0.5.0"
+        versionCode = 20
+        versionName = "0.6.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -99,6 +100,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0")
     implementation(serializationBom)
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json")
 
     implementation(composeBom)
     androidTestImplementation(composeBom)

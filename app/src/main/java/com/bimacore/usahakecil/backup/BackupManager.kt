@@ -230,7 +230,7 @@ class BackupManager(
         const val SENSITIVITY_WARNING = "Salinan data berisi informasi usaha, transaksi, pelanggan, dan pekerja. Bagikan hanya kepada pihak yang dipercaya."
         
         private const val DEFAULT_DATABASE_NAME = "usaha-kecil-pos.db"
-        private const val DATABASE_SCHEMA_VERSION = 4
+        private const val DATABASE_SCHEMA_VERSION = 5
         private const val BACKUP_DIRECTORY = "backups"
         private const val MANIFEST_ENTRY = "manifest.txt"
         private const val DATABASE_ENTRY = "database.db"
