@@ -11,6 +11,7 @@ data class ExcelSheet(
     val headerRows: Set<Int> = setOf(0),
     val titleRows: Set<Int> = emptySet(),
     val subtitleRows: Set<Int> = emptySet(),
+    val fitToOnePage: Boolean = false,
 )
 
 data class ExcelWorkbook(
@@ -111,6 +112,9 @@ object ExcelWorkbookExporter {
         val maxColumns = rows.maxOf { it.size }.coerceAtLeast(1)
         append("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>")
         append("<worksheet xmlns=\"$MAIN_NAMESPACE\">")
+        if (sheet.fitToOnePage) {
+            append("<sheetPr><pageSetUpPr fitToPage=\"1\"/></sheetPr>")
+        }
         append("<dimension ref=\"A1:${columnName(maxColumns)}${rows.size}\"/>")
         append("<sheetViews><sheetView workbookViewId=\"0\"/></sheetViews>")
         append("<sheetFormatPr defaultRowHeight=\"15\"/>")
@@ -158,6 +162,10 @@ object ExcelWorkbookExporter {
                 append("<mergeCell ref=\"A${rowIndex + 1}:${columnName(maxColumns)}${rowIndex + 1}\"/>")
             }
             append("</mergeCells>")
+        }
+        if (sheet.fitToOnePage) {
+            append("<pageMargins left=\"0.25\" right=\"0.25\" top=\"0.5\" bottom=\"0.5\" header=\"0.2\" footer=\"0.2\"/>")
+            append("<pageSetup paperSize=\"9\" orientation=\"portrait\" fitToWidth=\"1\" fitToHeight=\"1\"/>")
         }
         append("</worksheet>")
     }

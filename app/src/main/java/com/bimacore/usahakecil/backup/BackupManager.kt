@@ -43,7 +43,7 @@ class BackupManager(
             databaseBytes = bytes,
         )
         val directory = File(context.cacheDir, BACKUP_DIRECTORY).apply { mkdirs() }
-        val output = File(directory, "usaha-kecil-${manifest.createdAt}.ukbackup")
+        val output = File(directory, "CatatToko-${manifest.createdAt}.ukbackup.zip")
         writePackage(output, manifest, bytes)
         FileProvider.getUriForFile(
             context,

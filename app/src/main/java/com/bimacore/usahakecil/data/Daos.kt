@@ -21,11 +21,17 @@ interface CatalogDao {
     @Query("SELECT * FROM product_variants ORDER BY sortOrder, label")
     fun observeVariants(): Flow<List<ProductVariantEntity>>
 
+    @Query("SELECT * FROM product_variants WHERE isActive = 1 ORDER BY sortOrder, label")
+    suspend fun getActiveVariants(): List<ProductVariantEntity>
+
     @Query("SELECT * FROM products WHERE id = :id")
     suspend fun getProduct(id: Long): ProductEntity?
 
     @Query("SELECT * FROM categories WHERE id = :id")
     suspend fun getCategory(id: Long): CategoryEntity?
+
+    @Query("SELECT COUNT(*) FROM products WHERE categoryId = :categoryId AND isActive = 1")
+    suspend fun activeProductCountForCategory(categoryId: Long): Int
 
     @Query("SELECT * FROM product_variants WHERE id = :id")
     suspend fun getVariant(id: Long): ProductVariantEntity?

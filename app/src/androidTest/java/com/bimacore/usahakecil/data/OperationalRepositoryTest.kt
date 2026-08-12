@@ -462,6 +462,37 @@ class OperationalRepositoryTest {
         assertTrue(!edited.isActive)
     }
 
+    @Test
+    fun category_archive_requires_products_to_be_archived_first_and_preserves_records() = runBlocking {
+        val inventory = InventoryRepository(
+            database,
+            BusinessCapabilities.forType(BusinessType.RETAIL),
+        )
+        val categoryId = inventory.saveCategory(CategoryDraft(name = "Minuman"))
+        val productId = inventory.saveProduct(
+            ProductDraft(
+                categoryId = categoryId,
+                name = "Teh",
+                basePrice = 5_000,
+                openingStock = 4,
+                stockTrackingEnabled = true,
+                lowStockThreshold = 1,
+                unitLabel = "gelas",
+            ),
+        )
+
+        val archiveFailure = runCatching {
+            inventory.setCategoryActive(categoryId, false)
+        }.exceptionOrNull()
+        assertTrue(archiveFailure is IllegalArgumentException)
+        assertTrue(archiveFailure?.message.orEmpty().contains("produk aktif"))
+        inventory.setProductActive(productId, false)
+        inventory.setCategoryActive(categoryId, false)
+
+        assertTrue(database.catalogDao().getProduct(productId) != null)
+        assertTrue(database.catalogDao().getCategory(categoryId)?.isActive == false)
+    }
+
     // ---- ERR-016: Stok produk bervarian ----
 
     @Test

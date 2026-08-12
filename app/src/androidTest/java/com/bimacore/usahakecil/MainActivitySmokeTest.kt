@@ -75,8 +75,14 @@ class MainActivitySmokeTest {
                 .isNotEmpty()
         }
         composeRule.onNodeWithText("Mode Kasir / Pekerja").assertIsDisplayed()
-        composeRule.onNodeWithText("Mode Owner").assertIsDisplayed()
-        composeRule.onNodeWithText("Buka Mode Owner", substring = true).assertIsDisplayed()
+        assertTrue(
+            composeRule.onAllNodesWithText("Mode Owner").fetchSemanticsNodes().isNotEmpty(),
+        )
+        assertTrue(
+            composeRule.onAllNodesWithText("Buka Mode Owner", substring = true)
+                .fetchSemanticsNodes()
+                .isNotEmpty(),
+        )
         composeRule.onAllNodesWithText("Lewati").assertCountEquals(0)
         composeRule.onNodeWithTag("onboarding-complete").performScrollTo().performClick()
         composeRule.waitUntil(timeoutMillis = 5_000) {
@@ -274,6 +280,49 @@ class MainActivitySmokeTest {
     }
 
     @Test
+    fun product_archive_explains_impact_before_hiding_item() {
+        unlockOwner()
+
+        val operationsLabel = when (BuildConfig.BUSINESS_TYPE) {
+            "WHOLESALE" -> "Grosir"
+            "CULINARY" -> "Pesanan"
+            else -> "Operasional"
+        }
+        composeRule.onNodeWithText(operationsLabel).performClick()
+        if (BuildConfig.BUSINESS_TYPE != "RETAIL") {
+            composeRule.onAllNodesWithText("Produk")[0].performClick()
+        }
+        waitForText("Tambah produk")
+        val productId = runBlocking {
+            (composeRule.activity.application as PosApplication)
+                .database.catalogDao().getActiveProducts().first().id
+        }
+        composeRule.onNodeWithTag("archive-product-$productId")
+            .performScrollTo()
+            .performSemanticsAction(SemanticsActions.OnClick)
+
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            composeRule.onAllNodesWithTag("archive-confirmation")
+                .fetchSemanticsNodes().isNotEmpty()
+        }
+
+        composeRule.onNodeWithTag("archive-confirmation").assertExists()
+        composeRule.onNodeWithText(
+            "Arsipkan produk",
+            substring = true,
+            useUnmergedTree = true,
+        ).assertIsDisplayed()
+        composeRule.onNodeWithText(
+            "riwayat penjualan lama tetap tersimpan",
+            substring = true,
+            useUnmergedTree = true,
+        )
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag("confirm-archive").assertIsDisplayed()
+        composeRule.onNodeWithText("Batal").performClick()
+    }
+
+    @Test
     fun protected_reports_and_backup_are_reachable() {
         composeRule.onNodeWithText("Laporan").assertDoesNotExist()
         unlockOwner()
@@ -289,22 +338,41 @@ class MainActivitySmokeTest {
         composeRule.onNodeWithTag("report-full-details")
             .performScrollTo()
             .performSemanticsAction(SemanticsActions.OnClick)
+        composeRule.onNodeWithText("Tutup").assertIsDisplayed()
         composeRule.onNodeWithTag("payment-method-chart").performScrollTo().assertIsDisplayed()
         listOf("Tunai", "QRIS", "Transfer", "Piutang").forEach { method ->
             val matches = composeRule.onAllNodesWithText(method)
             assertTrue(matches.fetchSemanticsNodes().isNotEmpty())
         }
-        composeRule.onNodeWithTag("excel-export").performScrollTo().assertIsDisplayed()
-        waitForEnabledTag("excel-export")
+        composeRule.onNodeWithTag("report-full-details")
+            .performScrollTo()
+            .performSemanticsAction(SemanticsActions.OnClick)
+        composeRule.onNodeWithTag("report-cash-details")
+            .performScrollTo()
+            .performSemanticsAction(SemanticsActions.OnClick)
+        composeRule.onNodeWithText("Rincian arus kas").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag("report-chart-mode").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag("excel-export-summary").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag("excel-export-full").performScrollTo().assertIsDisplayed()
+        waitForEnabledTag("excel-export-summary")
         composeRule.waitForIdle()
-        composeRule.onNodeWithText("Simpan Laporan Excel").performClick()
-        waitForText("Bagikan Excel", timeoutMillis = 30_000)
+        composeRule.onNodeWithText("Ekspor Ringkasan").performClick()
+        waitForText("Bagikan Ringkasan Excel", timeoutMillis = 30_000)
 
         composeRule.onNodeWithText("Lainnya").performClick()
         composeRule.onNodeWithText("Salinan & keamanan data").assertIsDisplayed()
-        composeRule.onNodeWithText("Buat salinan sekarang")
+        composeRule.onNodeWithTag("backup-create")
             .performScrollTo()
-            .assertIsDisplayed()
+            .performSemanticsAction(SemanticsActions.OnClick)
+        composeRule.waitUntil(timeoutMillis = 30_000) {
+            composeRule.onAllNodesWithTag("backup-share").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeRule.onNodeWithTag("backup-share").assertIsDisplayed()
+        composeRule.onNodeWithText("Salinan siap dibagikan").assertIsDisplayed()
+        composeRule.onNodeWithTag("backup-share")
+            .performSemanticsAction(SemanticsActions.OnClick)
+        waitForText("Peringatan Privasi")
+        composeRule.onNodeWithText("Batal").performClick()
     }
 
     @Test
@@ -320,11 +388,12 @@ class MainActivitySmokeTest {
         unlockOwner()
         clickReportDestination()
         waitForText("Omzet hari ini")
-        composeRule.onNodeWithTag("excel-export").performScrollTo().assertIsDisplayed()
-        waitForEnabledTag("excel-export")
+        composeRule.onNodeWithTag("excel-export-full").performScrollTo().assertIsDisplayed()
+        waitForEnabledTag("excel-export-full")
         composeRule.waitForIdle()
-        composeRule.onNodeWithTag("excel-export").performTouchInput { click() }
-        waitForText("Bagikan Excel", timeoutMillis = 30_000)
+        composeRule.onNodeWithTag("excel-export-full")
+            .performSemanticsAction(SemanticsActions.OnClick)
+        waitForText("Bagikan Laporan Lengkap", timeoutMillis = 30_000)
 
         composeRule.onNodeWithText("Lainnya").performClick()
         waitForText("Salinan & keamanan data")
@@ -385,7 +454,7 @@ class MainActivitySmokeTest {
             .performScrollTo()
             .performSemanticsAction(SemanticsActions.OnClick)
         waitForText("Perkiraan penjualan")
-        composeRule.onNodeWithTag("excel-export").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag("excel-export-full").performScrollTo().assertIsDisplayed()
 
         composeRule.onNodeWithText("Lainnya").performClick()
         waitForText("Profil usaha")

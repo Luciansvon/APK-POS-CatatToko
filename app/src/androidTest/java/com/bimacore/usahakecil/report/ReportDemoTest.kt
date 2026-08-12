@@ -63,24 +63,22 @@ class ReportDemoTest {
         database.openHelper.writableDatabase.execSQL("DELETE FROM parties")
         database.openHelper.writableDatabase.execSQL("DELETE FROM report_security")
 
-        val product = database.catalogDao().getActiveProducts().firstOrNull()
-            ?: ProductEntity(
-                id = 101,
-                categoryId = 1,
-                name = "Produk Demo",
-                basePrice = 25_000,
-                stock = 100,
-                stockTrackingEnabled = false,
-                hasVariants = false,
-                lowStockThreshold = 5,
-                imageUri = null,
-                sortOrder = 1,
-            ).also {
-                database.catalogDao().insertCategory(
-                    CategoryEntity(1, "Demo", "inventory", 1),
-                )
-                database.catalogDao().insertProduct(it)
-            }
+        val product = ProductEntity(
+            id = 910_001,
+            categoryId = 910_001,
+            name = "Produk Demo",
+            basePrice = 25_000,
+            stock = 100,
+            stockTrackingEnabled = false,
+            hasVariants = false,
+            lowStockThreshold = 5,
+            imageUri = null,
+            sortOrder = 1,
+        )
+        database.catalogDao().insertCategory(
+            CategoryEntity(910_001, "Demo", "inventory", 1),
+        )
+        database.catalogDao().insertProduct(product)
         val categoryName = database.catalogDao().getCategory(product.categoryId)?.name ?: "Demo"
         val today = startOfDay(now)
 
@@ -208,7 +206,10 @@ class ReportDemoTest {
             .edit()
             .putBoolean(FirstRunGuidePreferences.COMPLETED_KEY, true)
             .commit()
-        composeRule.activity.runOnUiThread { composeRule.activity.recreate() }
+        composeRule.activity.runOnUiThread {
+            composeRule.activity.viewModelStore.clear()
+            composeRule.activity.recreate()
+        }
         composeRule.waitForIdle()
     }
 
@@ -313,28 +314,36 @@ class ReportDemoTest {
         }
         composeRule.onNodeWithTag("report-chart-mode").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithTag("report-chart-granularity").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText("Arus kas tercatat").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithTag("report-chart-mode").performClick()
+        composeRule.onNodeWithText("Dikelompokkan").assertIsDisplayed()
+        composeRule.onAllNodesWithText("Rentang").assertCountEquals(0)
+        composeRule.onNodeWithTag("report-cash-flow-chart").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithTag("report-chart-mode-option-Penjualan").performClick()
         assertTrue(
             composeRule.onAllNodesWithText("Penjualan")
                 .fetchSemanticsNodes()
                 .isNotEmpty(),
         )
-        composeRule.onNodeWithTag("report-chart-mode").performClick()
         composeRule.onNodeWithTag("report-chart-mode-option-Produk").performClick()
         composeRule.onNodeWithTag("report-product-selector").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText("Semua produk / Omzet").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithTag("report-product-measure")
+        composeRule.onNodeWithText("Produk yang dilihat").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Angka yang ditampilkan").assertIsDisplayed()
+        composeRule.onNodeWithText("Jumlah terjual").assertIsDisplayed()
+        composeRule.onNodeWithText("Semua produk menampilkan peringkat", substring = true).assertIsDisplayed()
+        composeRule.onNodeWithTag("report-product-comparison").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag("report-product-measure-option-Terjual")
             .performSemanticsAction(SemanticsActions.OnClick)
+        composeRule.onNodeWithText("Terjual pada", substring = true).assertIsDisplayed()
+        composeRule.onNodeWithTag("report-product-measure")
+            .performScrollTo()
+            .performClick()
         composeRule.waitUntil(timeoutMillis = 5_000) {
-            composeRule.onAllNodesWithText("Tampilkan sebagai")
+            composeRule.onAllNodesWithTag("report-product-selector-option-Produk Demo")
                 .fetchSemanticsNodes().isNotEmpty()
         }
-        composeRule.onAllNodesWithText("Terjual").assertCountEquals(0)
-        composeRule.onNodeWithTag("report-product-selector-option-Semua produk")
+        composeRule.onNodeWithTag("report-product-selector-option-Produk Demo")
             .performSemanticsAction(SemanticsActions.OnClick)
         composeRule.onNodeWithText("Penjualan produk").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Produk Demo • Terjual", substring = true).assertIsDisplayed()
         composeRule.onNodeWithTag("report-chart-granularity").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithTag("report-period-selector").performScrollTo().performClick()
         composeRule.onAllNodesWithText("\u00E2", substring = true).assertCountEquals(0)

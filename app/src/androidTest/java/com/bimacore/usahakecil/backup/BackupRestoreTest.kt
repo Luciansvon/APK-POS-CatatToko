@@ -76,6 +76,7 @@ class BackupRestoreTest {
             databaseName = databaseName,
         )
         val backupUri = manager.createBackup()
+        assertTrue(backupUri.toString().endsWith(".ukbackup.zip"))
         val preview = manager.preview(backupUri)
         database.catalogDao().updateProduct(
             requireNotNull(database.catalogDao().getProduct(1)).copy(
@@ -136,8 +137,9 @@ class BackupRestoreTest {
         )
         database.securityDao().saveReportSecurity(
             com.bimacore.usahakecil.data.ReportSecurityEntity(
-                pinHash = "hash-A",
-                salt = "salt-A",
+                saltBase64 = "salt-A",
+                hashBase64 = "hash-A",
+                iterations = 10000,
                 updatedAt = 1,
             )
         )
@@ -154,8 +156,9 @@ class BackupRestoreTest {
 
         database.securityDao().saveReportSecurity(
             com.bimacore.usahakecil.data.ReportSecurityEntity(
-                pinHash = "hash-B",
-                salt = "salt-B",
+                saltBase64 = "salt-B",
+                hashBase64 = "hash-B",
+                iterations = 10000,
                 updatedAt = 2,
             )
         )
@@ -163,8 +166,8 @@ class BackupRestoreTest {
         manager.restore(preview)
 
         val security = database.securityDao().getReportSecurity()
-        assertEquals("hash-B", security?.pinHash)
-        assertEquals("salt-B", security?.salt)
+        assertEquals("hash-B", security?.hashBase64)
+        assertEquals("salt-B", security?.saltBase64)
     }
 
     @Test
@@ -219,7 +222,14 @@ class BackupRestoreTest {
 
         val result = runCatching { manager.restore(preview) }
         assertTrue(result.isFailure)
-        assertEquals("Identitas usaha pada salinan tidak sesuai dengan keterangan", result.exceptionOrNull()?.message)
+        assertEquals(
+            "Pemulihan gagal. Data aktif sudah dikembalikan seperti semula.",
+            result.exceptionOrNull()?.message,
+        )
+        assertEquals(
+            "Identitas usaha pada salinan tidak sesuai dengan keterangan",
+            result.exceptionOrNull()?.cause?.message,
+        )
     }
 
     private fun openDatabase(): PosDatabase =

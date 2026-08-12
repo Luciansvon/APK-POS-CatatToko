@@ -172,6 +172,16 @@ class InventoryRepository(
         catalogDao.updateProduct(product.copy(isActive = active, updatedAt = clock()))
     }
 
+    suspend fun setCategoryActive(categoryId: Long, active: Boolean) {
+        val category = requireNotNull(catalogDao.getCategory(categoryId)) { "Kategori tidak tersedia" }
+        if (!active) {
+            require(catalogDao.activeProductCountForCategory(categoryId) == 0) {
+                "Arsipkan semua produk aktif di kategori ini terlebih dahulu"
+            }
+        }
+        catalogDao.updateCategory(category.copy(isActive = active, updatedAt = clock()))
+    }
+
     suspend fun setVariantActive(variantId: Long, active: Boolean) {
         val variant = requireNotNull(catalogDao.getVariant(variantId)) { "Varian tidak tersedia" }
         catalogDao.updateVariant(variant.copy(isActive = active, updatedAt = clock()))

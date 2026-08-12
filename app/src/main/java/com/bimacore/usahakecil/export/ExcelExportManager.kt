@@ -15,6 +15,11 @@ import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+enum class ExcelExportMode {
+    SUMMARY,
+    FULL,
+}
+
 class ExcelExportManager(
     private val context: Context,
     private val database: PosDatabase,
@@ -22,33 +27,38 @@ class ExcelExportManager(
     private val businessType: String,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
-    suspend fun createExport(): Uri {
+    suspend fun createExport(mode: ExcelExportMode = ExcelExportMode.FULL): Uri {
         val exportedAt = clock()
-        return createExport(ExportRange.all(), exportedAt)
+        return createExport(ExportRange.all(), exportedAt, mode)
     }
 
-    suspend fun createExport(period: ReportPeriod): Uri {
+    suspend fun createExport(
+        period: ReportPeriod,
+        mode: ExcelExportMode = ExcelExportMode.FULL,
+    ): Uri {
         val exportedAt = clock()
         val range = period.range(exportedAt)
         return createExport(
             ExportRange(period.label, range.first, range.last),
             exportedAt,
+            mode,
         )
     }
 
     private suspend fun createExport(
         range: ExportRange,
         exportedAt: Long,
+        mode: ExcelExportMode,
     ): Uri = withContext(Dispatchers.IO) {
         ownerSession.requireOwner()
         val profile = requireNotNull(database.profileDao().getProfile()) {
             "Profil usaha belum tersedia"
         }
-        val workbook = collectWorkbook(profile.businessName, exportedAt, range)
+        val workbook = collectWorkbook(profile.businessName, exportedAt, range, mode)
         val directory = File(context.cacheDir, EXPORT_DIRECTORY).apply { mkdirs() }
         val output = File(
             directory,
-            "usaha-kecil-${safeFileName(profile.businessName)}-$exportedAt.xlsx",
+            "usaha-kecil-${safeFileName(profile.businessName)}-${mode.name.lowercase(Locale.US)}-$exportedAt.xlsx",
         )
         FileOutputStream(output).use { stream ->
             ExcelWorkbookExporter.write(workbook, stream)
@@ -64,10 +74,16 @@ class ExcelExportManager(
         businessName: String,
         exportedAt: Long,
         range: ExportRange,
-    ): ExcelWorkbook = ExcelWorkbook(
-        sheets = listOf(
+        mode: ExcelExportMode,
+    ): ExcelWorkbook {
+        val summary = summarySheet(businessName, exportedAt, range)
+        if (mode == ExcelExportMode.SUMMARY) {
+            return ExcelWorkbook(sheets = listOf(summary))
+        }
+        return ExcelWorkbook(
+            sheets = listOf(
             infoSheet(businessName, exportedAt, range),
-            summarySheet(businessName, exportedAt, range),
+            summary,
             salesSheet(businessName, exportedAt, range),
             saleDetailsSheet(businessName, exportedAt, range),
             productSalesSheet(businessName, exportedAt, range),
@@ -86,8 +102,9 @@ class ExcelExportManager(
             wholesaleSheet(businessName, exportedAt),
             culinarySheet(businessName, exportedAt),
             partySheet(businessName, exportedAt),
-        ),
-    )
+            ),
+        )
+    }
 
     private fun infoSheet(
         businessName: String,
@@ -158,6 +175,7 @@ class ExcelExportManager(
             headerRows = setOf(5, 15),
             titleRows = setOf(0),
             subtitleRows = setOf(1, 2, 3),
+            fitToOnePage = true,
         )
     }
 

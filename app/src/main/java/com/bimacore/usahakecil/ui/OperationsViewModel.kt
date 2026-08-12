@@ -39,6 +39,7 @@ import com.bimacore.usahakecil.domain.AttendanceStatus
 import com.bimacore.usahakecil.domain.BusinessCapabilities
 import com.bimacore.usahakecil.domain.OrderStatus
 import com.bimacore.usahakecil.export.ExcelExportManager
+import com.bimacore.usahakecil.export.ExcelExportMode
 import java.util.Calendar
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -190,6 +191,8 @@ class OperationsViewModel(
     val backupPreview = _backupPreview.asStateFlow()
     private val _excelUri = MutableStateFlow<Uri?>(null)
     val excelUri = _excelUri.asStateFlow()
+    private val _excelExportMode = MutableStateFlow<ExcelExportMode?>(null)
+    val excelExportMode = _excelExportMode.asStateFlow()
     private val _excelError = MutableStateFlow<String?>(null)
     val excelError = _excelError.asStateFlow()
     private val _restoreCompleted = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
@@ -281,14 +284,21 @@ class OperationsViewModel(
     fun setProductActive(
         productId: Long,
         active: Boolean,
-    ) = execute(if (active) "Produk diaktifkan" else "Produk dinonaktifkan") {
+    ) = execute(if (active) "Produk diaktifkan kembali" else "Produk diarsipkan") {
         inventory.setProductActive(productId, active)
+    }
+
+    fun setCategoryActive(
+        categoryId: Long,
+        active: Boolean,
+    ) = execute(if (active) "Kategori diaktifkan kembali" else "Kategori diarsipkan") {
+        inventory.setCategoryActive(categoryId, active)
     }
 
     fun setVariantActive(
         variantId: Long,
         active: Boolean,
-    ) = execute(if (active) "Varian diaktifkan" else "Varian dinonaktifkan") {
+    ) = execute(if (active) "Varian diaktifkan kembali" else "Varian diarsipkan") {
         inventory.setVariantActive(variantId, active)
     }
 
@@ -516,6 +526,7 @@ class OperationsViewModel(
         _reportTrend.value = null
         _reportTrendError.value = null
         _excelUri.value = null
+        _excelExportMode.value = null
         _excelError.value = null
         _forecastReport.value = null
         _forecastError.value = null
@@ -544,6 +555,7 @@ class OperationsViewModel(
             ReportPeriod.YEAR -> ReportChartGranularity.MONTHLY
         }
         _excelUri.value = null
+        _excelExportMode.value = null
         _excelError.value = null
         if (reports.session.isUnlocked) {
             executeReport { loadReport() }
@@ -600,14 +612,18 @@ class OperationsViewModel(
         _backupUri.value = backups.createBackup()
     }
 
-    fun createExcelExport() {
+    fun createExcelExport(mode: ExcelExportMode) {
         execute {
             reports.session.requireOwner()
             val period = _reportPeriod.value
             _excelError.value = null
             try {
-                _excelUri.value = excelExports.createExport(period)
-                _message.value = "Excel ${period.label} siap dibagikan"
+                _excelUri.value = excelExports.createExport(period, mode)
+                _excelExportMode.value = mode
+                _message.value = when (mode) {
+                    ExcelExportMode.SUMMARY -> "Ringkasan Excel ${period.label} siap dibagikan"
+                    ExcelExportMode.FULL -> "Laporan lengkap Excel ${period.label} siap dibagikan"
+                }
             } catch (error: Exception) {
                 _excelError.value = error.message ?: "File Excel gagal dibuat"
                 throw error
@@ -692,7 +708,12 @@ class OperationsViewModel(
     private suspend fun loadReportTrend() {
         _reportTrendError.value = null
         try {
-            _reportTrend.value = reports.readTrend(_reportChartGranularity.value)
+            val range = _reportPeriod.value.range()
+            _reportTrend.value = reports.readTrend(
+                granularity = _reportChartGranularity.value,
+                now = range.last,
+                fromInclusive = range.first,
+            )
         } catch (_: Exception) {
             _reportTrend.value = null
             _reportTrendError.value = "Grafik belum dapat dimuat sekarang"
