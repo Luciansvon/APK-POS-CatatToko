@@ -71,9 +71,18 @@ foreach ($package in $validatedPackages) {
     if ($verification -match "Android Debug") {
         throw "APK release memakai debug certificate dan diblokir: $($package.Source)"
     }
-    if ($verification -notmatch "Signer #1 certificate") {
-        throw "Identitas certificate APK tidak terbaca: $($package.Source)"
+    $certificateDigests = @(
+        [regex]::Matches(
+            $verification,
+            "(?im)certificate SHA-256 digest:\s*([0-9a-f]{64})\s*$"
+        ) |
+            ForEach-Object { $_.Groups[1].Value.ToUpperInvariant() } |
+            Select-Object -Unique
+    )
+    if ($certificateDigests.Count -ne 1) {
+        throw "Identitas certificate APK tidak tunggal atau tidak terbaca: $($package.Source)"
     }
+    $package.CertificateSha256 = $certificateDigests[0]
 }
 
 New-Item -ItemType Directory -Force -Path $outputDirectory | Out-Null
@@ -81,5 +90,5 @@ foreach ($package in $validatedPackages) {
     $targetPath = Join-Path $outputDirectory $package.Target
     Copy-Item -LiteralPath $package.Source -Destination $targetPath -Force
     $hash = (Get-FileHash -LiteralPath $targetPath -Algorithm SHA256).Hash
-    Write-Output "$($package.Target) | SIGNED | SHA256 $hash"
+    Write-Output "$($package.Target) | SIGNED | CERT_SHA256 $($package.CertificateSha256) | SHA256 $hash"
 }
