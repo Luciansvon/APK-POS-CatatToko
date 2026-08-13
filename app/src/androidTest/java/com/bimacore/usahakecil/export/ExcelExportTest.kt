@@ -11,7 +11,9 @@ import com.bimacore.usahakecil.data.MIGRATION_1_2
 import com.bimacore.usahakecil.data.MIGRATION_2_3
 import com.bimacore.usahakecil.data.MIGRATION_3_4
 import com.bimacore.usahakecil.data.MIGRATION_4_5
+import com.bimacore.usahakecil.data.MIGRATION_5_6
 import com.bimacore.usahakecil.data.PosDatabase
+import com.bimacore.usahakecil.data.ProductBarcodeEntity
 import com.bimacore.usahakecil.data.ProductEntity
 import com.bimacore.usahakecil.data.ReportPeriod
 import com.bimacore.usahakecil.security.ReportSession
@@ -35,7 +37,13 @@ class ExcelExportTest {
         context = ApplicationProvider.getApplicationContext()
         context.deleteDatabase(databaseName)
         database = Room.databaseBuilder(context, PosDatabase::class.java, databaseName)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+            .addMigrations(
+                MIGRATION_1_2,
+                MIGRATION_2_3,
+                MIGRATION_3_4,
+                MIGRATION_4_5,
+                MIGRATION_5_6,
+            )
             .build()
         database.profileDao().saveProfile(
             BusinessProfileEntity(
@@ -59,6 +67,14 @@ class ExcelExportTest {
                 lowStockThreshold = 1,
                 imageUri = null,
                 sortOrder = 1,
+            ),
+        )
+        database.barcodeDao().insert(
+            ProductBarcodeEntity(
+                barcode = "00123AbC",
+                productId = 1,
+                createdAt = 1,
+                updatedAt = 1,
             ),
         )
     }
@@ -97,12 +113,14 @@ class ExcelExportTest {
 
         assertTrue(entries.containsKey("xl/workbook.xml"))
         assertTrue(
-            Regex("<sheet ").findAll(entries.getValue("xl/workbook.xml")).count() == 20,
+            Regex("<sheet ").findAll(entries.getValue("xl/workbook.xml")).count() == 21,
         )
         assertTrue(entries.getValue("xl/workbook.xml").contains("Info Laporan"))
         assertTrue(entries.getValue("xl/workbook.xml").contains("Ringkasan"))
         assertTrue(entries.values.any { it.contains("Laporan Penjualan -") })
         assertTrue(entries.getValue("xl/workbook.xml").contains("Produk"))
+        assertTrue(entries.getValue("xl/workbook.xml").contains("Barcode Produk"))
+        assertTrue(entries.values.any { it.contains("00123AbC") })
         assertTrue(entries.values.any { it.contains("Kopi &lt;Susu&gt;") })
         assertTrue(entries.values.any { it.contains("01 Januari 1970") })
         assertTrue(entries.values.any { it.contains("Ringkasan Keuangan") })

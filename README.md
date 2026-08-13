@@ -6,7 +6,7 @@ Satu source Android offline-first untuk tiga APK operasional:
 - Grosir dan Agen;
 - Kuliner dan Pedagang Kaki Lima.
 
-Versi fitur saat ini: `0.6.0` (`versionCode 20`). Semua fungsi utama berjalan lokal di HP owner tanpa akun, server, atau internet.
+Versi publik saat ini: `0.6.0` (`versionCode 20`). Source kandidat `0.7.0` menambahkan barcode offline; semua fungsi utama tetap berjalan lokal di HP owner tanpa akun, server, atau internet.
 
 ## Download APK v0.6.0
 
@@ -35,13 +35,14 @@ Aplikasi selalu mulai dalam Mode Kasir/Pekerja. Pada pemasangan pertama, panduan
 - impor histori dari JSON hasil AI eksternal dengan validasi, review Owner, dan deteksi duplikat tanpa API key di APK;
 - export `.xlsx` offline terstruktur dengan `Info Export`, `Ringkasan`, tabel operasional, dan lebar kolom otomatis untuk dibagikan Owner;
 - struk dan berbagi PNG.
+- barcode offline Retail/Grosir dengan mapping produk, varian, dan satuan; Kuliner menyembunyikannya pada V1.
 
 ## Fungsi khusus APK
 
 | APK | Fungsi khusus |
 |---|---|
-| Retail dan UMKM | pelanggan dan penjualan piutang |
-| Grosir dan Agen | multi-satuan pcs/pak/dus, konversi stok, harga bertingkat, pelanggan dan piutang |
+| Retail dan UMKM | pelanggan, penjualan piutang, dan barcode offline |
+| Grosir dan Agen | multi-satuan pcs/pak/dus, konversi stok, harga bertingkat, pelanggan, piutang, dan barcode per satuan/varian |
 | Kuliner dan PKL | topping, catatan item, antrean/status pesanan, resep sederhana, pengurangan bahan |
 
 Cloud, pajak otomatis, HPP/laba, BPJS, payroll formal, printer, marketplace, payment gateway, serta sinkronisasi multi-device belum termasuk rilis ini.

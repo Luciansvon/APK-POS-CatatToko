@@ -32,8 +32,8 @@ android {
         applicationId = "com.bimacore.usahakecil"
         minSdk = 23
         targetSdk = 36
-        versionCode = 21
-        versionName = "0.6.1"
+        versionCode = 22
+        versionName = "0.7.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -153,6 +153,12 @@ dependencies {
 
     implementation("androidx.room:room-runtime:2.8.4")
     ksp("androidx.room:room-compiler:2.8.4")
+
+    implementation("androidx.camera:camera-core:1.6.1")
+    implementation("androidx.camera:camera-camera2:1.6.1")
+    implementation("androidx.camera:camera-lifecycle:1.6.1")
+    implementation("androidx.camera:camera-view:1.6.1")
+    implementation("com.google.mlkit:barcode-scanning:17.3.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")

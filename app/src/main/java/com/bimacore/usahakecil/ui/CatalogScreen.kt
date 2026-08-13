@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Calculate
+import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Checkroom
@@ -94,6 +95,8 @@ fun CatalogScreen(
     onQuantityChange: (String, Int) -> Unit,
     onCartClick: () -> Unit,
     onCalculatorClick: () -> Unit,
+    barcodeEnabled: Boolean,
+    onBarcodeClick: () -> Unit,
     ownerUnlocked: Boolean,
     onOwnerAccess: () -> Unit,
     modifier: Modifier = Modifier.fillMaxSize(),
@@ -135,25 +138,40 @@ fun CatalogScreen(
                 .fillMaxSize()
                 .padding(innerPadding),
         ) {
-            OutlinedTextField(
-                value = search,
-                onValueChange = onSearchChange,
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp)
-                    .semantics { contentDescription = "Cari produk" },
-                singleLine = true,
-                leadingIcon = {
-                    Icon(Icons.Outlined.Search, contentDescription = null)
-                },
-                placeholder = { Text("Cari nama barang atau menu") },
-                shape = RoundedCornerShape(14.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.55f),
-                ),
-            )
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlinedTextField(
+                    value = search,
+                    onValueChange = onSearchChange,
+                    modifier = Modifier
+                        .weight(1f)
+                        .semantics { contentDescription = "Cari produk" },
+                    singleLine = true,
+                    leadingIcon = {
+                        Icon(Icons.Outlined.Search, contentDescription = null)
+                    },
+                    placeholder = { Text("Cari nama barang atau menu") },
+                    shape = RoundedCornerShape(14.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.55f),
+                    ),
+                )
+                if (barcodeEnabled) {
+                    FilledTonalIconButton(
+                        onClick = onBarcodeClick,
+                        modifier = Modifier.size(48.dp).testTag("open-barcode-scanner"),
+                    ) {
+                        Icon(Icons.Outlined.QrCodeScanner, contentDescription = "Scan barcode")
+                    }
+                }
+            }
             Spacer(Modifier.height(4.dp))
             LazyRow(
                 contentPadding = PaddingValues(horizontal = 16.dp),

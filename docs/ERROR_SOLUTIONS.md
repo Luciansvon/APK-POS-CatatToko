@@ -1,5 +1,77 @@
 # Error Solutions
 
+## ERR-060 - Barcode yang diam dapat menambah barang berulang
+
+Tanggal: 2026-08-13
+
+Varian dan versi: Retail/Grosir, kandidat `0.7.0`
+
+### Kondisi/gejala
+
+Analyzer kamera menghasilkan frame berkali-kali selama barcode masih berada di depan kamera. Bila setiap frame langsung menambah keranjang, satu barang dapat masuk berkali-kali tanpa tindakan baru kasir.
+
+### Root cause
+
+Callback kamera berjalan lebih cepat daripada lookup Room dan penambahan keranjang. Debounce berbasis waktu saja tidak membuktikan bahwa barcode sudah dipindahkan dari frame.
+
+### Solusi
+
+- Menambahkan `BarcodeScanGate` dengan state `READY`, `PROCESSING`, dan `WAIT_FOR_CLEAR`.
+- Frame pertama dikirim ke ViewModel; pemindaian lain ditahan sampai proses repository selesai.
+- Barcode yang sama atau berbeda baru diterima lagi setelah analyzer mengirim frame kosong.
+- Beberapa barcode dalam satu frame ditolak sampai frame kembali kosong.
+- Lookup tetap memakai repository dan `PosRepository.addProduct`, bukan dilakukan analyzer.
+
+### Bukti verifikasi aktual
+
+- Unit test membuktikan barcode diam hanya diproses satu kali, proses repository menahan frame lain, barcode dapat dipindai ulang setelah frame kosong, dan beberapa barcode ditolak.
+- Unit test, build debug/test APK, lint, dan minified release candidate seluruh flavor lulus.
+- QA kamera fisik belum dijalankan karena memerlukan izin target perangkat.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/scanner/BarcodeScanGate.kt`
+- `app/src/main/java/com/bimacore/usahakecil/scanner/MlKitBarcodeAnalyzer.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/BarcodeScannerScreen.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/PosViewModel.kt`
+- `app/src/test/java/com/bimacore/usahakecil/scanner/BarcodeScanGateTest.kt`
+
+## ERR-061 - Barcode produk tidak cukup untuk varian dan satuan Grosir
+
+Tanggal: 2026-08-13
+
+Varian dan versi: Retail/Grosir, kandidat `0.7.0`
+
+### Kondisi/gejala
+
+Satu field barcode pada produk tidak dapat membedakan varian serta kemasan pcs/pak/dus. Mapping yang salah dapat menambah line keranjang dengan unit atau stok yang keliru.
+
+### Root cause
+
+Identitas line kasir memakai kombinasi produk, varian, dan satuan, sedangkan produk, varian, serta konversi satuan tersimpan sebagai entitas berbeda.
+
+### Solusi
+
+- Room schema 6 menambah tabel `product_barcodes` dengan target `productId + variantId? + unitId?`.
+- Unique index menjaga satu kode hanya mempunyai satu target; foreign key menjaga target tetap terhubung.
+- Repository memeriksa sesi Owner, status aktif, serta kepemilikan varian/satuan sebelum menyimpan atau mengaktifkan mapping.
+- Kode disimpan sebagai `String` agar nol depan dan case Code 128 tidak berubah.
+- Backup database dan Excel Lengkap mencakup mapping barcode.
+
+### Bukti verifikasi aktual
+
+- Unit test, build debug/test APK, lint, dan minified release candidate seluruh flavor lulus.
+- Regression instrumentation mencakup duplicate, target lintas produk, mapping varian+satuan Grosir, Worker terkunci, Kuliner unsupported, migration, backup/restore, dan Excel.
+- Hasil connected test menunggu izin perangkat.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/data/BarcodeEntities.kt`
+- `app/src/main/java/com/bimacore/usahakecil/data/BarcodeRepository.kt`
+- `app/src/main/java/com/bimacore/usahakecil/data/DatabaseMigrations.kt`
+- `app/src/main/java/com/bimacore/usahakecil/data/PosDatabase.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/data/BarcodeRepositoryTest.kt`
+
 ## Tujuan
 
 File ini menyimpan masalah yang benar-benar ditemukan, root cause, solusi, dan bukti verifikasi aktual.

@@ -34,6 +34,7 @@ class BusinessCapabilitiesTest {
         assertFalse(capabilities.tierPricing)
         assertFalse(capabilities.culinaryOrders)
         assertFalse(capabilities.recipes)
+        assertTrue(capabilities.barcodeScanner)
     }
 
     @Test
@@ -45,6 +46,7 @@ class BusinessCapabilitiesTest {
         assertTrue(capabilities.tierPricing)
         assertFalse(capabilities.culinaryOrders)
         assertFalse(capabilities.recipes)
+        assertTrue(capabilities.barcodeScanner)
     }
 
     @Test
@@ -56,6 +58,7 @@ class BusinessCapabilitiesTest {
         assertFalse(capabilities.tierPricing)
         assertTrue(capabilities.culinaryOrders)
         assertTrue(capabilities.recipes)
+        assertFalse(capabilities.barcodeScanner)
     }
 
     @Test

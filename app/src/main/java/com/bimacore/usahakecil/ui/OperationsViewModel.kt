@@ -8,6 +8,7 @@ import com.bimacore.usahakecil.PosApplication
 import com.bimacore.usahakecil.backup.BackupManager
 import com.bimacore.usahakecil.backup.BackupPreview
 import com.bimacore.usahakecil.data.CategoryDraft
+import com.bimacore.usahakecil.data.BarcodeRepository
 import com.bimacore.usahakecil.data.CulinaryRepository
 import com.bimacore.usahakecil.data.DebtEntity
 import com.bimacore.usahakecil.data.DebtKind
@@ -17,6 +18,7 @@ import com.bimacore.usahakecil.data.ManualCashType
 import com.bimacore.usahakecil.data.OperationsRepository
 import com.bimacore.usahakecil.data.PartyKind
 import com.bimacore.usahakecil.data.ProductDraft
+import com.bimacore.usahakecil.data.ProductBarcodeDraft
 import com.bimacore.usahakecil.data.ProductForecastReport
 import com.bimacore.usahakecil.data.PurchaseDraft
 import com.bimacore.usahakecil.data.PurchaseLineDraft
@@ -67,6 +69,7 @@ class OperationsViewModel(
     private val backups: BackupManager,
     private val excelExports: ExcelExportManager,
     private val historyImports: HistoryImportManager,
+    private val barcodeRepository: BarcodeRepository,
 ) : ViewModel() {
     val profile = operations.profile.stateIn(
         viewModelScope,
@@ -93,6 +96,20 @@ class OperationsViewModel(
         SharingStarted.WhileSubscribed(5_000),
         emptyList(),
     )
+    val units = inventory.allUnits.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        emptyList(),
+    )
+    val barcodes = barcodeRepository.mappings.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        emptyList(),
+    )
+    private val _barcodePrefill = MutableStateFlow<String?>(null)
+    val barcodePrefill = _barcodePrefill.asStateFlow()
+    private val _barcodeSaveVersion = MutableStateFlow(0L)
+    val barcodeSaveVersion = _barcodeSaveVersion.asStateFlow()
     val suppliers = operations.suppliers.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
@@ -238,6 +255,7 @@ class OperationsViewModel(
         stock: Int,
         unit: String,
         imageUri: String?,
+        barcode: String?,
     ) = execute(if (id == null) "Produk ditambahkan" else "Produk diperbarui") {
         val current = id?.let { productId ->
             products.value.firstOrNull { it.id == productId }
@@ -253,6 +271,7 @@ class OperationsViewModel(
                 lowStockThreshold = current?.lowStockThreshold ?: 5,
                 unitLabel = unit,
                 imageUri = imageUri,
+                barcode = barcode,
             ),
         )
     }
@@ -311,6 +330,41 @@ class OperationsViewModel(
         price: Long,
     ) = execute("Satuan grosir ditambahkan") {
         inventory.saveUnit(null, productId, label, factor, price)
+    }
+
+    fun prefillBarcodeForManagement(barcode: String) {
+        _barcodePrefill.value = barcode
+    }
+
+    fun consumeBarcodePrefill() {
+        _barcodePrefill.value = null
+    }
+
+    fun saveBarcode(
+        id: Long?,
+        barcode: String,
+        productId: Long,
+        variantId: Long?,
+        unitId: Long?,
+    ) = execute(
+        successMessage = if (id == null) "Barcode ditambahkan" else "Barcode diperbarui",
+        afterSuccess = { _barcodeSaveVersion.value += 1 },
+    ) {
+            barcodeRepository.save(
+                ProductBarcodeDraft(
+                    id = id,
+                    barcode = barcode,
+                    productId = productId,
+                    variantId = variantId,
+                    unitId = unitId,
+                ),
+            )
+        }
+
+    fun setBarcodeActive(id: Long, active: Boolean) = execute(
+        if (active) "Barcode diaktifkan kembali" else "Barcode dinonaktifkan",
+    ) {
+        barcodeRepository.setActive(id, active)
     }
 
     fun savePriceTier(
@@ -817,6 +871,7 @@ class OperationsViewModel(
 
     private fun execute(
         successMessage: String? = null,
+        afterSuccess: (() -> Unit)? = null,
         action: suspend () -> Unit,
     ) {
         if (_busy.value) return
@@ -824,6 +879,7 @@ class OperationsViewModel(
             _busy.value = true
             try {
                 application.databaseOperations.withOperation { action() }
+                afterSuccess?.invoke()
                 if (successMessage != null) _message.value = successMessage
             } catch (error: Exception) {
                 _message.value = error.message ?: "Data gagal disimpan"
@@ -882,6 +938,7 @@ class OperationsViewModel(
                 backups = application.newBackupManager(),
                 excelExports = application.newExcelExportManager(),
                 historyImports = application.newHistoryImportManager(),
+                barcodeRepository = application.newBarcodeRepository(),
             ) as T
     }
 
