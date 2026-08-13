@@ -20,6 +20,48 @@ dist/debug/CatatToko-Grosir.apk
 dist/debug/CatatToko-Kuliner.apk
 ```
 
+## Versi 0.7.0 - 2026-08-13
+
+Status: Siap dites sebagai APK debug lokal; rilis produksi dan QA kamera fisik masih pending
+
+### Kenapa versi ini dibuat
+
+- Kasir Retail dan Grosir masih harus mencari produk secara manual.
+- Barcode produk, varian, dan satuan Grosir membutuhkan identitas yang tidak dapat disimpan aman sebagai satu field produk.
+
+### Perubahan
+
+- Menambahkan scanner offline CameraX + ML Kit bundled untuk EAN-13, EAN-8, UPC-A, UPC-E, dan Code 128.
+- Menambahkan mapping dedicated produk, varian opsional, dan satuan opsional pada Room schema 6.
+- Mempertahankan nol depan dan case Code 128; menolak kode kosong, control character, terlalu panjang, dan duplikat.
+- Menambahkan scan beruntun dengan gate anti-double-scan serta fallback input manual jika izin kamera ditolak.
+- Menambahkan pengelolaan barcode Owner, status aktif/nonaktif, scan-to-fill, dan aksi mendaftarkan barcode tidak dikenal.
+- Menyembunyikan scanner pada Kuliner V1 melalui `BusinessCapabilities` tanpa memecah shared schema.
+- Menambahkan sheet `Barcode Produk` pada Excel Lengkap serta regression backup/restore mapping.
+- Menaikkan `versionCode` ke `22` dan `versionName` ke `0.7.0`.
+
+### Kekurangan dan masalah yang diketahui
+
+- QA kamera fisik, torch, rotasi, lifecycle background, dan scan 20 barang beruntun belum dijalankan karena memerlukan izin target perangkat.
+- QR tidak didukung pada V1.
+- UPC-A dan EAN-13 memakai nilai exact dari scanner; registrasi disarankan melalui scan-to-fill.
+- Rilis produksi tetap menunggu keystore dan secret signing.
+
+### Verifikasi
+
+- Unit test Retail, Grosir, dan Kuliner lulus.
+- `assembleDebug`, AndroidTest APK, lint, serta minified release candidate Retail/Grosir/Kuliner lulus dalam gate 416 task.
+- Compile AndroidTest Retail membuktikan regression repository, migration 1–6, backup/restore barcode, Excel 21 sheet, serta coordinator barcode dapat dibangun.
+- `verifyReleaseSigningReady` gagal sesuai desain karena keystore/secret produksi tidak tersedia; APK release unsigned tidak dipaketkan sebagai produksi.
+- Review independen menemukan dan memicu perbaikan pause scanner di belakang picker serta race mapping barcode versus restore.
+- Connected/device test tidak dijalankan tanpa izin target.
+
+### APK debug lokal
+
+- Retail: `dist/debug/CatatToko-Retail.apk` | SHA256 `27F82B0BE8F8F64E50B423981C28E2D32907813C871C72BC642053777B4BBF91`
+- Grosir: `dist/debug/CatatToko-Grosir.apk` | SHA256 `A7818EABB2B82456F68F8BF7DB1451A2B71B172CAF392A0327EE6DE5C794C9F4`
+- Kuliner: `dist/debug/CatatToko-Kuliner.apk` | SHA256 `A57696CD8D3005F62BE828509E792621F9C6FDB7F4BBA405BE451C648AD49CFF`
+
 ## Versi 0.6.1 - 2026-08-13
 
 Status: Siap dites sebagai APK debug lokal; rilis produksi menunggu keystore

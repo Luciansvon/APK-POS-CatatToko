@@ -89,6 +89,10 @@ fun OperationsScreen(
     val products by viewModel.products.collectAsState()
     val categories by viewModel.categories.collectAsState()
     val variants by viewModel.variants.collectAsState()
+    val units by viewModel.units.collectAsState()
+    val barcodes by viewModel.barcodes.collectAsState()
+    val barcodePrefill by viewModel.barcodePrefill.collectAsState()
+    val barcodeSaveVersion by viewModel.barcodeSaveVersion.collectAsState()
     val movements by viewModel.stockMovements.collectAsState()
     val suppliers by viewModel.suppliers.collectAsState()
     val purchases by viewModel.purchases.collectAsState()
@@ -101,6 +105,7 @@ fun OperationsScreen(
         add("Stok")
         add("Pembelian")
         add("Pekerja")
+        if (viewModel.capabilities.barcodeScanner) add("Barcode")
         if (viewModel.capabilities.multiUnit) add("Grosir")
         if (viewModel.capabilities.culinaryOrders) add("Kuliner")
     }
@@ -426,6 +431,18 @@ fun OperationsScreen(
                             }
                         }
                     }
+                    "Barcode" -> BarcodeManagementSection(
+                        products = products,
+                        variants = variants,
+                        units = units,
+                        mappings = barcodes,
+                        multiUnit = viewModel.capabilities.multiUnit,
+                        prefill = barcodePrefill,
+                        saveVersion = barcodeSaveVersion,
+                        onPrefillConsumed = viewModel::consumeBarcodePrefill,
+                        onSave = viewModel::saveBarcode,
+                        onSetActive = viewModel::setBarcodeActive,
+                    )
                     "Grosir" -> {
                         Text("Multi-satuan dan harga bertingkat hanya aktif di APK Grosir.")
                         products.filter { it.isActive }.forEach { product ->
@@ -478,8 +495,12 @@ fun OperationsScreen(
         "product" -> ProductDialog(
             categories = categories.map { it.id to it.name },
             product = products.firstOrNull { it.id == selectedProductId },
+            barcodeEnabled = viewModel.capabilities.barcodeScanner && !viewModel.capabilities.multiUnit,
+            initialBarcode = barcodes.firstOrNull {
+                it.productId == selectedProductId && it.variantId == null && it.unitId == null
+            }?.barcode.orEmpty(),
             onDismiss = { dialog = null },
-            onSave = { categoryId, name, price, stock, unit, imageUri ->
+            onSave = { categoryId, name, price, stock, unit, imageUri, barcode ->
                 viewModel.saveProduct(
                     selectedProductId,
                     categoryId,
@@ -488,6 +509,7 @@ fun OperationsScreen(
                     stock,
                     unit,
                     imageUri,
+                    barcode,
                 )
                 dialog = null
             },
@@ -1655,8 +1677,10 @@ private fun TextInputDialog(
 private fun ProductDialog(
     categories: List<Pair<Long, String>>,
     product: ProductEntity? = null,
+    barcodeEnabled: Boolean = false,
+    initialBarcode: String = "",
     onDismiss: () -> Unit,
-    onSave: (Long, String, Long, Int, String, String?) -> Unit,
+    onSave: (Long, String, Long, Int, String, String?, String?) -> Unit,
 ) {
     var selectedImageUri by remember(product?.id, product?.imageUri) {
         mutableStateOf(product?.imageUri)
@@ -1687,6 +1711,7 @@ private fun ProductDialog(
                 product?.basePrice?.toString().orEmpty(),
                 product?.stock?.toString().orEmpty(),
                 product?.unitLabel ?: "pcs",
+                initialBarcode,
             ),
         )
     }
@@ -1732,6 +1757,17 @@ private fun ProductDialog(
                         enabled = product == null || index != 2,
                     )
                 }
+                if (barcodeEnabled) {
+                    OutlinedTextField(
+                        value = values[4],
+                        onValueChange = { value ->
+                            values = values.toMutableList().also { it[4] = value }
+                        },
+                        label = { Text("Barcode (opsional)") },
+                        supportingText = { Text("Untuk varian atau satuan, buka Kelola Barcode.") },
+                        singleLine = true,
+                    )
+                }
             }
         },
         confirmButton = {
@@ -1745,6 +1781,7 @@ private fun ProductDialog(
                         values[2].toIntOrNull() ?: 0,
                         values[3],
                         selectedImageUri,
+                        values.getOrNull(4)?.takeIf { barcodeEnabled },
                     )
                 },
             ) { Text("Simpan") }

@@ -53,6 +53,7 @@ fun HomeScreen(
     var destination by remember {
         mutableStateOf(if (ownerUnlocked) AppDestination.REPORTS else AppDestination.POS)
     }
+    var operationsStartSection by remember { mutableStateOf(presentation.operationsStartSection) }
     var showOwnerAccess by remember { mutableStateOf(false) }
     var showShiftOpen by remember { mutableStateOf(false) }
     var showHistoryImport by remember { mutableStateOf(false) }
@@ -89,7 +90,12 @@ fun HomeScreen(
                     destinations.forEach { item ->
                         NavigationBarItem(
                             selected = destination == item,
-                            onClick = { destination = item },
+                            onClick = {
+                                if (item == AppDestination.OPERATIONS) {
+                                    operationsStartSection = presentation.operationsStartSection
+                                }
+                                destination = item
+                            },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = MaterialTheme.colorScheme.primary,
                                 selectedTextColor = MaterialTheme.colorScheme.primary,
@@ -149,10 +155,15 @@ fun HomeScreen(
                         if (!ownerUnlocked && !hasOpenShift) showShiftOpen = true
                         else posViewModel.showCatalog()
                     },
+                    onRegisterUnknownBarcode = { barcode ->
+                        operationsViewModel.prefillBarcodeForManagement(barcode)
+                        operationsStartSection = "Barcode"
+                        destination = AppDestination.OPERATIONS
+                    },
                 )
                 AppDestination.OPERATIONS -> OperationsScreen(
                     viewModel = operationsViewModel,
-                    startSection = presentation.operationsStartSection,
+                    startSection = operationsStartSection,
                     title = presentation.operationsLabel,
                 )
                 AppDestination.FINANCE -> FinanceScreen(

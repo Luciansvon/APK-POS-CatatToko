@@ -177,6 +177,16 @@ Contoh perbedaan:
 - Grosir: konversi pcs, pak, dan dus;
 - Kuliner: menu serta bahan baku opsional.
 
+### Barcode offline
+
+Barcode V1 aktif pada Retail dan Grosir serta disembunyikan pada Kuliner melalui `BusinessCapabilities`. Dependency CameraX dan ML Kit tetap berada di shared app, tetapi permission kamera hanya digabung ke manifest Retail/Grosir.
+
+Room schema 6 memakai tabel `product_barcodes` terpisah. Satu record menyimpan kode `String`, `productId`, `variantId` opsional, `unitId` opsional, status aktif, serta waktu buat/ubah. Unique index mencegah satu kode menunjuk ke dua target. Foreign key dan validasi repository memastikan varian/satuan milik produk yang sama. Mutasi memerlukan sesi Owner; lookup kasir hanya mengembalikan target aktif.
+
+Analyzer kamera tidak membaca Room atau mengubah keranjang. Hasil frame melewati `BarcodeScanGate`, kemudian ViewModel melakukan lookup dan memakai `PosRepository.addProduct`. Dengan begitu validasi varian, satuan Grosir, tier price, stok, draft selesai, dan quantity tetap memakai jalur transaksi yang sama dengan tap katalog.
+
+Model ML Kit bundled membuat pemindaian EAN/UPC/Code 128 tersedia tanpa internet. Resource kamera, analyzer, scanner, dan executor dilepas bersama lifecycle layar. Detail requirement dan batas QA ada di `docs/BARCODE_REQUIREMENTS.md`.
+
 ### Stok
 
 Stok berasal dari pergerakan:
@@ -367,7 +377,7 @@ Commit memakai repository histori dan satu transaksi Room tersendiri. Tanggal su
 
 ## Export Excel
 
-Owner dapat membuat file `.xlsx` langsung dari database lokal tanpa internet. Workbook memakai format OpenXML dan berisi `Info Export`, `Ringkasan`, serta tabel operasional seperti produk, transaksi, pembelian, kas, shift, utang-piutang, stok, dan tenaga kerja. Lebar tiap kolom dihitung dari teks terpanjang dengan batas wajar 10–72 karakter. Draft keranjang serta hash PIN Owner tidak ikut diekspor.
+Owner dapat membuat file `.xlsx` langsung dari database lokal tanpa internet. Workbook memakai format OpenXML dan berisi `Info Export`, `Ringkasan`, serta tabel operasional seperti produk, barcode produk, transaksi, pembelian, kas, shift, utang-piutang, stok, dan tenaga kerja. Lebar tiap kolom dihitung dari teks terpanjang dengan batas wajar 10–72 karakter. Draft keranjang serta hash PIN Owner tidak ikut diekspor.
 
 Export hanya tersedia pada area Owner dan file dibagikan melalui mekanisme share Android dari halaman Laporan. Owner memilih periode `Hari ini`, `Minggu ini`, `Bulan ini`, atau `Tahun ini`; ringkasan dan sheet event Excel memakai rentang waktu yang sama. Sheet katalog/master tetap berupa snapshot kondisi saat export agar nama produk, kategori, supplier, dan tenaga kerja tetap tersedia sebagai konteks. Data diekspor saat tombol export ditekan; export tidak mengubah transaksi, stok, atau histori finansial. Chart dan forecast belum menjadi sheet Excel, sedangkan analisis laba belum tersedia karena HPP belum dikunci.
 
@@ -460,7 +470,7 @@ Keputusan berikut belum final:
 - metode penilaian HPP;
 - urutan rilis varian;
 - dukungan usaha jasa;
-- integrasi printer dan barcode;
+- integrasi printer;
 - durasi akses laporan sebelum terkunci kembali;
 - model cloud dan sinkronisasi.
 

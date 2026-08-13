@@ -38,8 +38,9 @@ import androidx.room.RoomDatabase
         ReportSecurityEntity::class,
         HistoryImportBatchEntity::class,
         HistoryImportRecordEntity::class,
+        ProductBarcodeEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 abstract class PosDatabase : RoomDatabase() {
@@ -56,6 +57,7 @@ abstract class PosDatabase : RoomDatabase() {
     abstract fun securityDao(): SecurityDao
     abstract fun reportDao(): ReportDao
     abstract fun historyImportDao(): HistoryImportDao
+    abstract fun barcodeDao(): BarcodeDao
 
     companion object {
         fun create(context: Context): PosDatabase =
@@ -64,7 +66,13 @@ abstract class PosDatabase : RoomDatabase() {
                 PosDatabase::class.java,
                 "usaha-kecil-pos.db",
             )
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                .addMigrations(
+                    MIGRATION_1_2,
+                    MIGRATION_2_3,
+                    MIGRATION_3_4,
+                    MIGRATION_4_5,
+                    MIGRATION_5_6,
+                )
                 .build()
     }
 }

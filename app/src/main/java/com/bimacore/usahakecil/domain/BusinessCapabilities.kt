@@ -13,6 +13,7 @@ data class BusinessCapabilities(
     val tierPricing: Boolean,
     val culinaryOrders: Boolean,
     val recipes: Boolean,
+    val barcodeScanner: Boolean,
 ) {
     companion object {
         fun forType(type: BusinessType): BusinessCapabilities = when (type) {
@@ -22,6 +23,7 @@ data class BusinessCapabilities(
                 tierPricing = false,
                 culinaryOrders = false,
                 recipes = false,
+                barcodeScanner = true,
             )
             BusinessType.WHOLESALE -> BusinessCapabilities(
                 customerReceivables = true,
@@ -29,6 +31,7 @@ data class BusinessCapabilities(
                 tierPricing = true,
                 culinaryOrders = false,
                 recipes = false,
+                barcodeScanner = true,
             )
             BusinessType.CULINARY -> BusinessCapabilities(
                 customerReceivables = false,
@@ -36,6 +39,7 @@ data class BusinessCapabilities(
                 tierPricing = false,
                 culinaryOrders = true,
                 recipes = true,
+                barcodeScanner = false,
             )
         }
     }

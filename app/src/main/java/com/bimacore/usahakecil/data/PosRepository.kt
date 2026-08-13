@@ -2,6 +2,7 @@ package com.bimacore.usahakecil.data
 
 import androidx.room.withTransaction
 import com.bimacore.usahakecil.domain.AddToCartResult
+import com.bimacore.usahakecil.domain.BarcodeLookupResult
 import com.bimacore.usahakecil.domain.BusinessType
 import com.bimacore.usahakecil.domain.CartItem
 import com.bimacore.usahakecil.domain.CartTopping
@@ -60,12 +61,15 @@ class PosRepository(
     private val businessName: String,
     private val ownerSession: ReportSession? = null,
     private val databaseOperations: DatabaseOperationCoordinator = DatabaseOperationCoordinator(),
+    private val barcodeRepository: BarcodeRepository? = null,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     val supportsCulinaryCustomization: Boolean
         get() = businessType == BusinessType.CULINARY
     val supportsCustomerReceivables: Boolean
         get() = businessType != BusinessType.CULINARY
+    val supportsBarcodeScanner: Boolean
+        get() = barcodeRepository != null && businessType != BusinessType.CULINARY
 
     private val catalogDao = database.catalogDao()
     private val cartDao = database.cartDao()
@@ -231,6 +235,11 @@ class PosRepository(
             SaleUnitOption(it.id, it.label, it.factorToBase, it.salePrice)
         }
     }
+
+    suspend fun lookupBarcode(rawBarcode: String): BarcodeLookupResult =
+        databaseOperations.withOperation {
+            barcodeRepository?.lookup(rawBarcode) ?: BarcodeLookupResult.Unsupported
+        }
 
     suspend fun getAvailableToppings(productId: Long): List<ToppingEntity> =
         databaseOperations.withOperation {

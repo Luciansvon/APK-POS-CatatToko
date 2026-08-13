@@ -9,6 +9,8 @@ import com.bimacore.usahakecil.data.PosRepository
 import com.bimacore.usahakecil.data.SaleUnitOption
 import com.bimacore.usahakecil.data.ToppingEntity
 import com.bimacore.usahakecil.domain.AddToCartResult
+import com.bimacore.usahakecil.domain.BarcodeLookupResult
+import com.bimacore.usahakecil.domain.BarcodeTarget
 import com.bimacore.usahakecil.domain.CartItem
 import com.bimacore.usahakecil.domain.CheckoutResult
 import com.bimacore.usahakecil.domain.MoneyMath
@@ -29,6 +31,7 @@ enum class PosScreen {
     CART,
     PAYMENT,
     RECEIPT,
+    BARCODE_SCANNER,
 }
 
 class PosViewModel(
@@ -36,6 +39,7 @@ class PosViewModel(
 ) : ViewModel() {
     val supportsCulinaryCustomization = repository.supportsCulinaryCustomization
     val supportsCustomerReceivables = repository.supportsCustomerReceivables
+    val supportsBarcodeScanner = repository.supportsBarcodeScanner
     val customers = repository.customers.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
@@ -69,6 +73,8 @@ class PosViewModel(
     private val _unitOptions = MutableStateFlow<List<SaleUnitOption>>(emptyList())
     val unitOptions = _unitOptions.asStateFlow()
     private var pendingVariantId: Long? = null
+    private var pendingScannedUnitId: Long? = null
+    private var pendingBarcodeProductName: String? = null
 
     private val _customizeItem = MutableStateFlow<CartItem?>(null)
     val customizeItem = _customizeItem.asStateFlow()
@@ -94,6 +100,17 @@ class PosViewModel(
 
     private val _message = MutableStateFlow<String?>(null)
     val message = _message.asStateFlow()
+
+    private val _scannerFeedback = MutableStateFlow<String?>(null)
+    val scannerFeedback = _scannerFeedback.asStateFlow()
+
+    private val _unknownBarcode = MutableStateFlow<String?>(null)
+    val unknownBarcode = _unknownBarcode.asStateFlow()
+    private val _barcodeLookupInProgress = MutableStateFlow(false)
+    private val _barcodeProcessingVersion = MutableStateFlow(0L)
+    val barcodeProcessingVersion = _barcodeProcessingVersion.asStateFlow()
+    private val _barcodeScannerPaused = MutableStateFlow(false)
+    val barcodeScannerPaused = _barcodeScannerPaused.asStateFlow()
 
     private val _isInitializing = MutableStateFlow(true)
     val isInitializing = _isInitializing.asStateFlow()
@@ -131,11 +148,20 @@ class PosViewModel(
     fun selectVariant(variant: ProductVariant) {
         val product = _variantProduct.value ?: return
         _variantProduct.value = null
-        chooseUnitOrAdd(product, variant.id)
+        val scannedUnitId = pendingScannedUnitId
+        pendingScannedUnitId = null
+        if (scannedUnitId != null) {
+            addProduct(product.id, variant.id, scannedUnitId, pendingBarcodeProductName)
+        } else {
+            chooseUnitOrAdd(product, variant.id)
+        }
     }
 
     fun dismissVariantPicker() {
         _variantProduct.value = null
+        pendingScannedUnitId = null
+        pendingBarcodeProductName = null
+        _barcodeScannerPaused.value = false
     }
 
     fun selectUnit(option: SaleUnitOption) {
@@ -144,13 +170,17 @@ class PosViewModel(
         _unitOptions.value = emptyList()
         val variantId = pendingVariantId
         pendingVariantId = null
-        addProduct(product.id, variantId, option.id)
+        val barcodeProductName = pendingBarcodeProductName
+        pendingBarcodeProductName = null
+        addProduct(product.id, variantId, option.id, barcodeProductName)
     }
 
     fun dismissUnitPicker() {
         _unitProduct.value = null
         _unitOptions.value = emptyList()
         pendingVariantId = null
+        pendingBarcodeProductName = null
+        _barcodeScannerPaused.value = false
     }
 
     fun customize(item: CartItem) {
@@ -212,6 +242,56 @@ class PosViewModel(
 
     fun showCatalog() {
         _screen.value = PosScreen.CATALOG
+    }
+
+    fun showBarcodeScanner() {
+        if (!supportsBarcodeScanner) {
+            showMessage("Scanner barcode belum aktif pada APK ini")
+            return
+        }
+        _scannerFeedback.value = null
+        _screen.value = PosScreen.BARCODE_SCANNER
+    }
+
+    fun closeBarcodeScanner() {
+        _scannerFeedback.value = null
+        _barcodeScannerPaused.value = false
+        _screen.value = PosScreen.CATALOG
+    }
+
+    fun scanBarcode(rawBarcode: String) {
+        if (_barcodeLookupInProgress.value) return
+        _barcodeLookupInProgress.value = true
+        viewModelScope.launch {
+            try {
+                runCatching { repository.lookupBarcode(rawBarcode) }
+                    .onSuccess { result ->
+                        when (result) {
+                            is BarcodeLookupResult.Found -> handleBarcodeTarget(result.target)
+                            BarcodeLookupResult.NotFound -> {
+                                _scannerFeedback.value = "Barcode belum terdaftar · ${rawBarcode.trim()}"
+                                _unknownBarcode.value = rawBarcode.trim()
+                            }
+                            BarcodeLookupResult.Inactive ->
+                                _scannerFeedback.value = "Produk atau barcode sudah tidak aktif"
+                            BarcodeLookupResult.Unsupported ->
+                                _scannerFeedback.value = "Scanner barcode belum aktif pada APK ini"
+                        }
+                    }
+                    .onFailure { _scannerFeedback.value = it.message ?: "Barcode gagal diperiksa" }
+            } finally {
+                _barcodeLookupInProgress.value = false
+                _barcodeProcessingVersion.value += 1
+            }
+        }
+    }
+
+    fun reportMultipleBarcodes() {
+        _scannerFeedback.value = "Arahkan satu barcode saja"
+    }
+
+    fun consumeUnknownBarcode() {
+        _unknownBarcode.value = null
     }
 
     fun showPayment() {
@@ -306,8 +386,37 @@ class PosViewModel(
                 _unitOptions.value = units
                 _unitProduct.value = product
             } else {
-                addProduct(product.id, variantId, units.firstOrNull()?.id)
+                addProduct(
+                    product.id,
+                    variantId,
+                    units.firstOrNull()?.id,
+                    pendingBarcodeProductName,
+                )
+                pendingBarcodeProductName = null
             }
+        }
+    }
+
+    private suspend fun handleBarcodeTarget(target: BarcodeTarget) {
+        pendingBarcodeProductName = target.product.name
+        if (target.product.hasVariants && target.variantId == null) {
+            _barcodeScannerPaused.value = true
+            pendingScannedUnitId = target.unitId
+            _variantProduct.value = target.product
+            _scannerFeedback.value = "Pilih varian ${target.product.name}"
+            return
+        }
+        if (target.unitId != null) {
+            addProductNow(
+                productId = target.product.id,
+                variantId = target.variantId,
+                unitId = target.unitId,
+                barcodeProductName = target.product.name,
+            )
+            pendingBarcodeProductName = null
+        } else {
+            _barcodeScannerPaused.value = true
+            chooseUnitOrAdd(target.product, target.variantId)
         }
     }
 
@@ -315,15 +424,48 @@ class PosViewModel(
         productId: Long,
         variantId: Long?,
         unitId: Long?,
+        barcodeProductName: String? = null,
     ) {
         viewModelScope.launch {
-            when (repository.addProduct(productId, variantId, unitId)) {
-                AddToCartResult.Added -> Unit
-                AddToCartResult.VariantRequired -> showMessage("Pilih varian produk dulu")
-                AddToCartResult.OutOfStock -> showMessage("Stok produk habis atau tidak cukup")
-                AddToCartResult.CompletedTransactionLocked ->
-                    showMessage("Tekan Transaksi Baru dulu")
+            addProductNow(productId, variantId, unitId, barcodeProductName)
+        }
+    }
+
+    private suspend fun addProductNow(
+        productId: Long,
+        variantId: Long?,
+        unitId: Long?,
+        barcodeProductName: String?,
+    ) {
+        val result = repository.addProduct(productId, variantId, unitId)
+        when (result) {
+            AddToCartResult.Added -> if (barcodeProductName != null) {
+                _scannerFeedback.value = "$barcodeProductName ditambahkan"
             }
+            AddToCartResult.VariantRequired -> {
+                val product = snapshot.value.products.firstOrNull { it.id == productId }
+                if (product != null) {
+                    pendingScannedUnitId = unitId
+                    pendingBarcodeProductName = barcodeProductName
+                    _variantProduct.value = product
+                } else {
+                    _scannerFeedback.value = "Pilih varian produk dulu"
+                }
+            }
+            AddToCartResult.OutOfStock -> {
+                val value = "Stok produk habis atau tidak cukup"
+                if (barcodeProductName != null) _scannerFeedback.value = value else showMessage(value)
+            }
+            AddToCartResult.CompletedTransactionLocked -> {
+                val value = "Tekan Transaksi Baru dulu"
+                if (barcodeProductName != null) _scannerFeedback.value = value else showMessage(value)
+            }
+        }
+        if (
+            barcodeProductName != null &&
+            !(result == AddToCartResult.VariantRequired && _variantProduct.value != null)
+        ) {
+            _barcodeScannerPaused.value = false
         }
     }
 

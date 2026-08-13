@@ -65,6 +65,19 @@ Desain pertama memakai varian **Retail dan UMKM** sebagai acuan. Setelah style d
 - Sudah tersedia: penyesuaian stok dengan jenis pergerakan dan alasan wajib; harga bertingkat dapat dihapus karena merupakan aturan harga, bukan histori transaksi.
 - Pending spesifikasi: arsip satuan grosir, pelanggan, pemasok, pekerja, topping, serta aturan aman untuk entitas lain. Tidak ada hard delete baru pada patch ini.
 
+## Status 13 Agustus 2026 - Barcode offline V1
+
+- [x] Tombol scan 48 dp berada di samping pencarian katalog Retail dan Grosir.
+- [x] Scanner memakai kamera layar penuh, frame fokus, tombol tutup, dan torch hanya jika flash tersedia.
+- [x] Feedback berhasil/gagal memakai banner bawah tanpa dialog yang memutus scan beruntun.
+- [x] Barcode diam menunggu frame kosong sebelum dapat menambah barang yang sama lagi.
+- [x] Beberapa barcode dalam satu frame menampilkan `Arahkan satu barcode saja`.
+- [x] Penolakan izin kamera menyediakan input barcode manual; penolakan permanen menyediakan `Buka Pengaturan`.
+- [x] Owner mempunyai tab `Barcode` untuk input manual, scan-to-fill, mapping produk/varian/satuan, ubah, serta aktif/nonaktif.
+- [x] Worker hanya melihat pesan barcode tidak dikenal; Owner dengan sesi aktif mendapat aksi `Daftarkan`.
+- [x] Scanner dan tab pengelolaan disembunyikan pada Kuliner V1.
+- [ ] Visual dan behavior kamera pada HP fisik, rotasi, background/foreground, serta scan 20 barang beruntun menunggu izin target device.
+
 ## Format desain yang diterima
 
 - screenshot, gambar PNG/JPG, file Figma, atau sketsa yang terbaca jelas;

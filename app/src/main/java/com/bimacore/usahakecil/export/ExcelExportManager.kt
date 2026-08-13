@@ -88,6 +88,7 @@ class ExcelExportManager(
             saleDetailsSheet(businessName, exportedAt, range),
             productSalesSheet(businessName, exportedAt, range),
             catalogSheet(businessName, exportedAt),
+            barcodeSheet(businessName, exportedAt),
             purchaseSheet(businessName, exportedAt, range),
             purchaseDetailsSheet(businessName, exportedAt, range),
             cashSheet(businessName, exportedAt, range),
@@ -304,6 +305,39 @@ class ExcelExportManager(
             listOf(
                 (index + 1).toString(), row[0], row[1], row[2], row[3].ifBlank { "-" }, row[4],
                 formatRupiah(row[5].toLongOrZero()), row[6], row[7].ifBlank { "-" }, row[8],
+            )
+        },
+    )
+
+    private fun barcodeSheet(businessName: String, exportedAt: Long): ExcelSheet = reportSheet(
+        name = "Barcode Produk",
+        title = "Barcode Produk - $businessName",
+        businessName = businessName,
+        exportedAt = exportedAt,
+        headers = listOf(
+            "No", "Barcode", "Produk", "Varian", "Satuan", "Status", "Dibuat", "Diperbarui",
+        ),
+        rows = queryRows(
+            """
+            SELECT b.barcode, p.name, COALESCE(v.label, ''), COALESCE(u.label, p.unitLabel),
+                   CASE WHEN b.isActive = 1 THEN 'Aktif' ELSE 'Nonaktif' END,
+                   b.createdAt, b.updatedAt
+            FROM product_barcodes b
+            INNER JOIN products p ON p.id = b.productId
+            LEFT JOIN product_variants v ON v.id = b.variantId
+            LEFT JOIN unit_conversions u ON u.id = b.unitId
+            ORDER BY b.isActive DESC, p.name, b.barcode
+            """.trimIndent(),
+        ).mapIndexed { index, row ->
+            listOf(
+                (index + 1).toString(),
+                row[0],
+                row[1],
+                row[2].ifBlank { "-" },
+                row[3],
+                row[4],
+                formatDateTime(row[5].toLongOrNull()),
+                formatDateTime(row[6].toLongOrNull()),
             )
         },
     )

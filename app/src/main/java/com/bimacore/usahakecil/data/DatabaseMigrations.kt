@@ -442,3 +442,37 @@ val MIGRATION_4_5 = object : Migration(4, 5) {
         )
     }
 }
+
+val MIGRATION_5_6 = object : Migration(5, 6) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            """
+            CREATE TABLE IF NOT EXISTS product_barcodes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                barcode TEXT NOT NULL,
+                productId INTEGER NOT NULL,
+                variantId INTEGER,
+                unitId INTEGER,
+                isActive INTEGER NOT NULL DEFAULT 1,
+                createdAt INTEGER NOT NULL,
+                updatedAt INTEGER NOT NULL,
+                FOREIGN KEY(productId) REFERENCES products(id) ON UPDATE NO ACTION ON DELETE CASCADE,
+                FOREIGN KEY(variantId) REFERENCES product_variants(id) ON UPDATE NO ACTION ON DELETE CASCADE,
+                FOREIGN KEY(unitId) REFERENCES unit_conversions(id) ON UPDATE NO ACTION ON DELETE CASCADE
+            )
+            """.trimIndent(),
+        )
+        db.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS index_product_barcodes_barcode ON product_barcodes(barcode)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS index_product_barcodes_productId ON product_barcodes(productId)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS index_product_barcodes_variantId ON product_barcodes(variantId)",
+        )
+        db.execSQL(
+            "CREATE INDEX IF NOT EXISTS index_product_barcodes_unitId ON product_barcodes(unitId)",
+        )
+    }
+}
