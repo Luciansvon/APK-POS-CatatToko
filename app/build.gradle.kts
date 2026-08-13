@@ -8,6 +8,22 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
+val releaseStoreFile = providers.environmentVariable("CATATTOKO_RELEASE_STORE_FILE").orNull
+val releaseStorePassword = providers.environmentVariable("CATATTOKO_RELEASE_STORE_PASSWORD").orNull
+val releaseKeyAlias = providers.environmentVariable("CATATTOKO_RELEASE_KEY_ALIAS").orNull
+val releaseKeyPassword = providers.environmentVariable("CATATTOKO_RELEASE_KEY_PASSWORD").orNull
+val releaseSigningValues = listOf(
+    releaseStoreFile,
+    releaseStorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword,
+)
+val releaseSigningConfigured = releaseSigningValues.all { !it.isNullOrBlank() }
+
+if (!releaseSigningConfigured && releaseSigningValues.any { !it.isNullOrBlank() }) {
+    throw GradleException("Konfigurasi signing release belum lengkap. Isi seluruh CATATTOKO_RELEASE_*.")
+}
+
 android {
     namespace = "com.bimacore.usahakecil"
     compileSdk = 36
@@ -16,8 +32,8 @@ android {
         applicationId = "com.bimacore.usahakecil"
         minSdk = 23
         targetSdk = 36
-        versionCode = 20
-        versionName = "0.6.0"
+        versionCode = 21
+        versionName = "0.6.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -45,6 +61,17 @@ android {
         }
     }
 
+    signingConfigs {
+        if (releaseSigningConfigured) {
+            create("release") {
+                storeFile = file(requireNotNull(releaseStoreFile))
+                storePassword = requireNotNull(releaseStorePassword)
+                keyAlias = requireNotNull(releaseKeyAlias)
+                keyPassword = requireNotNull(releaseKeyPassword)
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -53,6 +80,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            if (releaseSigningConfigured) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 
@@ -76,6 +106,16 @@ android {
 
     sourceSets {
         getByName("androidTest").assets.srcDir("$projectDir/schemas")
+    }
+}
+
+tasks.register("verifyReleaseSigningReady") {
+    group = "verification"
+    description = "Fails unless production release signing is fully configured."
+    doLast {
+        check(releaseSigningConfigured) {
+            "Release produksi diblokir: CATATTOKO_RELEASE_STORE_FILE, STORE_PASSWORD, KEY_ALIAS, dan KEY_PASSWORD wajib diisi."
+        }
     }
 }
 

@@ -75,6 +75,18 @@ dist/debug/CatatToko-Grosir.apk
 dist/debug/CatatToko-Kuliner.apk
 ```
 
+APK produksi memakai gate terpisah dan tidak boleh diambil dari `dist/debug`.
+Isi secret `CATATTOKO_RELEASE_STORE_FILE`, `CATATTOKO_RELEASE_STORE_PASSWORD`,
+`CATATTOKO_RELEASE_KEY_ALIAS`, dan `CATATTOKO_RELEASE_KEY_PASSWORD`, lalu jalankan:
+
+```powershell
+.\gradlew.bat verifyReleaseSigningReady assembleRelease
+.\scripts\package-release-apks.ps1
+```
+
+Script produksi menolak APK unsigned dan debug certificate sebelum menyalin hasil ke
+`dist/release/`. Workflow manual `.github/workflows/android-release.yml` memakai gate yang sama.
+
 ## Dokumentasi
 
 - `docs/superpowers/specs/2026-07-30-offline-operations-suite-design.md`: spesifikasi rilis fitur.

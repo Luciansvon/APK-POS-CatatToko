@@ -46,10 +46,10 @@ class PosViewModel(
         started = SharingStarted.WhileSubscribed(5_000),
         initialValue = CatalogSnapshot(emptyList(), emptyList(), emptyList(), emptyList(), null),
     )
-    val sales = repository.sales.stateIn(
+    val activeTransactionCount = repository.activeTransactionCount.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = emptyList(),
+        initialValue = 0,
     )
 
     private val _screen = MutableStateFlow(PosScreen.CASHIER_HOME)

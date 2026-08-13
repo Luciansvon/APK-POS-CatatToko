@@ -191,24 +191,24 @@ class ReportRepository(
             val variants = activeVariants[product.id].orEmpty()
             if (product.hasVariants && variants.isNotEmpty()) {
                 variants.forEach { variant ->
-                    productMetadata.putIfAbsent(
-                        Pair(product.id, variant.id),
-                        ProductTrendMetadata(
+                    val key = Pair(product.id, variant.id)
+                    if (key !in productMetadata) {
+                        productMetadata[key] = ProductTrendMetadata(
                             productName = product.name,
                             variantName = variant.label,
                             unitLabel = product.unitLabel,
-                        ),
-                    )
+                        )
+                    }
                 }
             } else {
-                productMetadata.putIfAbsent(
-                    Pair(product.id, null),
-                    ProductTrendMetadata(
+                val key = Pair(product.id, null)
+                if (key !in productMetadata) {
+                    productMetadata[key] = ProductTrendMetadata(
                         productName = product.name,
                         variantName = null,
                         unitLabel = product.unitLabel,
-                    ),
-                )
+                    )
+                }
             }
         }
         val productTrends = productMetadata.map { (key, metadata) ->

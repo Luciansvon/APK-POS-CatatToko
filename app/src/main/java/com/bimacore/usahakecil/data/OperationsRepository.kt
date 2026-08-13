@@ -6,8 +6,8 @@ import com.bimacore.usahakecil.domain.LedgerLine
 import com.bimacore.usahakecil.domain.LedgerRules
 import com.bimacore.usahakecil.domain.MoneyMath
 import com.bimacore.usahakecil.security.ReportSession
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
 enum class PartyKind {
     SUPPLIER,
@@ -62,24 +62,46 @@ data class ShiftSummary(
 
 class OperationsRepository(
     private val database: PosDatabase,
+    private val ownerSession: ReportSession,
     private val clock: () -> Long = System::currentTimeMillis,
-    private val ownerSession: ReportSession? = null,
 ) {
     private val operationsDao = database.operationsDao()
     private val catalogDao = database.catalogDao()
     private val shiftDao = database.shiftDao()
+    private val profileDao = database.profileDao()
+    private val saleDao = database.saleDao()
 
-    val suppliers: Flow<List<PartyEntity>> = operationsDao.observeParties(PartyKind.SUPPLIER.name)
-    val customers: Flow<List<PartyEntity>> = operationsDao.observeParties(PartyKind.CUSTOMER.name)
+    val profile: Flow<BusinessProfileEntity?> = profileDao.observeProfile()
+        .ownerOnly(ownerSession, null)
+    val sales: Flow<List<SaleEntity>> = saleDao.observeSales()
+        .ownerOnly(ownerSession, emptyList())
+    val suppliers: Flow<List<PartyEntity>> = operationsDao
+        .observeParties(PartyKind.SUPPLIER.name)
+        .ownerOnly(ownerSession, emptyList())
+    val customers: Flow<List<PartyEntity>> = operationsDao
+        .observeParties(PartyKind.CUSTOMER.name)
+        .ownerOnly(ownerSession, emptyList())
     val purchases: Flow<List<PurchaseEntity>> = operationsDao.observePurchases()
+        .ownerOnly(ownerSession, emptyList())
     val cashEntries: Flow<List<CashEntryEntity>> = operationsDao.observeCashEntries()
+        .ownerOnly(ownerSession, emptyList())
     val debts: Flow<List<DebtEntity>> = operationsDao.observeDebts()
-    val shifts: Flow<List<ShiftEntity>> = ownerSession?.let { session ->
-        combine(shiftDao.observeShifts(), session.unlocked) { shifts, unlocked ->
-            if (unlocked) shifts else emptyList()
-        }
-    } ?: shiftDao.observeShifts()
-    val openShift: Flow<ShiftEntity?> = shiftDao.observeOpenShift()
+        .ownerOnly(ownerSession, emptyList())
+    val shifts: Flow<List<ShiftEntity>> = shiftDao.observeShifts()
+        .ownerOnly(ownerSession, emptyList())
+    val hasOpenShift: Flow<Boolean> = shiftDao.observeOpenShift().map { it != null }
+
+    suspend fun saveProfile(name: String) {
+        ownerSession.requireOwner()
+        require(name.isNotBlank()) { "Nama usaha wajib diisi" }
+        val current = requireNotNull(profileDao.getProfile()) { "Profil usaha belum tersedia" }
+        profileDao.saveProfile(current.copy(businessName = name.trim(), updatedAt = clock()))
+    }
+
+    suspend fun getSaleItems(saleId: Long): List<SaleItemEntity> {
+        ownerSession.requireOwner()
+        return saleDao.getItems(saleId)
+    }
 
     suspend fun saveParty(
         id: Long?,
@@ -88,6 +110,7 @@ class OperationsRepository(
         phone: String,
         address: String,
     ): Long {
+        ownerSession.requireOwner()
         require(name.isNotBlank()) { "Nama wajib diisi" }
         val now = clock()
         return if (id == null) {
@@ -117,11 +140,13 @@ class OperationsRepository(
     }
 
     suspend fun setPartyActive(id: Long, active: Boolean) {
+        ownerSession.requireOwner()
         val current = requireNotNull(operationsDao.getParty(id)) { "Data pihak tidak tersedia" }
         operationsDao.updateParty(current.copy(isActive = active, updatedAt = clock()))
     }
 
     suspend fun recordPurchase(draft: PurchaseDraft): Long = database.withTransaction {
+        ownerSession.requireOwner()
         require(draft.lines.isNotEmpty()) { "Item pembelian masih kosong" }
         val supplier = requireNotNull(operationsDao.getParty(draft.supplierId)) {
             "Pemasok tidak tersedia"
@@ -291,6 +316,7 @@ class OperationsRepository(
         note: String,
         paymentMethod: String = "CASH",
     ): Long {
+        ownerSession.requireOwner()
         require(amount in 1..MoneyMath.MAX_MONEY) { "Nominal wajib lebih dari nol" }
         require(category.isNotBlank()) { "Kategori wajib diisi" }
         return operationsDao.insertCashEntry(
@@ -329,7 +355,7 @@ class OperationsRepository(
     }
 
     suspend fun readOpenShiftSummary(): ShiftSummary? {
-        requireOwnerForShift()
+        ownerSession.requireOwner()
         val shift = shiftDao.getOpenShift() ?: return null
         return calculateShiftSummary(shift)
     }
@@ -338,7 +364,7 @@ class OperationsRepository(
         closingCash: Long,
         closingNote: String,
     ): ShiftSummary = database.withTransaction {
-        requireOwnerForShift()
+        ownerSession.requireOwner()
         require(closingCash in 0..MoneyMath.MAX_MONEY) { "Uang fisik tidak valid" }
         val shift = requireNotNull(shiftDao.getOpenShift()) { "Belum ada shift aktif" }
         val closedAt = clock()
@@ -374,6 +400,7 @@ class OperationsRepository(
         initialPayment: Long,
         note: String,
     ): Long = database.withTransaction {
+        ownerSession.requireOwner()
         val party = requireNotNull(operationsDao.getParty(partyId)) { "Pihak tidak tersedia" }
         val expectedKind = if (kind == DebtKind.PAYABLE) {
             PartyKind.SUPPLIER.name
@@ -436,6 +463,7 @@ class OperationsRepository(
         paymentMethod: String,
         note: String,
     ) = database.withTransaction {
+        ownerSession.requireOwner()
         val debt = requireNotNull(operationsDao.getDebt(debtId)) { "Tagihan tidak tersedia" }
         require(amount in 1..MoneyMath.MAX_MONEY) { "Nominal pembayaran tidak valid" }
         val totalPaid = Math.addExact(debt.paidAmount, amount)
@@ -518,10 +546,6 @@ class OperationsRepository(
             refundAmount = refundAmount,
             expectedCash = expectedCash,
         )
-    }
-
-    private fun requireOwnerForShift() {
-        ownerSession?.requireOwner()
     }
 
     private companion object {

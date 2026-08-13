@@ -52,6 +52,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.bimacore.usahakecil.backup.BackupPreview
 import com.bimacore.usahakecil.data.DebtEntity
 import com.bimacore.usahakecil.data.DebtKind
 import com.bimacore.usahakecil.data.CategoryEntity
@@ -1182,6 +1183,7 @@ fun MoreScreen(
     viewModel: OperationsViewModel,
     onExitOwner: () -> Unit,
     onOpenHistoryImport: () -> Unit,
+    onRestore: (BackupPreview) -> Unit,
 ) {
     val context = LocalContext.current
     val profile by viewModel.profile.collectAsState()
@@ -1354,7 +1356,7 @@ fun MoreScreen(
                 }
             },
             confirmButton = {
-                Button(onClick = viewModel::confirmRestore) { Text("Pulihkan sekarang") }
+                Button(onClick = { onRestore(item) }) { Text("Pulihkan sekarang") }
             },
             dismissButton = {
                 TextButton(onClick = viewModel::cancelRestore) { Text("Batal") }

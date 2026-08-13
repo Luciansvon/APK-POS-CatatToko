@@ -14,7 +14,7 @@ Status saat ini:
 - panduan wajib first-run menjelaskan Mode Kasir/Pekerja dan Mode Owner sebelum aplikasi dapat dipakai;
 - kemampuan khusus Grosir dan Kuliner dikendalikan oleh `BusinessCapabilities`;
 - APK debug Retail, Wholesale, dan Culinary dibangun dari shared source;
-- GitHub Actions memverifikasi unit test, kompilasi test instrumentasi, build debug/release, dan lint seluruh flavor;
+- GitHub Actions memverifikasi unit test, kompilasi test instrumentasi, build debug/kandidat release, dan lint seluruh flavor; workflow produksi terpisah mewajibkan signing non-debug;
 - forecasting penjualan offline sudah dihitung dari histori transaksi pada layar Laporan Owner;
 - shift kasir menyimpan `shiftId` pada transaksi dan jurnal kas, membatasi satu shift aktif, serta menyimpan snapshot saat ditutup;
 - forecasting restock, retur/refund, cloud, pajak otomatis, HPP/laba, payroll formal, printer, marketplace, payment gateway, serta multi-device belum diimplementasikan.
@@ -125,7 +125,8 @@ Aturan yang sudah dikunci:
 - satu PIN Owner membuka seluruh area pengelolaan pada MVP;
 - PIN tidak boleh disimpan dalam bentuk plaintext;
 - sesi Owner tetap terbuka selama proses aplikasi berjalan dan hanya dikunci saat Owner menekan `Keluar Mode Owner` atau `Kunci Mode Owner`;
-- repository laporan tetap menolak pembacaan saat sesi Owner terkunci.
+- repository inventori, operasional, tenaga kerja, kuliner, laporan, profil, backup, restore, dan impor histori menolak akses sensitif saat sesi Owner terkunci;
+- repository kasir hanya mengekspos data yang diperlukan transaksi: katalog/stok, hitungan transaksi hari ini, status shift, serta ID/nama pelanggan aktif.
 
 PIN digunakan sebagai mekanisme utama MVP karena sederhana dan tidak bergantung pada sensor HP. Biometrik dapat menjadi jalan pintas tambahan nanti, tetapi tidak menggantikan PIN.
 
@@ -346,12 +347,13 @@ flowchart TD
     F["Owner pilih file backup"] --> V["Validasi format dan integritas"]
     V --> I["Tampilkan identitas usaha dan tanggal"]
     I --> C["Konfirmasi owner"]
-    C --> P["Buat backup pengaman data aktif"]
+    C --> S["Hentikan ViewModel dan flow database"]
+    S --> P["Buat backup pengaman data aktif"]
     P --> R["Restore secara atomik"]
     R --> T["Verifikasi data hasil restore"]
 ```
 
-Restore gagal tidak boleh meninggalkan data setengah terpasang.
+Restore gagal tidak boleh meninggalkan data setengah terpasang. `DatabaseOperationCoordinator` level aplikasi membuat restore menunggu operasi kasir/Owner yang sedang aktif. Activity menghentikan seluruh ViewModel sebelum database ditutup, menjalankan restore/rollback, mengunci sesi Owner, lalu dibuat ulang agar semua repository memakai instance database baru.
 
 Backup dianggap selesai hanya setelah proses restore diuji pada data nyata pengujian.
 
@@ -359,7 +361,7 @@ Backup dianggap selesai hanya setelah proses restore diuji pada data nyata pengu
 
 CatatToko tidak memproses foto dan tidak membawa SDK, API key, atau akun AI. Pengguna membaca catatan fisik memakai Gemini, ChatGPT, atau AI lain miliknya, lalu CatatToko menerima JSON `catattoko.history-import.v1` melalui tempel teks atau pemilih file.
 
-Parser membatasi input menjadi maksimal 1 MB, 200 record per batch, dan 50 item per record. Struktur, jenis usaha, tanggal, nominal, subtotal, enum, file ganda, dan fingerprint record diperiksa sebelum layar review Owner ditampilkan. Field yang ragu harus disetujui Owner; record rusak tidak dapat diterapkan.
+Parser membatasi input menjadi maksimal 1 MB, 200 record per batch, dan 50 item per record. Struktur, jenis usaha, tanggal, nominal, subtotal, enum, file ganda, dan fingerprint record diperiksa sebelum layar review Owner ditampilkan. Saat commit, repository mereparse payload dan membandingkan record kanonis agar status `READY` buatan langsung tidak melewati validasi. Field yang ragu harus disetujui Owner; record rusak tidak dapat diterapkan.
 
 Commit memakai repository histori dan satu transaksi Room tersendiri. Tanggal sumber dipertahankan, shift tidak dibuka, dan stok aktif tidak diubah. `STOCK_ADJUSTMENT` serta `UNRESOLVED` hanya disimpan sebagai provenance batch/record sampai aturan koreksinya disetujui. Kembali dari pemilih file mengunci sesi sehingga PIN Owner harus diverifikasi lagi sebelum data dibaca atau diterapkan.
 

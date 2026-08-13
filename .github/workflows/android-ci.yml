@@ -54,7 +54,7 @@ jobs:
           --no-daemon
           --stacktrace
 
-      - name: Build minified release variants
+      - name: Build minified unsigned release candidates
         run: ./gradlew assembleRelease --no-daemon --stacktrace
 
   lint:

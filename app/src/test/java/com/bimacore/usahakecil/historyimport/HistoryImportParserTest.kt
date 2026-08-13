@@ -81,6 +81,18 @@ class HistoryImportParserTest {
         assertTrue(error.message.orEmpty().contains("field tidak dikenal"))
     }
 
+    @Test
+    fun `non credit sale with partial amount paid is not ready`() {
+        val draft = parser.parse(
+            validPayload().replace("\"amountPaid\": 20000", "\"amountPaid\": 0"),
+            BusinessType.RETAIL,
+        )
+
+        val row = draft.rows.single()
+        assertEquals(HistoryImportReviewStatus.UNRESOLVED, row.status)
+        assertTrue(row.issues.any { it.contains("harus sama dengan total") })
+    }
+
     private fun validPayload(): String =
         """
         {

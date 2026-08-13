@@ -5,6 +5,7 @@ import com.bimacore.usahakecil.domain.AttendanceStatus
 import com.bimacore.usahakecil.domain.LedgerRules
 import com.bimacore.usahakecil.domain.MoneyMath
 import com.bimacore.usahakecil.domain.WorkforceRules
+import com.bimacore.usahakecil.security.ReportSession
 import kotlinx.coroutines.flow.Flow
 
 enum class WorkerScheme {
@@ -14,20 +15,24 @@ enum class WorkerScheme {
 
 class WorkforceRepository(
     private val database: PosDatabase,
+    private val ownerSession: ReportSession,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     private val workforceDao = database.workforceDao()
     private val operationsDao = database.operationsDao()
 
     val employees: Flow<List<EmployeeEntity>> = workforceDao.observeEmployees()
+        .ownerOnly(ownerSession, emptyList())
     val attendance: Flow<List<AttendanceEntity>> = workforceDao.observeAttendance()
+        .ownerOnly(ownerSession, emptyList())
     val freelanceJobs: Flow<List<FreelanceJobEntity>> = workforceDao.observeFreelanceJobs()
+        .ownerOnly(ownerSession, emptyList())
 
     fun observeRates(employeeId: Long): Flow<List<WageRateEntity>> =
-        workforceDao.observeRates(employeeId)
+        workforceDao.observeRates(employeeId).ownerOnly(ownerSession, emptyList())
 
     fun observePayments(employeeId: Long): Flow<List<WorkerPaymentEntity>> =
-        workforceDao.observeWorkerPayments(employeeId)
+        workforceDao.observeWorkerPayments(employeeId).ownerOnly(ownerSession, emptyList())
 
     suspend fun saveEmployee(
         id: Long?,
@@ -35,6 +40,7 @@ class WorkforceRepository(
         phone: String,
         scheme: WorkerScheme,
     ): Long {
+        ownerSession.requireOwner()
         require(name.isNotBlank()) { "Nama pekerja wajib diisi" }
         val now = clock()
         return if (id == null) {
@@ -70,6 +76,7 @@ class WorkforceRepository(
         dailyRate: Long?,
         effectiveAt: Long,
     ): Long = database.withTransaction {
+        ownerSession.requireOwner()
         val validatedRate = if (scheme == WorkerScheme.DAILY) {
             requireNotNull(dailyRate) { "Tarif harian wajib diisi" }.also {
                 require(it in 1..MoneyMath.MAX_MONEY) { "Tarif harian tidak valid" }
@@ -85,6 +92,7 @@ class WorkforceRepository(
     }
 
     suspend fun setEmployeeActive(id: Long, active: Boolean) {
+        ownerSession.requireOwner()
         val current = requireNotNull(workforceDao.getEmployee(id)) { "Pekerja tidak tersedia" }
         workforceDao.updateEmployee(current.copy(isActive = active, updatedAt = clock()))
     }
@@ -94,6 +102,7 @@ class WorkforceRepository(
         amount: Long,
         effectiveAt: Long,
     ): Long {
+        ownerSession.requireOwner()
         val employee = requireNotNull(workforceDao.getEmployee(employeeId)) {
             "Pekerja tidak tersedia"
         }
@@ -120,6 +129,7 @@ class WorkforceRepository(
         advance: Long,
         note: String,
     ): Long {
+        ownerSession.requireOwner()
         val employee = requireNotNull(workforceDao.getEmployee(employeeId)) {
             "Pekerja tidak tersedia"
         }
@@ -162,6 +172,7 @@ class WorkforceRepository(
         attendanceId: Long,
         note: String,
     ) = database.withTransaction {
+        ownerSession.requireOwner()
         val attendance = requireNotNull(workforceDao.getAttendance(attendanceId)) {
             "Catatan kehadiran tidak tersedia"
         }
@@ -202,6 +213,7 @@ class WorkforceRepository(
         workDate: Long,
         note: String,
     ): Long {
+        ownerSession.requireOwner()
         val employee = requireNotNull(workforceDao.getEmployee(employeeId)) {
             "Pekerja tidak tersedia"
         }
@@ -232,6 +244,7 @@ class WorkforceRepository(
         amount: Long,
         note: String,
     ) = database.withTransaction {
+        ownerSession.requireOwner()
         val job = requireNotNull(workforceDao.getFreelanceJob(jobId)) {
             "Pekerjaan tidak tersedia"
         }

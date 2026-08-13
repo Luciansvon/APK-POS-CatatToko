@@ -40,6 +40,7 @@ class HistoricalImportRepository(
         require(draft.rows.any { it.status == HistoryImportReviewStatus.READY }) {
             "Belum ada catatan siap dimasukkan"
         }
+        validateDraft(draft)
         return database.withTransaction {
             require(importDao.getBatchByContentHash(draft.contentHash) == null) {
                 "File yang sama sudah pernah diimpor"
@@ -100,6 +101,34 @@ class HistoricalImportRepository(
                 archivedCount = archivedCount,
                 duplicateCount = draft.duplicateCount,
             )
+        }
+    }
+
+    private suspend fun validateDraft(draft: HistoryImportDraft) {
+        val canonical = HistoryImportParser().parse(
+            text = json.encodeToString(draft.payload),
+            expectedBusinessType = businessType,
+            existingFingerprints = importDao.getFingerprints().toSet(),
+            contentHash = draft.contentHash,
+        )
+        require(canonical.rows.size == draft.rows.size) {
+            "Jumlah catatan berubah setelah diperiksa"
+        }
+        canonical.rows.zip(draft.rows).forEach { (expected, provided) ->
+            require(
+                provided.index == expected.index &&
+                    provided.record == expected.record &&
+                    provided.recordType == expected.recordType &&
+                    provided.fingerprint == expected.fingerprint &&
+                    provided.eventAt == expected.eventAt &&
+                    provided.timePrecision == expected.timePrecision,
+            ) { "Catatan ${provided.record.sourceRef} berubah setelah diperiksa" }
+            if (provided.status == HistoryImportReviewStatus.READY) {
+                require(
+                    expected.status == HistoryImportReviewStatus.READY ||
+                        expected.status == HistoryImportReviewStatus.NEEDS_REVIEW,
+                ) { "Catatan ${provided.record.sourceRef} belum aman untuk dimasukkan" }
+            }
         }
     }
 

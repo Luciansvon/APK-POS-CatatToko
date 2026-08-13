@@ -9,6 +9,7 @@ import com.bimacore.usahakecil.historyimport.HISTORY_IMPORT_SCHEMA_V1
 import com.bimacore.usahakecil.historyimport.HistoryImportDraft
 import com.bimacore.usahakecil.historyimport.HistoryImportItem
 import com.bimacore.usahakecil.historyimport.HistoryImportPayload
+import com.bimacore.usahakecil.historyimport.HistoryImportParser
 import com.bimacore.usahakecil.historyimport.HistoryImportRecord
 import com.bimacore.usahakecil.historyimport.HistoryImportRecordType
 import com.bimacore.usahakecil.historyimport.HistoryImportReviewRow
@@ -17,6 +18,8 @@ import com.bimacore.usahakecil.historyimport.HistoryImportSource
 import com.bimacore.usahakecil.historyimport.HistoryImportSummary
 import com.bimacore.usahakecil.security.ReportSession
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -89,6 +92,64 @@ class HistoricalImportRepositoryTest {
             runBlocking { repository.commit(value) }
         }
         assertEquals(1, database.historyImportDao().batchCount())
+    }
+
+    @Test
+    fun crafted_ready_cash_sale_with_zero_payment_is_rejected() = runBlocking {
+        val valid = draft(1_722_504_000_000L)
+        val saleRow = valid.rows.first()
+        val invalidRecord = saleRow.record.copy(amountPaid = 0)
+        val crafted = valid.copy(
+            rows = listOf(saleRow.copy(record = invalidRecord)),
+            contentHash = "crafted-invalid-payment",
+        )
+
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { repository.commit(crafted) }
+        }
+        assertEquals(0, database.historyImportDao().batchCount())
+        assertEquals(0, database.saleDao().getSalesBetween(0, Long.MAX_VALUE).size)
+    }
+
+    @Test
+    fun crafted_ready_cash_entry_with_credit_method_is_rejected() = runBlocking {
+        val sale = draft(1_722_504_000_000L).payload.records.first()
+        val cash = sale.copy(
+            sourceRef = "hal-1-kas-1",
+            type = "CASH_IN",
+            partyName = null,
+            category = "Modal",
+            paymentMethod = "CREDIT",
+            amount = 10_000,
+            amountPaid = null,
+            items = emptyList(),
+            rawText = "modal 10.000",
+        )
+        val payload = HistoryImportPayload(
+            schemaVersion = HISTORY_IMPORT_SCHEMA_V1,
+            source = HistoryImportSource("Buku kas", 1, "RETAIL", "Asia/Jakarta"),
+            records = listOf(cash),
+            summary = HistoryImportSummary(1, 0, 1, "2024-08-02", "2024-08-02", emptyList()),
+        )
+        val checked = HistoryImportParser().parse(
+            text = Json.encodeToString(payload),
+            expectedBusinessType = BusinessType.RETAIL,
+            contentHash = "crafted-credit-cash",
+        )
+        val crafted = checked.copy(
+            rows = listOf(
+                checked.rows.single().copy(
+                    status = HistoryImportReviewStatus.READY,
+                    canApprove = false,
+                ),
+            ),
+        )
+
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking { repository.commit(crafted) }
+        }
+        assertEquals(0, database.historyImportDao().batchCount())
+        assertEquals(0, database.operationsDao().getCashEntriesBetween(0, Long.MAX_VALUE).size)
     }
 
     private fun draft(eventAt: Long): HistoryImportDraft {

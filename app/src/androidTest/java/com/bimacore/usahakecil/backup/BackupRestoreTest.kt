@@ -12,6 +12,7 @@ import com.bimacore.usahakecil.data.MIGRATION_3_4
 import com.bimacore.usahakecil.data.MIGRATION_4_5
 import com.bimacore.usahakecil.data.PosDatabase
 import com.bimacore.usahakecil.data.ProductEntity
+import com.bimacore.usahakecil.security.ReportSession
 import java.io.FileOutputStream
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -25,6 +26,7 @@ import org.junit.runner.RunWith
 class BackupRestoreTest {
     private lateinit var context: Context
     private lateinit var database: PosDatabase
+    private lateinit var ownerSession: ReportSession
     private val databaseName = "backup-restore-test.db"
 
     @Before
@@ -32,6 +34,7 @@ class BackupRestoreTest {
         context = ApplicationProvider.getApplicationContext()
         context.deleteDatabase(databaseName)
         database = openDatabase()
+        ownerSession = ReportSession().apply { unlock() }
     }
 
     @After
@@ -73,6 +76,7 @@ class BackupRestoreTest {
             currentDatabase = { database },
             closeDatabase = { database.close() },
             reopenDatabase = { openDatabase().also { database = it } },
+            ownerSession = ownerSession,
             clock = { 100L },
             databaseName = databaseName,
         )
@@ -110,6 +114,7 @@ class BackupRestoreTest {
             currentDatabase = { database },
             closeDatabase = { database.close() },
             reopenDatabase = { openDatabase().also { database = it } },
+            ownerSession = ownerSession,
             clock = { 200L },
             databaseName = databaseName,
         )
@@ -149,6 +154,7 @@ class BackupRestoreTest {
             currentDatabase = { database },
             closeDatabase = { database.close() },
             reopenDatabase = { openDatabase().also { database = it } },
+            ownerSession = ownerSession,
             clock = { 100L },
             databaseName = databaseName,
         )
@@ -187,6 +193,7 @@ class BackupRestoreTest {
             currentDatabase = { database },
             closeDatabase = { database.close() },
             reopenDatabase = { openDatabase().also { database = it } },
+            ownerSession = ownerSession,
             clock = { 100L },
             databaseName = databaseName,
         )

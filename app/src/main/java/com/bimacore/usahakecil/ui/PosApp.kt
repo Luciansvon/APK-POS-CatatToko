@@ -26,15 +26,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.bimacore.usahakecil.domain.MoneyMath
 import com.bimacore.usahakecil.share.ReceiptImageExporter
-import com.bimacore.usahakecil.data.ShiftEntity
 import kotlinx.coroutines.launch
-import java.util.Calendar
 
 @Composable
 fun PosApp(
     businessLabel: String,
     viewModel: PosViewModel,
-    activeShift: ShiftEntity?,
+    hasOpenShift: Boolean,
     ownerUnlocked: Boolean,
     onOwnerAccess: () -> Unit,
     onOpenShift: () -> Unit,
@@ -42,7 +40,7 @@ fun PosApp(
     modifier: Modifier = Modifier,
 ) {
     val snapshot by viewModel.snapshot.collectAsState()
-    val sales by viewModel.sales.collectAsState()
+    val activeTransactionCount by viewModel.activeTransactionCount.collectAsState()
     val screen by viewModel.screen.collectAsState()
     val search by viewModel.search.collectAsState()
     val selectedCategoryId by viewModel.selectedCategoryId.collectAsState()
@@ -114,14 +112,6 @@ fun PosApp(
                 onOwnerAccess = onOwnerAccess,
             )
         } else if (screen == PosScreen.CASHIER_HOME) {
-            val todayStart = remember {
-                Calendar.getInstance().apply {
-                    set(Calendar.HOUR_OF_DAY, 0)
-                    set(Calendar.MINUTE, 0)
-                    set(Calendar.SECOND, 0)
-                    set(Calendar.MILLISECOND, 0)
-                }.timeInMillis
-            }
             val trackedStock = snapshot.products
                 .filter { it.stockTrackingEnabled }
                 .map { product ->
@@ -136,14 +126,14 @@ fun PosApp(
                 }
             CashierLandingScreen(
                 businessLabel = businessLabel,
-                activeTransactions = sales.count { it.createdAt >= todayStart },
+                activeTransactions = activeTransactionCount,
                 lowStockCount = trackedStock.count { (product, availableStock) ->
                     availableStock in 1..product.lowStockThreshold
                 },
                 outOfStockCount = trackedStock.count { (_, availableStock) ->
                     availableStock <= 0
                 },
-                activeShift = activeShift,
+                hasOpenShift = hasOpenShift,
                 ownerUnlocked = ownerUnlocked,
                 onOwnerAccess = onOwnerAccess,
                 onOpenShift = onOpenShift,

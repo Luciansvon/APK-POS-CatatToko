@@ -3,6 +3,7 @@ package com.bimacore.usahakecil
 import android.app.Application
 import com.bimacore.usahakecil.backup.BackupManager
 import com.bimacore.usahakecil.data.CulinaryRepository
+import com.bimacore.usahakecil.data.DatabaseOperationCoordinator
 import com.bimacore.usahakecil.data.InventoryRepository
 import com.bimacore.usahakecil.data.OperationsRepository
 import com.bimacore.usahakecil.data.PosDatabase
@@ -23,6 +24,7 @@ class PosApplication : Application() {
         BusinessCapabilities.forType(businessType)
     }
     val reportSession: ReportSession by lazy(::ReportSession)
+    val databaseOperations: DatabaseOperationCoordinator by lazy(::DatabaseOperationCoordinator)
 
     @Volatile
     private var databaseInstance: PosDatabase? = null
@@ -38,23 +40,26 @@ class PosApplication : Application() {
             businessType = businessType,
             businessName = getString(R.string.business_label),
             ownerSession = reportSession,
+            databaseOperations = databaseOperations,
         )
 
-    fun newInventoryRepository() = InventoryRepository(database, capabilities)
+    fun newInventoryRepository() = InventoryRepository(database, capabilities, reportSession)
 
     fun newOperationsRepository() = OperationsRepository(database, ownerSession = reportSession)
 
-    fun newWorkforceRepository() = WorkforceRepository(database)
+    fun newWorkforceRepository() = WorkforceRepository(database, reportSession)
 
     fun newReportRepository() = ReportRepository(database, reportSession)
 
-    fun newCulinaryRepository() = CulinaryRepository(database, capabilities)
+    fun newCulinaryRepository() = CulinaryRepository(database, capabilities, reportSession)
 
     fun newBackupManager() = BackupManager(
         context = this,
         currentDatabase = { database },
         closeDatabase = ::closeDatabase,
         reopenDatabase = { database },
+        ownerSession = reportSession,
+        databaseOperations = databaseOperations,
     )
 
     fun newExcelExportManager() = ExcelExportManager(

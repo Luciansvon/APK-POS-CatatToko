@@ -309,6 +309,14 @@ class HistoryImportParser {
         if (method == PaymentMethod.CREDIT && (record.amountPaid ?: 0L) > 0) {
             issues += "Metode pembayaran awal piutang belum dijelaskan oleh format v1"
         }
+        if (
+            method != null &&
+            method != PaymentMethod.CREDIT &&
+            record.amountPaid != null &&
+            record.amountPaid != record.amount
+        ) {
+            issues += "Jumlah dibayar harus sama dengan total untuk penjualan non-piutang"
+        }
         validateCompleteItems(record, issues)
     }
 

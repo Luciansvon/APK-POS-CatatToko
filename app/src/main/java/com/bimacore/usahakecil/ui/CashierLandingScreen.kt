@@ -46,7 +46,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.bimacore.usahakecil.data.ShiftEntity
 import com.bimacore.usahakecil.R
 import com.bimacore.usahakecil.ui.theme.BrandColors
 
@@ -56,7 +55,7 @@ fun CashierLandingScreen(
     activeTransactions: Int,
     lowStockCount: Int,
     outOfStockCount: Int,
-    activeShift: ShiftEntity?,
+    hasOpenShift: Boolean,
     ownerUnlocked: Boolean,
     onOwnerAccess: () -> Unit,
     onOpenShift: () -> Unit,
@@ -97,7 +96,7 @@ fun CashierLandingScreen(
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onBackground,
             )
-            if (activeShift == null && !ownerUnlocked) {
+            if (!hasOpenShift && !ownerUnlocked) {
                 Spacer(Modifier.height(8.dp))
                 Card(
                     modifier = Modifier.fillMaxWidth(),
