@@ -459,6 +459,160 @@ Test dibuat adaptif: membuka sticky summary bila tersedia, atau langsung memakai
 
 - `app/src/androidTest/java/com/bimacore/usahakecil/MainActivitySmokeTest.kt`
 
+## ERR-054 - Import penjualan non-piutang dapat berubah menjadi lunas tanpa bukti pembayaran
+
+Tanggal: 2026-08-13
+
+Varian dan versi: Semua flavor, `0.6.1`
+
+### Kondisi/gejala
+
+Record `SALE` dengan metode selain `CREDIT` dapat berstatus siap walau `amountPaid` berisi `0` atau angka yang berbeda dari total. Saat commit, repository menggantinya menjadi lunas dan menulis kas masuk sebesar total.
+
+### Root cause
+
+Parser hanya memeriksa pembayaran parsial untuk `CREDIT`, sedangkan repository mengasumsikan semua penjualan non-piutang selalu lunas tanpa memvalidasi ulang draft yang diterima.
+
+### Solusi
+
+- Parser mewajibkan `amountPaid` non-piutang sama dengan total jika field dikirim.
+- Repository mereparse payload kanonis dan membandingkan record, tipe, fingerprint, waktu, serta status aman sebelum transaksi database dimulai.
+- Draft `READY` buatan langsung untuk penjualan, pembelian, kas, utang, atau piutang tidak dapat melewati hasil parser; fingerprint yang sudah pernah diimpor juga ditolak ulang.
+
+### Bukti verifikasi aktual
+
+- Unit test parser untuk `CASH` dengan `amountPaid = 0` lulus pada Retail, Grosir, dan Kuliner.
+- Regression instrumentation repository berhasil dikompilasi dan memastikan penjualan non-piutang dengan pembayaran salah serta kas bermetode `CREDIT` tidak menulis batch, penjualan, atau kas; eksekusi connected menunggu izin perangkat.
+
+## ERR-055 - Area Owner hanya dilindungi UI pada beberapa repository
+
+Tanggal: 2026-08-13
+
+Varian dan versi: Semua flavor, `0.6.1`
+
+### Kondisi/gejala
+
+Inventori, pemasok/pelanggan, pembelian, kas, tenaga kerja, resep, profil, dan rincian penjualan dapat diakses langsung dari repository walau PIN Owner belum terverifikasi.
+
+### Root cause
+
+Sebagian repository tidak menerima `ReportSession`; proteksi hanya mengandalkan layar Owner yang disembunyikan. Beberapa flow sensitif juga tetap mengalir ketika sesi terkunci.
+
+### Solusi
+
+- `ReportSession` menjadi dependency wajib repository pengelolaan.
+- Mutasi sensitif memanggil `requireOwner()` sebelum membaca atau menulis database.
+- Flow sensitif mengembalikan nilai kosong ketika terkunci dan kembali aktif setelah Owner membuka sesi.
+- Repository kasir hanya mengekspos jumlah transaksi hari ini, status shift, serta ID/nama pelanggan aktif; entity penjualan, nominal shift, nomor telepon, dan alamat tidak ikut terbuka.
+- Buka shift dan pengaturan catatan/topping keranjang tetap tersedia bagi kasir sesuai requirement.
+
+### Bukti verifikasi aktual
+
+- Unit test, build debug, build AndroidTest, dan lint seluruh flavor lulus.
+- Regression instrumentation berhasil dikompilasi untuk data tersembunyi, mutasi ditolak, serta flow kasir yang memang diizinkan tetap bekerja; eksekusi connected menunggu izin perangkat.
+
+## ERR-056 - Resep Kuliner mengurangi stok induk ketika bahan mempunyai varian
+
+Tanggal: 2026-08-13
+
+Varian dan versi: Kuliner, `0.6.1`
+
+### Kondisi/gejala
+
+Owner dapat menyimpan produk bervarian sebagai bahan resep, tetapi checkout selalu mengurangi stok produk induk dengan `variantId = null`. Stok varian nyata tidak berubah atau checkout gagal dengan alasan stok induk.
+
+### Root cause
+
+`RecipeIngredientEntity` hanya menyimpan `ingredientProductId`; belum ada kolom varian. Validasi lama hanya memeriksa pelacakan stok.
+
+### Solusi
+
+- Penyimpanan resep baru menolak bahan yang mempunyai varian.
+- Checkout menggagalkan data resep lama yang berisi bahan bervarian sebelum transaksi penjualan ditulis.
+- Dukungan resep per-varian ditunda sampai struktur data dan UI pemilihan varian disetujui.
+
+### Bukti verifikasi aktual
+
+- Build AndroidTest Kuliner lulus dengan regression yang memastikan penyimpanan resep ditolak, checkout fail-closed, stok varian tidak berubah, dan penjualan tidak tercipta; eksekusi connected menunggu izin perangkat.
+
+## ERR-057 - Restore menutup database ketika flow kasir masih aktif
+
+Tanggal: 2026-08-13
+
+Varian dan versi: Semua flavor, `0.6.1`
+
+### Kondisi/gejala
+
+Restore dapat menutup dan mengganti file database sementara `PosViewModel` dan repository lama masih mengamati atau menulis database yang sama.
+
+### Root cause
+
+Restore dijalankan di coroutine `OperationsViewModel`; Activity baru membersihkan ViewModel setelah restore selesai. Mutex lokal ViewModel tidak melindungi repository kasir.
+
+### Solusi
+
+- Konfirmasi restore diteruskan ke Activity.
+- `DatabaseOperationCoordinator` level aplikasi menyerialkan backup/restore dengan operasi kasir dan seluruh aksi database Owner.
+- Activity mencegah konfirmasi ganda, membersihkan seluruh ViewModel/flow, lalu restore menunggu operasi database aktif selesai sebelum menutup database.
+- Setelah sukses atau rollback, sesi Owner dikunci dan Activity dibuat ulang agar semua repository memakai database baru.
+- Backup, preview, dan restore juga mewajibkan sesi Owner dan diserialkan oleh mutex manager.
+
+### Bukti verifikasi aktual
+
+- Build debug, AndroidTest, dan lint seluruh flavor lulus.
+- Unit test coordinator membuktikan operasi kedua menunggu lock aktif dan pemanggilan nested pada coordinator yang sama tidak deadlock.
+- Regression backup/restore berhasil dikompilasi dan tetap mencakup rollback, integritas, identitas usaha, serta PIN Owner; eksekusi connected menunggu izin perangkat.
+
+## ERR-058 - APK release minified dapat disalahartikan sebagai APK produksi
+
+Tanggal: 2026-08-13
+
+Varian dan versi: Semua flavor, `0.6.1`
+
+### Kondisi/gejala
+
+`assembleRelease` menghasilkan APK unsigned karena tidak ada signing config. CI tetap menamainya build release dan tidak ada pemeriksaan certificate sebelum distribusi.
+
+### Root cause
+
+Build minify, signing produksi, dan packaging distribusi belum dipisahkan sebagai gate yang berbeda.
+
+### Solusi
+
+- Signing release hanya aktif jika seluruh secret `CATATTOKO_RELEASE_*` tersedia; konfigurasi parsial langsung gagal.
+- Task `verifyReleaseSigningReady` memblokir jalur produksi tanpa secret lengkap.
+- `package-release-apks.ps1` memverifikasi signature dengan `apksigner` dan menolak unsigned serta debug certificate sebelum menulis `dist/release`.
+- Workflow manual signed release memakai environment `production`; CI PR diberi label jelas sebagai kandidat unsigned.
+
+### Bukti verifikasi aktual
+
+- Minified release candidate Retail, Grosir, dan Kuliner berhasil dibangun tanpa secret untuk jalur CI kandidat unsigned.
+- `verifyReleaseSigningReady` gagal dengan pesan secret wajib ketika keystore tidak tersedia.
+- Gate packaging lokal menolak `app-retail-release-unsigned.apk` sebelum menulis `dist/release`.
+
+## ERR-059 - Laporan memanggil API Java 24 pada Android 6
+
+Tanggal: 2026-08-13
+
+Varian dan versi: Semua flavor, `0.6.1`
+
+### Kondisi/gejala
+
+Lint menolak build karena agregasi produk laporan memanggil `HashMap.putIfAbsent`, sedangkan minimum aplikasi adalah API 23 dan method tersebut baru tersedia pada API 24.
+
+### Root cause
+
+Kode agregasi laporan memakai default method Java 8 tanpa fallback API 23. Kompilasi Kotlin tetap lulus sehingga masalah baru terlihat pada Android lint.
+
+### Solusi
+
+Mengganti dua pemanggilan `putIfAbsent` dengan pemeriksaan `key !in map` lalu assignment biasa yang kompatibel dengan API 23.
+
+### Bukti verifikasi aktual
+
+- Lint Retail menemukan tepat dua error `NewApi` sebelum patch.
+- Lint Retail, Grosir, dan Kuliner lulus setelah patch.
+
 ## ERR-053 - Hasil konversi catatan lama belum dapat dimasukkan ke CatatToko
 
 Tanggal: 2026-08-12

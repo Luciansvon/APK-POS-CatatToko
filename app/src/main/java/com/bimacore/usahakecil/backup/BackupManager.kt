@@ -3,7 +3,9 @@ package com.bimacore.usahakecil.backup
 import android.content.Context
 import android.net.Uri
 import androidx.core.content.FileProvider
+import com.bimacore.usahakecil.data.DatabaseOperationCoordinator
 import com.bimacore.usahakecil.data.PosDatabase
+import com.bimacore.usahakecil.security.ReportSession
 import java.io.File
 import java.io.FileOutputStream
 import java.util.zip.ZipEntry
@@ -22,10 +24,14 @@ class BackupManager(
     private val currentDatabase: () -> PosDatabase,
     private val closeDatabase: () -> Unit,
     private val reopenDatabase: () -> PosDatabase,
+    private val ownerSession: ReportSession,
+    private val databaseOperations: DatabaseOperationCoordinator = DatabaseOperationCoordinator(),
     private val clock: () -> Long = System::currentTimeMillis,
     private val databaseName: String = DEFAULT_DATABASE_NAME,
 ) {
-    suspend fun createBackup(): Uri = withContext(Dispatchers.IO) {
+    suspend fun createBackup(): Uri = databaseOperations.withOperation {
+        ownerSession.requireOwner()
+        withContext(Dispatchers.IO) {
         val database = currentDatabase()
         val profile = requireNotNull(database.profileDao().getProfile()) {
             "Profil usaha belum tersedia"
@@ -50,9 +56,12 @@ class BackupManager(
             "${context.packageName}.fileprovider",
             output,
         )
+        }
     }
 
-    suspend fun preview(uri: Uri): BackupPreview = withContext(Dispatchers.IO) {
+    suspend fun preview(uri: Uri): BackupPreview = databaseOperations.withOperation {
+        ownerSession.requireOwner()
+        withContext(Dispatchers.IO) {
         val packageData = readPackage(uri)
         require(packageData.manifest.verify(packageData.databaseBytes)) {
             "Berkas salinan rusak atau sudah berubah"
@@ -67,9 +76,12 @@ class BackupManager(
             }
         }
         BackupPreview(packageData.manifest, uri)
+        }
     }
 
-    suspend fun restore(preview: BackupPreview) = withContext(Dispatchers.IO) {
+    suspend fun restore(preview: BackupPreview) = databaseOperations.withOperation {
+        ownerSession.requireOwner()
+        withContext(Dispatchers.IO) {
         val incoming = readPackage(preview.sourceUri)
         require(incoming.manifest == preview.manifest) { "Keterangan salinan berubah" }
         require(incoming.manifest.verify(incoming.databaseBytes)) {
@@ -125,6 +137,7 @@ class BackupManager(
                 "Pemulihan gagal. Data aktif sudah dikembalikan seperti semula.",
                 error,
             )
+        }
         }
     }
 

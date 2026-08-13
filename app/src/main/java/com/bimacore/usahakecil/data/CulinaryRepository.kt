@@ -4,11 +4,13 @@ import com.bimacore.usahakecil.domain.BusinessCapabilities
 import com.bimacore.usahakecil.domain.CulinaryRules
 import com.bimacore.usahakecil.domain.MoneyMath
 import com.bimacore.usahakecil.domain.OrderStatus
+import com.bimacore.usahakecil.security.ReportSession
 import kotlinx.coroutines.flow.Flow
 
 class CulinaryRepository(
     private val database: PosDatabase,
     private val capabilities: BusinessCapabilities,
+    private val ownerSession: ReportSession,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     private val culinaryDao = database.culinaryDao()
@@ -16,15 +18,16 @@ class CulinaryRepository(
     private val saleDao = database.saleDao()
 
     val openOrders: Flow<List<SaleEntity>> = saleDao.observeOpenOrders()
+        .ownerOnly(ownerSession, emptyList())
 
     fun observeToppings(productId: Long): Flow<List<ToppingEntity>> {
         requireCulinary()
-        return culinaryDao.observeToppings(productId)
+        return culinaryDao.observeToppings(productId).ownerOnly(ownerSession, emptyList())
     }
 
     fun observeRecipe(menuProductId: Long): Flow<List<RecipeIngredientEntity>> {
         requireCulinary()
-        return culinaryDao.observeRecipe(menuProductId)
+        return culinaryDao.observeRecipe(menuProductId).ownerOnly(ownerSession, emptyList())
     }
 
     suspend fun saveTopping(
@@ -33,6 +36,7 @@ class CulinaryRepository(
         label: String,
         price: Long,
     ): Long {
+        ownerSession.requireOwner()
         requireCulinary()
         require(catalogDao.getProduct(productId) != null) { "Menu tidak tersedia" }
         require(label.isNotBlank()) { "Nama topping wajib diisi" }
@@ -62,6 +66,7 @@ class CulinaryRepository(
     }
 
     suspend fun setToppingActive(id: Long, active: Boolean) {
+        ownerSession.requireOwner()
         requireCulinary()
         val current = requireNotNull(culinaryDao.getTopping(id)) { "Topping tidak tersedia" }
         culinaryDao.updateTopping(current.copy(isActive = active, updatedAt = clock()))
@@ -72,6 +77,7 @@ class CulinaryRepository(
         ingredientProductId: Long,
         quantityPerMenu: Int,
     ) {
+        ownerSession.requireOwner()
         requireCulinary()
         require(menuProductId != ingredientProductId) { "Menu tidak boleh menjadi bahannya sendiri" }
         require(catalogDao.getProduct(menuProductId) != null) { "Menu tidak tersedia" }
@@ -79,6 +85,9 @@ class CulinaryRepository(
             "Bahan tidak tersedia"
         }
         require(ingredient.stockTrackingEnabled) { "Pelacakan stok bahan harus aktif" }
+        require(!ingredient.hasVariants) {
+            "Bahan bervarian belum dapat dipakai dalam resep. Gunakan produk bahan tanpa varian."
+        }
         CulinaryRules.ingredientQuantity(quantityPerMenu, 1)
         culinaryDao.saveRecipeIngredient(
             RecipeIngredientEntity(
@@ -91,6 +100,7 @@ class CulinaryRepository(
     }
 
     suspend fun removeRecipeIngredient(menuProductId: Long, ingredientProductId: Long) {
+        ownerSession.requireOwner()
         requireCulinary()
         culinaryDao.deleteRecipeIngredient(menuProductId, ingredientProductId)
     }
@@ -135,6 +145,7 @@ class CulinaryRepository(
         saleId: Long,
         nextStatus: OrderStatus,
     ) {
+        ownerSession.requireOwner()
         requireCulinary()
         val sale = requireNotNull(saleDao.getSale(saleId)) { "Pesanan tidak tersedia" }
         val current = runCatching { OrderStatus.valueOf(sale.orderStatus) }

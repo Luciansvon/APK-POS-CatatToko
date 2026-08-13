@@ -17,11 +17,13 @@ import com.bimacore.usahakecil.domain.Receipt
 import com.bimacore.usahakecil.domain.ReceiptItem
 import com.bimacore.usahakecil.security.ReportSession
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -47,11 +49,17 @@ data class SaleUnitOption(
     val salePrice: Long,
 )
 
+data class CashierCustomerOption(
+    val id: Long,
+    val name: String,
+)
+
 class PosRepository(
     private val database: PosDatabase,
     private val businessType: BusinessType,
     private val businessName: String,
     private val ownerSession: ReportSession? = null,
+    private val databaseOperations: DatabaseOperationCoordinator = DatabaseOperationCoordinator(),
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     val supportsCulinaryCustomization: Boolean
@@ -66,9 +74,22 @@ class PosRepository(
     private val culinaryDao = database.culinaryDao()
     private val operationsDao = database.operationsDao()
     private val checkoutMutex = Mutex()
-    val customers: Flow<List<PartyEntity>> =
-        operationsDao.observeParties(PartyKind.CUSTOMER.name)
-    val sales: Flow<List<SaleEntity>> = saleDao.observeSales()
+    val customers: Flow<List<CashierCustomerOption>> =
+        operationsDao.observeParties(PartyKind.CUSTOMER.name).map { customers ->
+            customers.filter(PartyEntity::isActive).map { customer ->
+                CashierCustomerOption(customer.id, customer.name)
+            }
+        }
+    val activeTransactionCount: Flow<Int> = saleDao.observeSales().map { sales ->
+        val todayStart = Calendar.getInstance().apply {
+            timeInMillis = clock()
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+        sales.count { it.createdAt >= todayStart }
+    }
 
     private val catalogFlow = combine(
         catalogDao.observeCategories(),
@@ -181,7 +202,7 @@ class PosRepository(
         )
     }
 
-    suspend fun seedIfNeeded() {
+    suspend fun seedIfNeeded() = databaseOperations.withOperation {
         database.withTransaction {
             if (catalogDao.productCount() > 0) {
                 ensureDraft()
@@ -197,7 +218,7 @@ class PosRepository(
         }
     }
 
-    suspend fun getSaleUnits(productId: Long): List<SaleUnitOption> {
+    suspend fun getSaleUnits(productId: Long): List<SaleUnitOption> = databaseOperations.withOperation {
         val product = requireNotNull(catalogDao.getProduct(productId)) { "Produk tidak tersedia" }
         val base = SaleUnitOption(
             id = null,
@@ -205,46 +226,51 @@ class PosRepository(
             factorToBase = 1,
             salePrice = product.basePrice,
         )
-        if (businessType != BusinessType.WHOLESALE) return listOf(base)
-        return listOf(base) + inventoryDao.getActiveUnits(productId).map {
+        if (businessType != BusinessType.WHOLESALE) return@withOperation listOf(base)
+        listOf(base) + inventoryDao.getActiveUnits(productId).map {
             SaleUnitOption(it.id, it.label, it.factorToBase, it.salePrice)
         }
     }
 
-    suspend fun getAvailableToppings(productId: Long): List<ToppingEntity> {
-        require(businessType == BusinessType.CULINARY) { "Topping hanya tersedia di APK Kuliner" }
-        return culinaryDao.getActiveToppings(productId)
-    }
+    suspend fun getAvailableToppings(productId: Long): List<ToppingEntity> =
+        databaseOperations.withOperation {
+            require(businessType == BusinessType.CULINARY) {
+                "Topping hanya tersedia di APK Kuliner"
+            }
+            culinaryDao.getActiveToppings(productId)
+        }
 
     suspend fun setCartCustomization(
         lineId: String,
         note: String,
         toppingQuantities: Map<Long, Int>,
-    ) = database.withTransaction {
-        require(businessType == BusinessType.CULINARY) {
-            "Catatan dan topping hanya tersedia di APK Kuliner"
-        }
-        requireNotNull(cartDao.getLine(lineId)) { "Item keranjang tidak tersedia" }
-        culinaryDao.saveCartLineNote(
-            CartLineNoteEntity(lineId = lineId, note = note.trim(), updatedAt = clock()),
-        )
-        toppingQuantities.forEach { (toppingId, quantity) ->
-            require(quantity >= 0) { "Jumlah topping tidak valid" }
-            if (quantity == 0) {
-                culinaryDao.deleteCartLineTopping(lineId, toppingId)
-            } else {
-                val topping = requireNotNull(culinaryDao.getTopping(toppingId)) {
-                    "Topping tidak tersedia"
+    ) = databaseOperations.withOperation {
+        database.withTransaction {
+            require(businessType == BusinessType.CULINARY) {
+                "Catatan dan topping hanya tersedia di APK Kuliner"
+            }
+            requireNotNull(cartDao.getLine(lineId)) { "Item keranjang tidak tersedia" }
+            culinaryDao.saveCartLineNote(
+                CartLineNoteEntity(lineId = lineId, note = note.trim(), updatedAt = clock()),
+            )
+            toppingQuantities.forEach { (toppingId, quantity) ->
+                require(quantity >= 0) { "Jumlah topping tidak valid" }
+                if (quantity == 0) {
+                    culinaryDao.deleteCartLineTopping(lineId, toppingId)
+                } else {
+                    val topping = requireNotNull(culinaryDao.getTopping(toppingId)) {
+                        "Topping tidak tersedia"
+                    }
+                    require(topping.isActive) { "Topping sudah tidak aktif" }
+                    culinaryDao.saveCartLineTopping(
+                        CartLineToppingEntity(
+                            lineId = lineId,
+                            toppingId = toppingId,
+                            quantity = quantity,
+                            updatedAt = clock(),
+                        ),
+                    )
                 }
-                require(topping.isActive) { "Topping sudah tidak aktif" }
-                culinaryDao.saveCartLineTopping(
-                    CartLineToppingEntity(
-                        lineId = lineId,
-                        toppingId = toppingId,
-                        quantity = quantity,
-                        updatedAt = clock(),
-                    ),
-                )
             }
         }
     }
@@ -253,7 +279,7 @@ class PosRepository(
         productId: Long,
         variantId: Long? = null,
         unitId: Long? = null,
-    ): AddToCartResult =
+    ): AddToCartResult = databaseOperations.withOperation {
         database.withTransaction {
             if (cartDao.getDraft()?.completedSaleId != null) {
                 return@withTransaction AddToCartResult.CompletedTransactionLocked
@@ -310,8 +336,12 @@ class PosRepository(
             touchDraft()
             AddToCartResult.Added
         }
+    }
 
-    suspend fun setQuantity(lineId: String, quantity: Int): Boolean = database.withTransaction {
+    suspend fun setQuantity(lineId: String, quantity: Int): Boolean =
+        databaseOperations.withOperation { setQuantityUnlocked(lineId, quantity) }
+
+    private suspend fun setQuantityUnlocked(lineId: String, quantity: Int): Boolean = database.withTransaction {
         if (cartDao.getDraft()?.completedSaleId != null) return@withTransaction false
         val line = cartDao.getLine(lineId) ?: return@withTransaction false
         if (quantity <= 0) {
@@ -342,15 +372,14 @@ class PosRepository(
         true
     }
 
-    suspend fun incrementQuantity(lineId: String, delta: Int): Boolean = database.withTransaction {
-        if (cartDao.getDraft()?.completedSaleId != null) return@withTransaction false
-        val line = cartDao.getLine(lineId) ?: return@withTransaction false
-        val targetQuantity = line.quantity + delta
-        setQuantity(lineId, targetQuantity)
+    suspend fun incrementQuantity(lineId: String, delta: Int): Boolean = databaseOperations.withOperation {
+        val line = cartDao.getLine(lineId) ?: return@withOperation false
+        setQuantityUnlocked(lineId, line.quantity + delta)
     }
 
     suspend fun completeSale(request: CheckoutRequest): CheckoutResult =
-        checkoutMutex.withLock {
+        databaseOperations.withOperation {
+            checkoutMutex.withLock {
             try {
                 val saleId = database.withTransaction {
                     val existing = cartDao.getDraft()?.completedSaleId
@@ -505,6 +534,9 @@ class PosRepository(
                     productDeductions.forEach { (productId, required) ->
                         val product = requireNotNull(catalogDao.getProduct(productId)) {
                             "Bahan resep sudah tidak tersedia"
+                        }
+                        require(!product.hasVariants) {
+                            "Bahan resep ${product.name} memakai varian dan harus diperbaiki Owner"
                         }
                         require(product.stockTrackingEnabled && product.stock >= required) {
                             "Stok bahan ${product.name} tidak cukup"
@@ -752,14 +784,15 @@ class PosRepository(
             } catch (_: ArithmeticException) {
                 CheckoutResult.Error("Nilai transaksi terlalu besar")
             }
+            }
         }
 
-    suspend fun loadCurrentReceipt(): Receipt? {
-        val saleId = cartDao.getDraft()?.completedSaleId ?: return null
-        return loadReceipt(saleId)
+    suspend fun loadCurrentReceipt(): Receipt? = databaseOperations.withOperation {
+        val saleId = cartDao.getDraft()?.completedSaleId ?: return@withOperation null
+        loadReceipt(saleId)
     }
 
-    suspend fun newTransaction() {
+    suspend fun newTransaction() = databaseOperations.withOperation {
         database.withTransaction {
             cartDao.clearLines()
             culinaryDao.clearCartLineNotes()

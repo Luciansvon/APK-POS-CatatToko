@@ -30,8 +30,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.sp
+import com.bimacore.usahakecil.backup.BackupPreview
 import com.bimacore.usahakecil.domain.BusinessType
-import kotlinx.coroutines.flow.collect
 
 @Composable
 fun HomeScreen(
@@ -39,7 +39,7 @@ fun HomeScreen(
     businessType: BusinessType,
     posViewModel: PosViewModel,
     operationsViewModel: OperationsViewModel,
-    onRecreate: () -> Unit,
+    onRestore: (BackupPreview) -> Unit,
     showFirstRunGuide: Boolean,
     onFirstRunGuideComplete: () -> Unit,
 ) {
@@ -57,7 +57,7 @@ fun HomeScreen(
     var showShiftOpen by remember { mutableStateOf(false) }
     var showHistoryImport by remember { mutableStateOf(false) }
     val hasOwnerPin by operationsViewModel.reportHasPin.collectAsState()
-    val activeShift by operationsViewModel.openShift.collectAsState()
+    val hasOpenShift by operationsViewModel.hasOpenShift.collectAsState()
     val message by operationsViewModel.message.collectAsState()
     val snackbar = remember { SnackbarHostState() }
     val compactNavigation = LocalConfiguration.current.screenWidthDp < 600
@@ -66,11 +66,6 @@ fun HomeScreen(
         val value = message ?: return@LaunchedEffect
         snackbar.showSnackbar(value)
         operationsViewModel.consumeMessage()
-    }
-    LaunchedEffect(operationsViewModel) {
-        operationsViewModel.restoreCompleted.collect {
-            onRecreate()
-        }
     }
     LaunchedEffect(ownerUnlocked) {
         destination = if (ownerUnlocked) AppDestination.REPORTS else AppDestination.POS
@@ -146,12 +141,12 @@ fun HomeScreen(
                 AppDestination.POS -> PosApp(
                     businessLabel = businessLabel,
                     viewModel = posViewModel,
-                    activeShift = activeShift,
+                    hasOpenShift = hasOpenShift,
                     ownerUnlocked = ownerUnlocked,
                     onOwnerAccess = { showOwnerAccess = true },
                     onOpenShift = { showShiftOpen = true },
                     onStartTransaction = {
-                        if (!ownerUnlocked && activeShift == null) showShiftOpen = true
+                        if (!ownerUnlocked && !hasOpenShift) showShiftOpen = true
                         else posViewModel.showCatalog()
                     },
                 )
@@ -170,6 +165,7 @@ fun HomeScreen(
                     viewModel = operationsViewModel,
                     onExitOwner = operationsViewModel::lockReport,
                     onOpenHistoryImport = { showHistoryImport = true },
+                    onRestore = onRestore,
                 )
             }
         }

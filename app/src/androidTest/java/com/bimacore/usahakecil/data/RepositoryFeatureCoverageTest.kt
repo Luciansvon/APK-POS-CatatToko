@@ -23,6 +23,7 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class RepositoryFeatureCoverageTest {
     private lateinit var database: PosDatabase
+    private lateinit var ownerSession: ReportSession
 
     @Before
     fun setUp() {
@@ -30,11 +31,55 @@ class RepositoryFeatureCoverageTest {
             ApplicationProvider.getApplicationContext<Context>(),
             PosDatabase::class.java,
         ).allowMainThreadQueries().build()
+        ownerSession = ReportSession().apply { unlock() }
     }
 
     @After
     fun tearDown() {
         database.close()
+    }
+
+    @Test
+    fun owner_repositories_hide_data_and_reject_management_while_locked() = runBlocking {
+        val session = ReportSession().apply { unlock() }
+        val retailCapabilities = BusinessCapabilities.forType(BusinessType.RETAIL)
+        val culinaryCapabilities = BusinessCapabilities.forType(BusinessType.CULINARY)
+        val inventory = InventoryRepository(database, retailCapabilities, session)
+        val operations = OperationsRepository(database, session)
+        val workforce = WorkforceRepository(database, session)
+        val culinary = CulinaryRepository(database, culinaryCapabilities, session)
+
+        inventory.saveCategory(CategoryDraft(name = "Rahasia Owner"))
+        operations.saveParty(null, PartyKind.SUPPLIER, "Pemasok Owner", "", "")
+        workforce.saveEmployee(null, "Pekerja Owner", "", WorkerScheme.FREELANCE)
+        session.lock()
+
+        assertTrue(inventory.categories.first().isEmpty())
+        assertTrue(operations.suppliers.first().isEmpty())
+        assertTrue(workforce.employees.first().isEmpty())
+        assertTrue(runCatching { inventory.saveCategory(CategoryDraft(name = "Ditolak")) }.isFailure)
+        assertTrue(
+            runCatching {
+                operations.saveParty(null, PartyKind.CUSTOMER, "Ditolak", "", "")
+            }.isFailure,
+        )
+        assertTrue(
+            runCatching {
+                workforce.saveEmployee(null, "Ditolak", "", WorkerScheme.FREELANCE)
+            }.isFailure,
+        )
+        assertTrue(
+            runCatching { culinary.moveOrder(1L, OrderStatus.PROCESSING) }.isFailure,
+        )
+
+        operations.openShift("Kasir tetap boleh", 0, "")
+        culinary.setCartLineNote("baris-kasir", "tanpa sambal")
+        assertTrue(operations.hasOpenShift.first())
+        assertEquals("Kasir tetap boleh", database.shiftDao().getOpenShift()?.cashierName)
+        assertEquals(
+            "tanpa sambal",
+            database.culinaryDao().getCartLineNote("baris-kasir")?.note,
+        )
     }
 
     @Test
@@ -81,7 +126,7 @@ class RepositoryFeatureCoverageTest {
         assertEquals(PaymentMethod.QRIS, qris.receipt.paymentMethod)
         assertEquals(qris.receipt.total, qris.receipt.amountReceived)
 
-        val operations = OperationsRepository(database)
+        val operations = OperationsRepository(database, ownerSession)
         val customerId = operations.saveParty(null, PartyKind.CUSTOMER, "Pelanggan QA", "", "")
         pos.newTransaction()
         now += 1
@@ -103,7 +148,7 @@ class RepositoryFeatureCoverageTest {
 
     @Test
     fun report_summary_reconciles_sales_cash_expenses_and_outstanding_debts() = runBlocking {
-        val operations = OperationsRepository(database, clock = { 500L })
+        val operations = OperationsRepository(database, ownerSession, clock = { 500L })
         val supplierId = operations.saveParty(null, PartyKind.SUPPLIER, "Supplier QA", "", "")
         val customerId = operations.saveParty(null, PartyKind.CUSTOMER, "Customer QA", "", "")
         database.saleDao().insertSale(
@@ -164,7 +209,7 @@ class RepositoryFeatureCoverageTest {
 
     @Test
     fun workforce_daily_and_freelance_payments_snapshot_rates_and_write_wage_cash() = runBlocking {
-        val workforce = WorkforceRepository(database, clock = { 5_000L })
+        val workforce = WorkforceRepository(database, ownerSession, clock = { 5_000L })
         val dailyId = workforce.saveEmployeeWithInitialRate(
             name = "Pekerja Harian QA",
             phone = "0812",
@@ -205,8 +250,8 @@ class RepositoryFeatureCoverageTest {
     @Test
     fun culinary_order_status_follows_queue_and_non_culinary_repository_is_rejected() = runBlocking {
         val capabilities = BusinessCapabilities.forType(BusinessType.CULINARY)
-        val inventory = InventoryRepository(database, capabilities)
-        val culinary = CulinaryRepository(database, capabilities, clock = { 3_000L })
+        val inventory = InventoryRepository(database, capabilities, ownerSession)
+        val culinary = CulinaryRepository(database, capabilities, ownerSession, clock = { 3_000L })
         val menuCategoryId = inventory.saveCategory(CategoryDraft(name = "Menu"))
         val ingredientCategoryId = inventory.saveCategory(CategoryDraft(name = "Bahan"))
         val menuId = inventory.saveProduct(
@@ -257,6 +302,7 @@ class RepositoryFeatureCoverageTest {
         val retailCulinary = CulinaryRepository(
             database,
             BusinessCapabilities.forType(BusinessType.RETAIL),
+            ownerSession,
         )
         assertTrue(runCatching { retailCulinary.observeToppings(menuId) }.isFailure)
     }

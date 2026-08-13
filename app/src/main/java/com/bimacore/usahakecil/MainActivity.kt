@@ -1,10 +1,12 @@
 package com.bimacore.usahakecil
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.lifecycleScope
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -15,8 +17,11 @@ import com.bimacore.usahakecil.ui.BrandLoadingScreen
 import com.bimacore.usahakecil.ui.OperationsViewModel
 import com.bimacore.usahakecil.ui.PosViewModel
 import com.bimacore.usahakecil.ui.theme.UsahaKecilTheme
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+    private var restoreInProgress = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -50,9 +55,23 @@ class MainActivity : ComponentActivity() {
                         businessType = posApplication.businessType,
                         posViewModel = posViewModel,
                         operationsViewModel = operationsViewModel,
-                        onRecreate = {
+                        onRestore = restore@{ preview ->
+                            if (restoreInProgress) return@restore
+                            restoreInProgress = true
+                            val backupManager = posApplication.newBackupManager()
                             viewModelStore.clear()
-                            recreate()
+                            lifecycleScope.launch {
+                                runCatching { backupManager.restore(preview) }
+                                    .onFailure { error ->
+                                        Toast.makeText(
+                                            this@MainActivity,
+                                            error.message ?: "Pemulihan gagal",
+                                            Toast.LENGTH_LONG,
+                                        ).show()
+                                    }
+                                posApplication.reportSession.lock()
+                                recreate()
+                            }
                         },
                         showFirstRunGuide = showFirstRunGuide,
                         onFirstRunGuideComplete = {

@@ -25,6 +25,19 @@ Worklog bukan pengganti:
 
 ---
 
+## 2026-08-13 - Patch stabilitas P1 dan gate release 0.6.1
+
+Status: Selesai di source dan APK debug lokal; connected test menunggu izin perangkat.
+
+- Import histori non-piutang menolak pembayaran berbeda dari total; repository mereparse seluruh payload sebelum commit.
+- Akses sensitif dipindahkan dari perlindungan UI ke repository Owner; API kasir tidak lagi mengekspos entity penjualan, nominal shift, telepon, atau alamat.
+- Resep Kuliner menolak bahan bervarian dan checkout menggagalkan recipe lama yang tidak aman.
+- Coordinator level aplikasi menyerialkan operasi kasir/Owner dengan backup/restore; Activity dibuat ulang setelah restore/rollback.
+- Dua penggunaan API 24 pada laporan diganti agar kompatibel dengan minimum API 23.
+- Signing produksi memakai secret eksternal; workflow dan script packaging menolak konfigurasi kosong, APK unsigned, serta debug certificate.
+- Unit test, debug APK, AndroidTest APK, lint, dan minified release candidate seluruh flavor lulus.
+- APK debug `0.6.1` dipaketkan; hash tercatat di `docs/RELEASE_NOTES.md`.
+
 ## 2026-08-02 - Mode Owner dipertahankan saat APK dibuka ulang
 
 Status: Source diperbaiki; build debug sedang diverifikasi.

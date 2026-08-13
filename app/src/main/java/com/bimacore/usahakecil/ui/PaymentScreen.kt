@@ -45,7 +45,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.bimacore.usahakecil.domain.MoneyMath
 import com.bimacore.usahakecil.domain.PaymentMethod
-import com.bimacore.usahakecil.data.PartyEntity
+import com.bimacore.usahakecil.data.CashierCustomerOption
 import com.bimacore.usahakecil.ui.theme.BrandColors
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,7 +56,7 @@ fun PaymentScreen(
     cashInput: String,
     externalConfirmed: Boolean,
     allowCredit: Boolean,
-    customers: List<PartyEntity>,
+    customers: List<CashierCustomerOption>,
     selectedCustomerId: Long?,
     isSaving: Boolean,
     onBack: () -> Unit,
@@ -195,11 +195,11 @@ fun PaymentScreen(
 
 @Composable
 private fun CustomerSelection(
-    customers: List<PartyEntity>,
+    customers: List<CashierCustomerOption>,
     selectedCustomerId: Long?,
     onCustomerSelected: (Long?) -> Unit,
 ) {
-    val activeCustomers = remember(customers) { customers.filter { it.isActive } }
+    val activeCustomers = customers
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Pilih pelanggan", fontWeight = FontWeight.Bold)
         if (activeCustomers.isEmpty()) {

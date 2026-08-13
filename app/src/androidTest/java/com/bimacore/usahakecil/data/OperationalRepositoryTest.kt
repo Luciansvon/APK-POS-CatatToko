@@ -22,6 +22,7 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class OperationalRepositoryTest {
     private lateinit var database: PosDatabase
+    private lateinit var ownerSession: ReportSession
 
     @Before
     fun setUp() {
@@ -29,6 +30,7 @@ class OperationalRepositoryTest {
         database = Room.inMemoryDatabaseBuilder(context, PosDatabase::class.java)
             .allowMainThreadQueries()
             .build()
+        ownerSession = ReportSession().apply { unlock() }
     }
 
     @After
@@ -41,8 +43,9 @@ class OperationalRepositoryTest {
         val inventory = InventoryRepository(
             database,
             BusinessCapabilities.forType(BusinessType.RETAIL),
+            ownerSession,
         )
-        val operations = OperationsRepository(database)
+        val operations = OperationsRepository(database, ownerSession)
         val categoryId = inventory.saveCategory(CategoryDraft(name = "Barang"))
         val productId = inventory.saveProduct(
             ProductDraft(
@@ -90,6 +93,7 @@ class OperationalRepositoryTest {
         val inventory = InventoryRepository(
             database,
             BusinessCapabilities.forType(BusinessType.RETAIL),
+            ownerSession,
         )
         val categoryId = inventory.saveCategory(CategoryDraft(name = "Menu"))
         val firstUri = "content://demo/menu-first.jpg"
@@ -127,7 +131,7 @@ class OperationalRepositoryTest {
     @Test
     fun shift_open_close_calculates_expected_cash_and_preserves_history() = runBlocking {
         var now = 1_700_000_000_000L
-        val operations = OperationsRepository(database, clock = { now })
+        val operations = OperationsRepository(database, ownerSession, clock = { now })
 
         val shiftId = operations.openShift("Kasir Pagi", 100_000, "Modal awal")
         database.saleDao().insertSale(
@@ -190,7 +194,8 @@ class OperationalRepositoryTest {
 
         assertTrue(operations.shifts.first().isEmpty())
         operations.openShift("Kasir", 0, "")
-        assertEquals("Kasir", operations.openShift.first()?.cashierName)
+        assertTrue(operations.hasOpenShift.first())
+        assertEquals("Kasir", database.shiftDao().getOpenShift()?.cashierName)
         assertTrue(runCatching { operations.readOpenShiftSummary() }.isFailure)
         assertTrue(runCatching { operations.closeShift(0, "") }.isFailure)
 
@@ -200,7 +205,7 @@ class OperationalRepositoryTest {
 
     @Test
     fun shift_does_not_allow_two_open_shifts() = runBlocking {
-        val operations = OperationsRepository(database)
+        val operations = OperationsRepository(database, ownerSession)
         operations.openShift("Kasir", 0, "")
 
         assertTrue(runCatching { operations.openShift("Kasir 2", 0, "") }.isFailure)
@@ -209,7 +214,7 @@ class OperationalRepositoryTest {
     @Test
     fun wholesale_unit_deducts_base_stock_and_applies_tier_price() = runBlocking {
         val capabilities = BusinessCapabilities.forType(BusinessType.WHOLESALE)
-        val inventory = InventoryRepository(database, capabilities)
+        val inventory = InventoryRepository(database, capabilities, ownerSession)
         val categoryId = inventory.saveCategory(CategoryDraft(name = "Grosir"))
         val productId = inventory.saveProduct(
             ProductDraft(
@@ -240,8 +245,8 @@ class OperationalRepositoryTest {
     @Test
     fun culinary_checkout_snapshots_topping_note_and_consumes_recipe() = runBlocking {
         val capabilities = BusinessCapabilities.forType(BusinessType.CULINARY)
-        val inventory = InventoryRepository(database, capabilities)
-        val culinary = CulinaryRepository(database, capabilities)
+        val inventory = InventoryRepository(database, capabilities, ownerSession)
+        val culinary = CulinaryRepository(database, capabilities, ownerSession)
         val categoryId = inventory.saveCategory(CategoryDraft(name = "Menu"))
         val menuId = inventory.saveProduct(
             ProductDraft(
@@ -287,6 +292,72 @@ class OperationalRepositoryTest {
     }
 
     @Test
+    fun culinary_recipe_rejects_variant_ingredient_and_checkout_fails_closed_for_old_data() =
+        runBlocking {
+            val capabilities = BusinessCapabilities.forType(BusinessType.CULINARY)
+            val inventory = InventoryRepository(database, capabilities, ownerSession)
+            val culinary = CulinaryRepository(database, capabilities, ownerSession)
+            val categoryId = inventory.saveCategory(CategoryDraft(name = "Menu"))
+            val menuId = inventory.saveProduct(
+                ProductDraft(
+                    categoryId = categoryId,
+                    name = "Nasi",
+                    basePrice = 20_000,
+                    openingStock = 0,
+                    stockTrackingEnabled = false,
+                    lowStockThreshold = 0,
+                    unitLabel = "porsi",
+                ),
+            )
+            val ingredientId = inventory.saveProduct(
+                ProductDraft(
+                    categoryId = categoryId,
+                    name = "Beras",
+                    basePrice = 0,
+                    openingStock = 0,
+                    stockTrackingEnabled = true,
+                    lowStockThreshold = 2,
+                    unitLabel = "takaran",
+                ),
+            )
+            inventory.saveVariant(
+                VariantDraft(
+                    productId = ingredientId,
+                    label = "Premium",
+                    priceOverride = null,
+                    openingStock = 10,
+                ),
+            )
+
+            val saveResult = runCatching {
+                culinary.saveRecipeIngredient(menuId, ingredientId, 2)
+            }
+            assertTrue(saveResult.isFailure)
+            assertTrue(saveResult.exceptionOrNull()?.message.orEmpty().contains("bervarian"))
+
+            database.culinaryDao().saveRecipeIngredient(
+                RecipeIngredientEntity(
+                    menuProductId = menuId,
+                    ingredientProductId = ingredientId,
+                    quantityPerMenu = 2,
+                    updatedAt = 1L,
+                ),
+            )
+            val pos = PosRepository(database, BusinessType.CULINARY, "Tes Kuliner")
+            openTestShift()
+            pos.addProduct(menuId)
+
+            val checkout = pos.completeSale(
+                CheckoutRequest(PaymentMethod.CASH, 20_000, false),
+            )
+
+            assertTrue(checkout is CheckoutResult.Error)
+            assertTrue((checkout as CheckoutResult.Error).message.contains("harus diperbaiki Owner"))
+            assertEquals(10, database.catalogDao().getActiveVariants().single().stock)
+            assertEquals(0, database.saleDao().getSalesBetween(0, Long.MAX_VALUE).size)
+        }
+
+    @Test
     fun report_data_is_blocked_until_pin_unlocks_session() = runBlocking {
         val reports = ReportRepository(database, ReportSession(), clock = { 10L })
         assertTrue(runCatching { reports.readSummary(0, 20) }.isFailure)
@@ -317,6 +388,7 @@ class OperationalRepositoryTest {
         val inventory = InventoryRepository(
             database,
             BusinessCapabilities.forType(BusinessType.WHOLESALE),
+            ownerSession,
         )
         val categoryId = inventory.saveCategory(CategoryDraft(name = "Grosir"))
         val productId = inventory.saveProduct(
@@ -397,6 +469,7 @@ class OperationalRepositoryTest {
         val inventory = InventoryRepository(
             database,
             BusinessCapabilities.forType(BusinessType.RETAIL),
+            ownerSession,
         )
         val categoryId = inventory.saveCategory(CategoryDraft(name = "Barang"))
         val productId = inventory.saveProduct(
@@ -428,6 +501,7 @@ class OperationalRepositoryTest {
         val inventory = InventoryRepository(
             database,
             BusinessCapabilities.forType(BusinessType.RETAIL),
+            ownerSession,
         )
         val categoryId = inventory.saveCategory(CategoryDraft(name = "Barang"))
         val productId = inventory.saveProduct(
@@ -467,6 +541,7 @@ class OperationalRepositoryTest {
         val inventory = InventoryRepository(
             database,
             BusinessCapabilities.forType(BusinessType.RETAIL),
+            ownerSession,
         )
         val categoryId = inventory.saveCategory(CategoryDraft(name = "Minuman"))
         val productId = inventory.saveProduct(
@@ -500,8 +575,9 @@ class OperationalRepositoryTest {
         val inventory = InventoryRepository(
             database,
             BusinessCapabilities.forType(BusinessType.RETAIL),
+            ownerSession,
         )
-        val operations = OperationsRepository(database)
+        val operations = OperationsRepository(database, ownerSession)
         val categoryId = inventory.saveCategory(CategoryDraft(name = "Barang"))
         val productId = inventory.saveProduct(
             ProductDraft(
@@ -557,6 +633,7 @@ class OperationalRepositoryTest {
         val inventory = InventoryRepository(
             database,
             BusinessCapabilities.forType(BusinessType.RETAIL),
+            ownerSession,
         )
         val categoryId = inventory.saveCategory(CategoryDraft(name = "Barang"))
         val productId = inventory.saveProduct(
@@ -598,6 +675,7 @@ class OperationalRepositoryTest {
         val inventory = InventoryRepository(
             database,
             BusinessCapabilities.forType(BusinessType.RETAIL),
+            ownerSession,
         )
         val categoryId = inventory.saveCategory(CategoryDraft(name = "Barang"))
         val productId = inventory.saveProduct(
@@ -639,8 +717,9 @@ class OperationalRepositoryTest {
         val inventory = InventoryRepository(
             database,
             BusinessCapabilities.forType(BusinessType.RETAIL),
+            ownerSession,
         )
-        val operations = OperationsRepository(database)
+        val operations = OperationsRepository(database, ownerSession)
         val categoryId = inventory.saveCategory(CategoryDraft(name = "Barang"))
         val productId = inventory.saveProduct(
             ProductDraft(
@@ -695,6 +774,7 @@ class OperationalRepositoryTest {
         val inventory = InventoryRepository(
             database,
             BusinessCapabilities.forType(BusinessType.RETAIL),
+            ownerSession,
         )
         val categoryId = inventory.saveCategory(CategoryDraft(name = "Barang"))
         val productId = inventory.saveProduct(
@@ -726,7 +806,7 @@ class OperationalRepositoryTest {
 
     @Test
     fun createDebt_with_initial_payment_creates_cash_entry_and_debt_payment() = runBlocking {
-        val operations = OperationsRepository(database)
+        val operations = OperationsRepository(database, ownerSession)
         val supplierId = operations.saveParty(null, PartyKind.SUPPLIER, "Supplier B", "", "")
 
         val debtId = operations.createDebt(
@@ -756,8 +836,9 @@ class OperationalRepositoryTest {
         val inventory = InventoryRepository(
             database,
             BusinessCapabilities.forType(BusinessType.RETAIL),
+            ownerSession,
         )
-        val operations = OperationsRepository(database)
+        val operations = OperationsRepository(database, ownerSession)
         val categoryId = inventory.saveCategory(CategoryDraft(name = "Barang"))
         val productId = inventory.saveProduct(
             ProductDraft(
@@ -801,8 +882,8 @@ class OperationalRepositoryTest {
     @Test
     fun deleting_cart_line_clears_associated_notes_and_toppings() = runBlocking {
         val capabilities = BusinessCapabilities.forType(BusinessType.CULINARY)
-        val inventory = InventoryRepository(database, capabilities)
-        val culinary = CulinaryRepository(database, capabilities)
+        val inventory = InventoryRepository(database, capabilities, ownerSession)
+        val culinary = CulinaryRepository(database, capabilities, ownerSession)
         val categoryId = inventory.saveCategory(CategoryDraft(name = "Menu"))
         val menuId = inventory.saveProduct(
             ProductDraft(
@@ -840,6 +921,7 @@ class OperationalRepositoryTest {
         val inventory = InventoryRepository(
             database,
             BusinessCapabilities.forType(BusinessType.RETAIL),
+            ownerSession,
         )
         val categoryId = inventory.saveCategory(CategoryDraft(name = "Barang"))
         val productId = inventory.saveProduct(

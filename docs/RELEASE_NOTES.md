@@ -20,6 +20,50 @@ dist/debug/CatatToko-Grosir.apk
 dist/debug/CatatToko-Kuliner.apk
 ```
 
+## Versi 0.6.1 - 2026-08-13
+
+Status: Siap dites sebagai APK debug lokal; rilis produksi menunggu keystore
+
+### Kenapa versi ini dibuat
+
+- Import penjualan non-piutang dapat menerima nominal pembayaran yang tidak sesuai lalu mencatatnya sebagai lunas.
+- Data operasional sensitif masih dapat dibaca atau diubah langsung melalui beberapa repository tanpa sesi Owner.
+- Resep Kuliner dapat memakai bahan bervarian walau skema resep belum menyimpan varian yang dipilih.
+- Restore menutup database ketika ViewModel kasir masih hidup.
+- Build release minified belum mempunyai gate signing produksi.
+
+### Perubahan
+
+- Menolak pembayaran non-piutang yang tidak sama dengan total pada parser; repository mereparse payload dan memverifikasi ulang seluruh tipe record sebelum commit.
+- Memindahkan proteksi Owner ke repository inventori, operasional, tenaga kerja, kuliner, profil, penjualan, backup, dan restore.
+- Menolak bahan resep bervarian dan menggagalkan checkout untuk data resep lama yang tidak aman.
+- Menjalankan operasi database aktif dan restore melalui coordinator level aplikasi, menghentikan ViewModel/flow, lalu membuka ulang Activity.
+- Mengganti pemanggilan laporan yang membutuhkan API 24 agar tetap aman pada minimum API 23.
+- Menambahkan konfigurasi signing berbasis secret, workflow manual signed release, dan pemeriksaan `apksigner` yang menolak unsigned/debug certificate.
+- Menaikkan `versionCode` ke `21` dan `versionName` ke `0.6.1`.
+
+### Kekurangan dan masalah yang diketahui
+
+- Resep berbahan varian belum didukung; owner harus memakai produk bahan tanpa varian sampai skema pemilihan varian disetujui.
+- Keystore produksi dan secret GitHub belum disediakan di repository.
+- Connected test dan smoke test perangkat belum dijalankan karena memerlukan izin target emulator/perangkat.
+
+### Verifikasi
+
+- Unit test Retail, Grosir, dan Kuliner lulus.
+- `assembleDebug` serta AndroidTest APK Retail, Grosir, dan Kuliner lulus.
+- Lint Retail, Grosir, dan Kuliner lulus dengan worker tunggal setelah dua temuan API 23 diperbaiki.
+- Minified release candidate Retail, Grosir, dan Kuliner berhasil dibangun sebagai artefak unsigned.
+- `verifyReleaseSigningReady` dan `package-release-apks.ps1` terbukti memblokir rilis tanpa secret/keystore serta APK unsigned.
+- Unit test coordinator membuktikan restore/operasi berikutnya menunggu operasi database aktif dan nested operation tidak deadlock.
+- Connected test dan smoke test perangkat belum dijalankan karena belum ada izin target emulator/perangkat.
+
+### APK debug lokal
+
+- Retail: `dist/debug/CatatToko-Retail.apk` | SHA256 `6ED16DC9BF65FCAD207DE373F8BE9C8D22981EDF7C8E1921C8FA17A2CA84EFDD`
+- Grosir: `dist/debug/CatatToko-Grosir.apk` | SHA256 `76762A5975621A4CD33025E5563315422C88E4A1B2B4EC1593D9D75957F46C00`
+- Kuliner: `dist/debug/CatatToko-Kuliner.apk` | SHA256 `05993CCC527E6433FE1433E12D06DC8795F5361E9ABF61825EA2FF77BB54265B`
+
 ## Versi 0.6.0 - 2026-08-12
 
 Status: Siap dibagikan sebagai APK debug lokal

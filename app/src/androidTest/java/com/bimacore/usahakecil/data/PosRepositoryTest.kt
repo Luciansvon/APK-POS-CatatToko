@@ -145,7 +145,7 @@ class PosRepositoryTest {
     @Test
     fun partial_credit_down_payment_reconciles_as_cash_in_shift() = runTest {
         repository.seedIfNeeded()
-        val operations = OperationsRepository(database)
+        val operations = OperationsRepository(database, ReportSession().apply { unlock() })
         val customerId = operations.saveParty(null, PartyKind.CUSTOMER, "Pelanggan Test", "", "")
 
         assertEquals(AddToCartResult.Added, repository.addProduct(101))

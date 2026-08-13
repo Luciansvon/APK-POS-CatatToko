@@ -4,6 +4,7 @@ import androidx.room.withTransaction
 import com.bimacore.usahakecil.domain.BusinessCapabilities
 import com.bimacore.usahakecil.domain.InventoryRules
 import com.bimacore.usahakecil.domain.MoneyMath
+import com.bimacore.usahakecil.security.ReportSession
 import kotlinx.coroutines.flow.Flow
 
 data class ProductDraft(
@@ -35,23 +36,29 @@ data class VariantDraft(
 class InventoryRepository(
     private val database: PosDatabase,
     private val capabilities: BusinessCapabilities,
+    private val ownerSession: ReportSession,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     private val catalogDao = database.catalogDao()
     private val adminDao = database.inventoryAdminDao()
 
     val categories: Flow<List<CategoryEntity>> = catalogDao.observeCategories()
+        .ownerOnly(ownerSession, emptyList())
     val products: Flow<List<ProductEntity>> = catalogDao.observeProducts()
+        .ownerOnly(ownerSession, emptyList())
     val variants: Flow<List<ProductVariantEntity>> = catalogDao.observeVariants()
+        .ownerOnly(ownerSession, emptyList())
     val stockMovements: Flow<List<StockMovementEntity>> = adminDao.observeStockMovements()
+        .ownerOnly(ownerSession, emptyList())
 
     fun observeUnits(productId: Long): Flow<List<UnitConversionEntity>> =
-        adminDao.observeUnits(productId)
+        adminDao.observeUnits(productId).ownerOnly(ownerSession, emptyList())
 
     fun observePriceTiers(productId: Long): Flow<List<PriceTierEntity>> =
-        adminDao.observePriceTiers(productId)
+        adminDao.observePriceTiers(productId).ownerOnly(ownerSession, emptyList())
 
     suspend fun saveCategory(draft: CategoryDraft): Long {
+        ownerSession.requireOwner()
         require(draft.name.isNotBlank()) { "Nama kategori wajib diisi" }
         val now = clock()
         val id = draft.id ?: catalogDao.nextCategoryId()
@@ -70,6 +77,7 @@ class InventoryRepository(
     }
 
     suspend fun saveProduct(draft: ProductDraft): Long = database.withTransaction {
+        ownerSession.requireOwner()
         require(draft.name.isNotBlank()) { "Nama produk wajib diisi" }
         require(draft.basePrice in 0..MoneyMath.MAX_MONEY) { "Harga jual tidak valid" }
         require(draft.openingStock in 0..InventoryRules.MAX_STOCK) { "Stok tidak valid" }
@@ -121,6 +129,7 @@ class InventoryRepository(
     }
 
     suspend fun saveVariant(draft: VariantDraft): Long = database.withTransaction {
+        ownerSession.requireOwner()
         require(draft.label.isNotBlank()) { "Nama varian wajib diisi" }
         require(draft.openingStock in 0..InventoryRules.MAX_STOCK) { "Stok varian tidak valid" }
         draft.priceOverride?.let {
@@ -168,11 +177,13 @@ class InventoryRepository(
     }
 
     suspend fun setProductActive(productId: Long, active: Boolean) {
+        ownerSession.requireOwner()
         val product = requireNotNull(catalogDao.getProduct(productId)) { "Produk tidak tersedia" }
         catalogDao.updateProduct(product.copy(isActive = active, updatedAt = clock()))
     }
 
     suspend fun setCategoryActive(categoryId: Long, active: Boolean) {
+        ownerSession.requireOwner()
         val category = requireNotNull(catalogDao.getCategory(categoryId)) { "Kategori tidak tersedia" }
         if (!active) {
             require(catalogDao.activeProductCountForCategory(categoryId) == 0) {
@@ -183,6 +194,7 @@ class InventoryRepository(
     }
 
     suspend fun setVariantActive(variantId: Long, active: Boolean) {
+        ownerSession.requireOwner()
         val variant = requireNotNull(catalogDao.getVariant(variantId)) { "Varian tidak tersedia" }
         catalogDao.updateVariant(variant.copy(isActive = active, updatedAt = clock()))
     }
@@ -196,6 +208,7 @@ class InventoryRepository(
         unitLabel: String? = null,
         factorToBase: Int = 1,
     ) = database.withTransaction {
+        ownerSession.requireOwner()
         require(type in STOCK_TYPES) { "Jenis pergerakan stok tidak valid" }
         val product = requireNotNull(catalogDao.getProduct(productId)) { "Produk tidak tersedia" }
         require(!product.hasVariants || variantId != null) {
@@ -236,6 +249,7 @@ class InventoryRepository(
         factorToBase: Int,
         salePrice: Long,
     ): Long {
+        ownerSession.requireOwner()
         require(capabilities.multiUnit) { "Multi-satuan tidak aktif pada APK ini" }
         require(catalogDao.getProduct(productId) != null) { "Produk tidak tersedia" }
         require(label.isNotBlank()) { "Nama satuan wajib diisi" }
@@ -273,6 +287,7 @@ class InventoryRepository(
         minimumBaseQuantity: Int,
         unitPrice: Long,
     ): Long {
+        ownerSession.requireOwner()
         require(capabilities.tierPricing) { "Harga bertingkat tidak aktif pada APK ini" }
         require(catalogDao.getProduct(productId) != null) { "Produk tidak tersedia" }
         InventoryRules.resolveUnitPrice(

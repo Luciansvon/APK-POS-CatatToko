@@ -7,7 +7,6 @@ import androidx.lifecycle.viewModelScope
 import com.bimacore.usahakecil.PosApplication
 import com.bimacore.usahakecil.backup.BackupManager
 import com.bimacore.usahakecil.backup.BackupPreview
-import com.bimacore.usahakecil.data.BusinessProfileEntity
 import com.bimacore.usahakecil.data.CategoryDraft
 import com.bimacore.usahakecil.data.CulinaryRepository
 import com.bimacore.usahakecil.data.DebtEntity
@@ -17,7 +16,6 @@ import com.bimacore.usahakecil.data.InventoryRepository
 import com.bimacore.usahakecil.data.ManualCashType
 import com.bimacore.usahakecil.data.OperationsRepository
 import com.bimacore.usahakecil.data.PartyKind
-import com.bimacore.usahakecil.data.PosDatabase
 import com.bimacore.usahakecil.data.ProductDraft
 import com.bimacore.usahakecil.data.ProductForecastReport
 import com.bimacore.usahakecil.data.PurchaseDraft
@@ -48,10 +46,8 @@ import java.util.Calendar
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -63,7 +59,6 @@ data class SaleDetail(
 class OperationsViewModel(
     private val application: PosApplication,
     val capabilities: BusinessCapabilities,
-    private val database: PosDatabase,
     private val inventory: InventoryRepository,
     private val operations: OperationsRepository,
     private val workforce: WorkforceRepository,
@@ -73,7 +68,7 @@ class OperationsViewModel(
     private val excelExports: ExcelExportManager,
     private val historyImports: HistoryImportManager,
 ) : ViewModel() {
-    val profile = database.profileDao().observeProfile().stateIn(
+    val profile = operations.profile.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
         null,
@@ -123,10 +118,10 @@ class OperationsViewModel(
         SharingStarted.WhileSubscribed(5_000),
         emptyList(),
     )
-    val openShift = operations.openShift.stateIn(
+    val hasOpenShift = operations.hasOpenShift.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
-        null,
+        false,
     )
     val debts = operations.debts.stateIn(
         viewModelScope,
@@ -148,7 +143,7 @@ class OperationsViewModel(
         SharingStarted.WhileSubscribed(5_000),
         emptyList(),
     )
-    val sales = database.saleDao().observeSales().stateIn(
+    val sales = operations.sales.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
         emptyList(),
@@ -200,8 +195,6 @@ class OperationsViewModel(
     val excelExportMode = _excelExportMode.asStateFlow()
     private val _excelError = MutableStateFlow<String?>(null)
     val excelError = _excelError.asStateFlow()
-    private val _restoreCompleted = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-    val restoreCompleted = _restoreCompleted.asSharedFlow()
     private val _pendingRestoreUri = MutableStateFlow<Uri?>(null)
     private val _pendingHistoryImportUri = MutableStateFlow<Uri?>(null)
     private val _historyImportState = MutableStateFlow<HistoryImportUiState>(HistoryImportUiState.Empty)
@@ -227,16 +220,7 @@ class OperationsViewModel(
     }
 
     fun saveProfile(name: String) = execute("Profil usaha disimpan") {
-        require(name.isNotBlank()) { "Nama usaha wajib diisi" }
-        val current = requireNotNull(database.profileDao().getProfile()) {
-            "Profil usaha belum tersedia"
-        }
-        database.profileDao().saveProfile(
-            current.copy(
-                businessName = name.trim(),
-                updatedAt = System.currentTimeMillis(),
-            ),
-        )
+        operations.saveProfile(name)
     }
 
     fun saveCategory(
@@ -607,7 +591,7 @@ class OperationsViewModel(
     fun openSaleDetail(sale: SaleEntity) = execute {
         _saleDetail.value = SaleDetail(
             sale = sale,
-            items = database.saleDao().getItems(sale.id),
+            items = operations.getSaleItems(sale.id),
         )
     }
 
@@ -671,8 +655,12 @@ class OperationsViewModel(
         viewModelScope.launch {
             _busy.value = true
             try {
-                _historyImportState.value = HistoryImportUiState.Success(historyImports.commit(state.draft))
-                _message.value = "Catatan lama berhasil dimasukkan"
+                application.databaseOperations.withOperation {
+                    _historyImportState.value = HistoryImportUiState.Success(
+                        historyImports.commit(state.draft),
+                    )
+                    _message.value = "Catatan lama berhasil dimasukkan"
+                }
             } catch (error: Exception) {
                 _historyImportState.value = HistoryImportUiState.Error(
                     error.message ?: "Catatan lama gagal dimasukkan",
@@ -723,14 +711,6 @@ class OperationsViewModel(
         _backupPreview.value = null
     }
 
-    fun confirmRestore() = execute("Pemulihan selesai") {
-        reports.session.requireOwner()
-        val preview = requireNotNull(_backupPreview.value) { "Pilih berkas salinan dulu" }
-        backups.restore(preview)
-        _backupPreview.value = null
-        _restoreCompleted.tryEmit(Unit)
-    }
-
     fun saveTopping(
         productId: Long,
         label: String,
@@ -756,10 +736,12 @@ class OperationsViewModel(
 
     private fun refreshPinState() {
         viewModelScope.launch {
-            val hasPin = reports.hasPin()
-            _reportHasPin.value = hasPin
-            if (hasPin && reports.session.isUnlocked) {
-                loadReport()
+            application.databaseOperations.withOperation {
+                val hasPin = reports.hasPin()
+                _reportHasPin.value = hasPin
+                if (hasPin && reports.session.isUnlocked) {
+                    loadReport()
+                }
             }
         }
     }
@@ -803,15 +785,17 @@ class OperationsViewModel(
     }
 
     private suspend fun loadShiftSummary() {
-        if (!reports.session.isUnlocked) {
-            _shiftSummary.value = null
-            return
-        }
-        _shiftLoading.value = true
-        try {
-            _shiftSummary.value = operations.readOpenShiftSummary()
-        } finally {
-            _shiftLoading.value = false
+        application.databaseOperations.withOperation {
+            if (!reports.session.isUnlocked) {
+                _shiftSummary.value = null
+                return@withOperation
+            }
+            _shiftLoading.value = true
+            try {
+                _shiftSummary.value = operations.readOpenShiftSummary()
+            } finally {
+                _shiftLoading.value = false
+            }
         }
     }
 
@@ -820,7 +804,7 @@ class OperationsViewModel(
         reportJob = viewModelScope.launch {
             _reportLoading.value = true
             try {
-                action()
+                application.databaseOperations.withOperation { action() }
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
@@ -839,7 +823,7 @@ class OperationsViewModel(
         viewModelScope.launch {
             _busy.value = true
             try {
-                action()
+                application.databaseOperations.withOperation { action() }
                 if (successMessage != null) _message.value = successMessage
             } catch (error: Exception) {
                 _message.value = error.message ?: "Data gagal disimpan"
@@ -860,8 +844,10 @@ class OperationsViewModel(
         _historyImportState.value = HistoryImportUiState.Loading
         viewModelScope.launch {
             try {
-                reports.session.requireOwner()
-                _historyImportState.value = HistoryImportUiState.Review(load())
+                application.databaseOperations.withOperation {
+                    reports.session.requireOwner()
+                    _historyImportState.value = HistoryImportUiState.Review(load())
+                }
             } catch (error: Exception) {
                 _historyImportState.value = HistoryImportUiState.Error(
                     error.message ?: "Catatan lama gagal diperiksa",
@@ -888,7 +874,6 @@ class OperationsViewModel(
             OperationsViewModel(
                 application = application,
                 capabilities = application.capabilities,
-                database = application.database,
                 inventory = application.newInventoryRepository(),
                 operations = application.newOperationsRepository(),
                 workforce = application.newWorkforceRepository(),
