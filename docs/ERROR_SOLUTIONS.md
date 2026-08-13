@@ -1,5 +1,37 @@
 # Error Solutions
 
+## ERR-062 - Gate release menolak output apksigner 37 walaupun APK valid
+
+Tanggal: 2026-08-13
+
+Varian dan versi: Semua varian, kandidat `0.7.0`
+
+### Kondisi/gejala
+
+Workflow signed release berhasil membangun APK bertanda tangan, tetapi berhenti pada tahap packaging dengan pesan `Identitas certificate APK tidak terbaca`.
+
+### Root cause
+
+Script hanya menerima teks `Signer #1 certificate`. Build Tools 37 mengubah label output menjadi `V2 Signer: certificate ...`, walaupun `apksigner verify` berhasil dan sertifikat produksinya valid.
+
+### Solusi
+
+- Tetap mewajibkan `apksigner verify` keluar dengan status berhasil.
+- Tetap menolak certificate `Android Debug`.
+- Membaca digest SHA-256 certificate tanpa bergantung pada awalan label versi apksigner.
+- Mewajibkan tepat satu identitas certificate unik dan mencatat digest-nya pada hasil packaging.
+
+### Bukti verifikasi aktual
+
+- Workflow `31692678313`: build signed berhasil, lalu kegagalan direproduksi tepat pada pemeriksaan label certificate lama.
+- Build Tools 37 lokal memverifikasi APK Retail dengan skema v2, satu signer produksi, dan output berawalan `V2 Signer`.
+- Fingerprint certificate SHA-256 lokal cocok dengan signing identity produksi: `E9D193841B5493F332450C4C0DA41C6369598C12C0B147C8BF60DC61EAA285F2`.
+
+### File terdampak
+
+- `scripts/package-release-apks.ps1`
+- `docs/ERROR_SOLUTIONS.md`
+
 ## ERR-060 - Barcode yang diam dapat menambah barang berulang
 
 Tanggal: 2026-08-13
