@@ -10,7 +10,9 @@ import com.bimacore.usahakecil.data.MIGRATION_1_2
 import com.bimacore.usahakecil.data.MIGRATION_2_3
 import com.bimacore.usahakecil.data.MIGRATION_3_4
 import com.bimacore.usahakecil.data.MIGRATION_4_5
+import com.bimacore.usahakecil.data.MIGRATION_5_6
 import com.bimacore.usahakecil.data.PosDatabase
+import com.bimacore.usahakecil.data.ProductBarcodeEntity
 import com.bimacore.usahakecil.data.ProductEntity
 import com.bimacore.usahakecil.security.ReportSession
 import java.io.FileOutputStream
@@ -71,6 +73,14 @@ class BackupRestoreTest {
                 sortOrder = 1,
             ),
         )
+        database.barcodeDao().insert(
+            ProductBarcodeEntity(
+                barcode = "00123",
+                productId = 1,
+                createdAt = 1,
+                updatedAt = 1,
+            ),
+        )
         val manager = BackupManager(
             context = context,
             currentDatabase = { database },
@@ -89,6 +99,9 @@ class BackupRestoreTest {
                 stock = 99,
             ),
         )
+        database.barcodeDao().update(
+            requireNotNull(database.barcodeDao().getByBarcode("00123")).copy(isActive = false),
+        )
 
         manager.restore(preview)
 
@@ -96,6 +109,7 @@ class BackupRestoreTest {
         assertEquals("Produk Awal", restored.name)
         assertEquals(5, restored.stock)
         assertEquals("Usaha Awal", database.profileDao().getProfile()?.businessName)
+        assertTrue(requireNotNull(database.barcodeDao().getByBarcode("00123")).isActive)
     }
 
     @Test
@@ -242,6 +256,12 @@ class BackupRestoreTest {
 
     private fun openDatabase(): PosDatabase =
         Room.databaseBuilder(context, PosDatabase::class.java, databaseName)
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+            .addMigrations(
+                MIGRATION_1_2,
+                MIGRATION_2_3,
+                MIGRATION_3_4,
+                MIGRATION_4_5,
+                MIGRATION_5_6,
+            )
             .build()
 }

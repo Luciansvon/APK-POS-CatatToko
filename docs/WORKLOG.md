@@ -25,6 +25,20 @@ Worklog bukan pengganti:
 
 ---
 
+## 2026-08-13 - Barcode offline kandidat 0.7.0
+
+Status: Source dan APK debug lokal selesai; QA perangkat menunggu izin.
+
+- Room schema 6 menambahkan mapping barcode dedicated untuk produk, varian, dan satuan.
+- Retail dan Grosir mendapat scanner CameraX + ML Kit bundled tanpa internet; Kuliner menyembunyikan fitur lewat capability shared.
+- Scan kasir memakai jalur keranjang lama, termasuk picker varian/satuan, tier price, validasi stok, dan anti-double-submit.
+- Owner dapat menambah, mengubah, scan-to-fill, menonaktifkan, dan mengaktifkan kembali barcode melalui repository yang memerlukan sesi Owner.
+- Izin kamera mempunyai fallback input manual dan pengaturan aplikasi; resource kamera dibersihkan ketika layar ditutup.
+- Backup mencakup tabel barcode dan Excel Lengkap menambah sheet `Barcode Produk`.
+- Gate final 416 task lulus: unit, debug APK, AndroidTest APK, lint, serta minified release candidate seluruh flavor.
+- APK debug `0.7.0` dipaketkan dan hash dicatat di `docs/RELEASE_NOTES.md`; signing produksi tetap diblokir tanpa keystore/secret.
+- Connected/device test belum dijalankan.
+
 ## 2026-08-13 - Patch stabilitas P1 dan gate release 0.6.1
 
 Status: Selesai di source dan APK debug lokal; connected test menunggu izin perangkat.

@@ -2,6 +2,7 @@ package com.bimacore.usahakecil
 
 import android.app.Application
 import com.bimacore.usahakecil.backup.BackupManager
+import com.bimacore.usahakecil.data.BarcodeRepository
 import com.bimacore.usahakecil.data.CulinaryRepository
 import com.bimacore.usahakecil.data.DatabaseOperationCoordinator
 import com.bimacore.usahakecil.data.InventoryRepository
@@ -41,9 +42,17 @@ class PosApplication : Application() {
             businessName = getString(R.string.business_label),
             ownerSession = reportSession,
             databaseOperations = databaseOperations,
+            barcodeRepository = newBarcodeRepository(),
         )
 
     fun newInventoryRepository() = InventoryRepository(database, capabilities, reportSession)
+
+    fun newBarcodeRepository() = BarcodeRepository(
+        database,
+        capabilities,
+        reportSession,
+        databaseOperations,
+    )
 
     fun newOperationsRepository() = OperationsRepository(database, ownerSession = reportSession)
 

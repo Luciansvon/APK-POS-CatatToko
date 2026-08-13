@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -37,6 +38,7 @@ fun PosApp(
     onOwnerAccess: () -> Unit,
     onOpenShift: () -> Unit,
     onStartTransaction: () -> Unit,
+    onRegisterUnknownBarcode: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val snapshot by viewModel.snapshot.collectAsState()
@@ -57,6 +59,10 @@ fun PosApp(
     val receipt by viewModel.receipt.collectAsState()
     val isSaving by viewModel.isSaving.collectAsState()
     val message by viewModel.message.collectAsState()
+    val scannerFeedback by viewModel.scannerFeedback.collectAsState()
+    val unknownBarcode by viewModel.unknownBarcode.collectAsState()
+    val barcodeProcessingVersion by viewModel.barcodeProcessingVersion.collectAsState()
+    val barcodeScannerPaused by viewModel.barcodeScannerPaused.collectAsState()
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -70,6 +76,17 @@ fun PosApp(
         snackbar.showSnackbar(value)
         viewModel.consumeMessage()
     }
+    LaunchedEffect(unknownBarcode, ownerUnlocked) {
+        val barcode = unknownBarcode ?: return@LaunchedEffect
+        val result = snackbar.showSnackbar(
+            message = "Barcode belum terdaftar · $barcode",
+            actionLabel = if (ownerUnlocked) "Daftarkan" else null,
+        )
+        if (result == SnackbarResult.ActionPerformed && ownerUnlocked) {
+            onRegisterUnknownBarcode(barcode)
+        }
+        viewModel.consumeUnknownBarcode()
+    }
 
     BackHandler(enabled = screen != PosScreen.CASHIER_HOME) {
         when (screen) {
@@ -77,13 +94,23 @@ fun PosApp(
             PosScreen.PAYMENT -> viewModel.showCart()
             PosScreen.RECEIPT -> Unit
             PosScreen.CATALOG -> viewModel.showCashierHome()
+            PosScreen.BARCODE_SCANNER -> viewModel.closeBarcodeScanner()
             PosScreen.CASHIER_HOME -> Unit
         }
     }
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val expanded = maxWidth >= 840.dp
-        if (screen == PosScreen.RECEIPT && receipt != null) {
+        if (screen == PosScreen.BARCODE_SCANNER) {
+            BarcodeScannerScreen(
+                feedback = scannerFeedback,
+                processingVersion = barcodeProcessingVersion,
+                paused = barcodeScannerPaused,
+                onBarcode = viewModel::scanBarcode,
+                onMultipleBarcodes = viewModel::reportMultipleBarcodes,
+                onBack = viewModel::closeBarcodeScanner,
+            )
+        } else if (screen == PosScreen.RECEIPT && receipt != null) {
             ReceiptScreen(
                 receipt = requireNotNull(receipt),
                 isSharing = isSharing,
@@ -154,6 +181,8 @@ fun PosApp(
                     onQuantityChange = viewModel::setQuantity,
                     onCartClick = viewModel::showCart,
                     onCalculatorClick = { showCalculator = true },
+                    barcodeEnabled = viewModel.supportsBarcodeScanner,
+                    onBarcodeClick = viewModel::showBarcodeScanner,
                     ownerUnlocked = ownerUnlocked,
                     onOwnerAccess = onOwnerAccess,
                     modifier = Modifier.weight(1.65f),
@@ -161,6 +190,7 @@ fun PosApp(
                 VerticalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.35f))
                 when (screen) {
                     PosScreen.CASHIER_HOME -> Unit
+                    PosScreen.BARCODE_SCANNER -> Unit
                     PosScreen.PAYMENT -> PaymentScreen(
                         total = snapshot.cartItems.sumOf { it.subtotal },
                         method = paymentMethod,
@@ -215,6 +245,8 @@ fun PosApp(
                     onQuantityChange = viewModel::setQuantity,
                     onCartClick = viewModel::showCart,
                     onCalculatorClick = { showCalculator = true },
+                    barcodeEnabled = viewModel.supportsBarcodeScanner,
+                    onBarcodeClick = viewModel::showBarcodeScanner,
                     ownerUnlocked = ownerUnlocked,
                     onOwnerAccess = onOwnerAccess,
                 )
@@ -253,6 +285,7 @@ fun PosApp(
                     onComplete = viewModel::completeSale,
                 )
                 PosScreen.RECEIPT -> Unit
+                PosScreen.BARCODE_SCANNER -> Unit
             }
         }
 

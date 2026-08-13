@@ -4,6 +4,7 @@ import androidx.room.withTransaction
 import com.bimacore.usahakecil.domain.BusinessCapabilities
 import com.bimacore.usahakecil.domain.InventoryRules
 import com.bimacore.usahakecil.domain.MoneyMath
+import com.bimacore.usahakecil.domain.normalizeBarcode
 import com.bimacore.usahakecil.security.ReportSession
 import kotlinx.coroutines.flow.Flow
 
@@ -17,6 +18,7 @@ data class ProductDraft(
     val lowStockThreshold: Int,
     val unitLabel: String,
     val imageUri: String? = null,
+    val barcode: String? = null,
 )
 
 data class CategoryDraft(
@@ -41,6 +43,7 @@ class InventoryRepository(
 ) {
     private val catalogDao = database.catalogDao()
     private val adminDao = database.inventoryAdminDao()
+    private val barcodeDao = database.barcodeDao()
 
     val categories: Flow<List<CategoryEntity>> = catalogDao.observeCategories()
         .ownerOnly(ownerSession, emptyList())
@@ -49,6 +52,8 @@ class InventoryRepository(
     val variants: Flow<List<ProductVariantEntity>> = catalogDao.observeVariants()
         .ownerOnly(ownerSession, emptyList())
     val stockMovements: Flow<List<StockMovementEntity>> = adminDao.observeStockMovements()
+        .ownerOnly(ownerSession, emptyList())
+    val allUnits: Flow<List<UnitConversionEntity>> = adminDao.observeAllUnits()
         .ownerOnly(ownerSession, emptyList())
 
     fun observeUnits(productId: Long): Flow<List<UnitConversionEntity>> =
@@ -124,6 +129,39 @@ class InventoryRepository(
                     baseQuantityDelta = draft.openingStock,
                 ),
             )
+        }
+        draft.barcode?.let { rawBarcode ->
+            require(capabilities.barcodeScanner) { "Barcode belum aktif pada APK ini" }
+            val existing = barcodeDao.getBaseForProduct(id)
+            if (rawBarcode.isBlank()) {
+                if (existing?.isActive == true) {
+                    barcodeDao.update(existing.copy(isActive = false, updatedAt = now))
+                }
+            } else {
+                val barcode = normalizeBarcode(rawBarcode)
+                val duplicate = barcodeDao.getByBarcode(barcode)
+                require(duplicate == null || duplicate.id == existing?.id) {
+                    "Barcode sudah terdaftar"
+                }
+                if (existing == null) {
+                    barcodeDao.insert(
+                        ProductBarcodeEntity(
+                            barcode = barcode,
+                            productId = id,
+                            createdAt = now,
+                            updatedAt = now,
+                        ),
+                    )
+                } else {
+                    barcodeDao.update(
+                        existing.copy(
+                            barcode = barcode,
+                            isActive = true,
+                            updatedAt = now,
+                        ),
+                    )
+                }
+            }
         }
         id
     }
