@@ -45,6 +45,7 @@ Status: Rilis produksi signed; QA kamera fisik masih pending
 - QA kamera fisik, torch, rotasi, lifecycle background, dan scan 20 barang beruntun belum dijalankan karena memerlukan izin target perangkat.
 - QR tidak didukung pada V1.
 - UPC-A dan EAN-13 memakai nilai exact dari scanner; registrasi disarankan melalui scan-to-fill.
+- Update langsung dari APK publik v0.6.0 akan ditolak Android karena certificate berbeda. Pengguna wajib membagikan backup ke luar HP sebelum uninstall v0.6.0, lalu install v0.7.0 dan restore backup.
 
 ### Verifikasi
 
@@ -53,6 +54,7 @@ Status: Rilis produksi signed; QA kamera fisik masih pending
 - Compile AndroidTest Retail membuktikan regression repository, migration 1–6, backup/restore barcode, Excel 21 sheet, serta coordinator barcode dapat dibangun.
 - Workflow signed release `31694104552` berhasil membangun, memverifikasi, dan mengunggah ketiga APK produksi.
 - Ketiga APK memakai satu certificate produksi dengan SHA-256 `E9D193841B5493F332450C4C0DA41C6369598C12C0B147C8BF60DC61EAA285F2`; debug certificate ditolak oleh gate.
+- Ketiga APK publik v0.6.0 diverifikasi memakai `Android Debug` certificate dengan SHA-256 `7CDDACB091FEB949CFAE50D32CBB783198AA1A8B98BC483DBE29626109D7FA29`, sehingga jalur migrasi data wajib melalui backup/restore.
 - Review independen menemukan dan memicu perbaikan pause scanner di belakang picker serta race mapping barcode versus restore.
 - Connected/device test tidak dijalankan tanpa izin target.
 
