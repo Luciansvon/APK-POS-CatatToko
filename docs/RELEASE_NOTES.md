@@ -22,7 +22,7 @@ dist/debug/CatatToko-Kuliner.apk
 
 ## Versi 0.7.0 - 2026-08-13
 
-Status: Siap dites sebagai APK debug lokal; rilis produksi dan QA kamera fisik masih pending
+Status: Rilis produksi signed; QA kamera fisik masih pending
 
 ### Kenapa versi ini dibuat
 
@@ -45,16 +45,22 @@ Status: Siap dites sebagai APK debug lokal; rilis produksi dan QA kamera fisik m
 - QA kamera fisik, torch, rotasi, lifecycle background, dan scan 20 barang beruntun belum dijalankan karena memerlukan izin target perangkat.
 - QR tidak didukung pada V1.
 - UPC-A dan EAN-13 memakai nilai exact dari scanner; registrasi disarankan melalui scan-to-fill.
-- Rilis produksi tetap menunggu keystore dan secret signing.
 
 ### Verifikasi
 
 - Unit test Retail, Grosir, dan Kuliner lulus.
 - `assembleDebug`, AndroidTest APK, lint, serta minified release candidate Retail/Grosir/Kuliner lulus dalam gate 416 task.
 - Compile AndroidTest Retail membuktikan regression repository, migration 1–6, backup/restore barcode, Excel 21 sheet, serta coordinator barcode dapat dibangun.
-- `verifyReleaseSigningReady` gagal sesuai desain karena keystore/secret produksi tidak tersedia; APK release unsigned tidak dipaketkan sebagai produksi.
+- Workflow signed release `31694104552` berhasil membangun, memverifikasi, dan mengunggah ketiga APK produksi.
+- Ketiga APK memakai satu certificate produksi dengan SHA-256 `E9D193841B5493F332450C4C0DA41C6369598C12C0B147C8BF60DC61EAA285F2`; debug certificate ditolak oleh gate.
 - Review independen menemukan dan memicu perbaikan pause scanner di belakang picker serta race mapping barcode versus restore.
 - Connected/device test tidak dijalankan tanpa izin target.
+
+### APK release signed
+
+- Retail: `CatatToko-Retail.apk` | SHA256 `E1BA8BC07C7748E5F28ECE0F46555BDF645B977BD8D3B5C8AAA5A6CC766F0AFB`
+- Grosir: `CatatToko-Grosir.apk` | SHA256 `6079CB24147397A341794B799F53432DD23FFF927DB849B286E2A5BDF6FF8F1A`
+- Kuliner: `CatatToko-Kuliner.apk` | SHA256 `63565DE71301FFE3F60AC9174ABA9005B06FB930B71CDA4CFA157DC3594B8DCF`
 
 ### APK debug lokal
 
