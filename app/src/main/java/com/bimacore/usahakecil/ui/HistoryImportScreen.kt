@@ -129,8 +129,10 @@ fun HistoryImportScreen(
                     try {
                         openFile.launch("application/json")
                     } catch (error: Exception) {
-                        viewModel.finishHistoryImportFileSelection(null)
-                        throw error
+                        viewModel.finishHistoryImportFileSelection(
+                            null,
+                            error.message ?: "Pemilih file JSON tidak dapat dibuka",
+                        )
                     }
                 },
                 onInspect = { viewModel.inspectHistoryImportText(input) },

@@ -38,7 +38,8 @@ class CulinaryRepository(
     ): Long {
         ownerSession.requireOwner()
         requireCulinary()
-        require(catalogDao.getProduct(productId) != null) { "Menu tidak tersedia" }
+        val product = requireNotNull(catalogDao.getProduct(productId)) { "Menu tidak tersedia" }
+        require(product.isActive) { "Menu sudah tidak aktif" }
         require(label.isNotBlank()) { "Nama topping wajib diisi" }
         require(price in 0..MoneyMath.MAX_MONEY) { "Harga topping tidak valid" }
         val now = clock()
@@ -54,6 +55,7 @@ class CulinaryRepository(
             )
         } else {
             val current = requireNotNull(culinaryDao.getTopping(id)) { "Topping tidak tersedia" }
+            require(current.productId == productId) { "Topping tidak sesuai menu" }
             culinaryDao.updateTopping(
                 current.copy(
                     label = label.trim(),
@@ -69,6 +71,12 @@ class CulinaryRepository(
         ownerSession.requireOwner()
         requireCulinary()
         val current = requireNotNull(culinaryDao.getTopping(id)) { "Topping tidak tersedia" }
+        if (active) {
+            val product = requireNotNull(catalogDao.getProduct(current.productId)) {
+                "Menu topping tidak tersedia"
+            }
+            require(product.isActive) { "Menu topping sudah tidak aktif" }
+        }
         culinaryDao.updateTopping(current.copy(isActive = active, updatedAt = clock()))
     }
 
@@ -80,10 +88,12 @@ class CulinaryRepository(
         ownerSession.requireOwner()
         requireCulinary()
         require(menuProductId != ingredientProductId) { "Menu tidak boleh menjadi bahannya sendiri" }
-        require(catalogDao.getProduct(menuProductId) != null) { "Menu tidak tersedia" }
+        val menu = requireNotNull(catalogDao.getProduct(menuProductId)) { "Menu tidak tersedia" }
+        require(menu.isActive) { "Menu sudah tidak aktif" }
         val ingredient = requireNotNull(catalogDao.getProduct(ingredientProductId)) {
             "Bahan tidak tersedia"
         }
+        require(ingredient.isActive) { "Bahan sudah tidak aktif" }
         require(ingredient.stockTrackingEnabled) { "Pelacakan stok bahan harus aktif" }
         require(!ingredient.hasVariants) {
             "Bahan bervarian belum dapat dipakai dalam resep. Gunakan produk bahan tanpa varian."
@@ -107,6 +117,7 @@ class CulinaryRepository(
 
     suspend fun setCartLineNote(lineId: String, note: String) {
         requireCulinary()
+        requireNotNull(database.cartDao().getLine(lineId)) { "Item keranjang tidak tersedia" }
         culinaryDao.saveCartLineNote(
             CartLineNoteEntity(
                 lineId = lineId,
@@ -123,6 +134,9 @@ class CulinaryRepository(
     ) {
         requireCulinary()
         require(quantityPerMenu >= 0) { "Jumlah topping tidak valid" }
+        val line = requireNotNull(database.cartDao().getLine(lineId)) {
+            "Item keranjang tidak tersedia"
+        }
         if (quantityPerMenu == 0) {
             culinaryDao.deleteCartLineTopping(lineId, toppingId)
             return
@@ -131,6 +145,7 @@ class CulinaryRepository(
             "Topping tidak tersedia"
         }
         require(topping.isActive) { "Topping sudah tidak aktif" }
+        require(topping.productId == line.productId) { "Topping tidak sesuai menu" }
         culinaryDao.saveCartLineTopping(
             CartLineToppingEntity(
                 lineId = lineId,

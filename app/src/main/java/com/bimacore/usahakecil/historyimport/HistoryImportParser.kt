@@ -328,7 +328,14 @@ class HistoryImportParser {
         if (record.partyName.isNullOrBlank()) issues += "Pembelian membutuhkan nama pemasok"
         if (record.items.isEmpty()) issues += "Pembelian tidak memiliki rincian barang"
         if (record.amount == null || record.amount <= 0) issues += "Total pembelian belum valid"
-        if ((record.amountPaid ?: 0L) > 0 && method == null) issues += "Metode pembayaran pembelian belum jelas"
+        if ((record.amountPaid ?: 0L) > 0 &&
+            (method == null || method == PaymentMethod.CREDIT)
+        ) {
+            issues += "Metode pembayaran pembelian belum valid"
+        }
+        if (method == PaymentMethod.CREDIT) {
+            issues += "Pembelian tidak boleh memakai metode piutang"
+        }
         validateCompleteItems(record, issues)
     }
 

@@ -16,15 +16,20 @@ data class PinHashRecord(
 @OptIn(ExperimentalEncodingApi::class)
 object PinHasher {
     private const val DEFAULT_ITERATIONS = 120_000
-    private const val SALT_BYTES = 16
-    private const val HASH_BITS = 256
+    const val MIN_ITERATIONS = 100_000
+    const val MAX_ITERATIONS = 1_000_000
+    const val SALT_BYTES = 16
+    const val HASH_BYTES = 32
+    private const val HASH_BITS = HASH_BYTES * 8
 
     fun create(
         pin: String,
         iterations: Int = DEFAULT_ITERATIONS,
     ): PinHashRecord {
         validatePin(pin)
-        require(iterations >= 100_000) { "Pengamanan PIN terlalu lemah" }
+        require(iterations in MIN_ITERATIONS..MAX_ITERATIONS) {
+            "Jumlah iterasi PIN tidak aman"
+        }
         val salt = ByteArray(SALT_BYTES).also(SecureRandom()::nextBytes)
         val hash = derive(pin, salt, iterations)
         return PinHashRecord(
@@ -39,8 +44,10 @@ object PinHasher {
         record: PinHashRecord,
     ): Boolean {
         if (!pin.matches(PIN_PATTERN)) return false
+        if (record.iterations !in MIN_ITERATIONS..MAX_ITERATIONS) return false
         val salt = runCatching { Base64.decode(record.saltBase64) }.getOrNull() ?: return false
         val expected = runCatching { Base64.decode(record.hashBase64) }.getOrNull() ?: return false
+        if (salt.size != SALT_BYTES || expected.size != HASH_BYTES) return false
         val actual = runCatching { derive(pin, salt, record.iterations) }.getOrNull() ?: return false
         return MessageDigest.isEqual(expected, actual)
     }

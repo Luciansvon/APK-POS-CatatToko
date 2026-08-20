@@ -8,6 +8,7 @@ import java.util.zip.ZipOutputStream
 data class ExcelSheet(
     val name: String,
     val rows: List<List<String>>,
+    val textColumns: Set<Int> = emptySet(),
     val headerRows: Set<Int> = setOf(0),
     val titleRows: Set<Int> = emptySet(),
     val subtitleRows: Set<Int> = emptySet(),
@@ -144,8 +145,21 @@ object ExcelWorkbookExporter {
                     else -> ""
                 }
                 val isDataRow = rowIndex !in sheet.titleRows && rowIndex !in sheet.subtitleRows && rowIndex !in sheet.headerRows
-                val longVal = if (isDataRow && !value.startsWith("0") || value == "0") value.toLongOrNull() else null
-                val doubleVal = if (isDataRow && longVal == null && (!value.startsWith("0") || value == "0")) value.toDoubleOrNull() else null
+                val forceText = columnIndex in sheet.textColumns
+                val longVal = if (!forceText && isDataRow &&
+                    (!value.startsWith("0") || value == "0")
+                ) {
+                    value.toLongOrNull()
+                } else {
+                    null
+                }
+                val doubleVal = if (!forceText && isDataRow && longVal == null &&
+                    (!value.startsWith("0") || value == "0")
+                ) {
+                    value.toDoubleOrNull()
+                } else {
+                    null
+                }
                 when {
                     longVal != null -> append("<c r=\"$cellReference\"$style><v>$longVal</v></c>")
                     doubleVal != null -> append("<c r=\"$cellReference\"$style><v>$doubleVal</v></c>")

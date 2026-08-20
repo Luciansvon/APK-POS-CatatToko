@@ -143,6 +143,38 @@ class BarcodeRepositoryTest {
     }
 
     @Test
+    fun editing_product_and_variant_keeps_all_barcode_mappings() = runBlocking {
+        val capabilities = BusinessCapabilities.forType(BusinessType.WHOLESALE)
+        val inventory = InventoryRepository(database, capabilities, ownerSession)
+        val barcodes = BarcodeRepository(database, capabilities, ownerSession)
+        val categoryId = inventory.saveCategory(CategoryDraft(name = "Barang"))
+        val productId = inventory.saveProduct(
+            productDraft(categoryId, "Produk barcode").copy(openingStock = 0),
+        )
+        val variantId = inventory.saveVariant(VariantDraft(null, productId, "Besar", null, 10))
+        val unitId = inventory.saveUnit(null, productId, "pak", 6, 50_000)
+        val baseId = barcodes.save(ProductBarcodeDraft(barcode = "BASE", productId = productId))
+        val variantBarcodeId = barcodes.save(
+            ProductBarcodeDraft(barcode = "VARIANT", productId = productId, variantId = variantId),
+        )
+        val unitBarcodeId = barcodes.save(
+            ProductBarcodeDraft(barcode = "UNIT", productId = productId, unitId = unitId),
+        )
+
+        inventory.saveProduct(
+            productDraft(categoryId, "Produk barcode edit")
+                .copy(id = productId, openingStock = 999),
+        )
+        inventory.saveVariant(
+            VariantDraft(variantId, productId, "Besar edit", null, 999),
+        )
+
+        assertEquals("BASE", database.barcodeDao().getById(baseId)?.barcode)
+        assertEquals("VARIANT", database.barcodeDao().getById(variantBarcodeId)?.barcode)
+        assertEquals("UNIT", database.barcodeDao().getById(unitBarcodeId)?.barcode)
+    }
+
+    @Test
     fun management_is_owner_only_and_inactive_mapping_is_distinct_from_unknown() = runBlocking {
         val capabilities = BusinessCapabilities.forType(BusinessType.RETAIL)
         val inventory = InventoryRepository(database, capabilities, ownerSession)
@@ -223,7 +255,7 @@ class BarcodeRepositoryTest {
         categoryId = categoryId,
         name = name,
         basePrice = 10_000,
-        openingStock = 10,
+        openingStock = 0,
         stockTrackingEnabled = true,
         lowStockThreshold = 2,
         unitLabel = "pcs",

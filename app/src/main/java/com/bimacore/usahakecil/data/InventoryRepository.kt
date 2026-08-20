@@ -62,23 +62,25 @@ class InventoryRepository(
     fun observePriceTiers(productId: Long): Flow<List<PriceTierEntity>> =
         adminDao.observePriceTiers(productId).ownerOnly(ownerSession, emptyList())
 
-    suspend fun saveCategory(draft: CategoryDraft): Long {
+    suspend fun saveCategory(draft: CategoryDraft): Long = database.withTransaction {
         ownerSession.requireOwner()
         require(draft.name.isNotBlank()) { "Nama kategori wajib diisi" }
         val now = clock()
-        val id = draft.id ?: catalogDao.nextCategoryId()
         val current = draft.id?.let { catalogDao.getCategory(it) }
-        catalogDao.insertCategory(
-            CategoryEntity(
-                id = id,
-                name = draft.name.trim(),
-                iconKey = draft.iconKey.ifBlank { "inventory" },
-                sortOrder = current?.sortOrder ?: id.toInt(),
-                isActive = current?.isActive ?: true,
-                updatedAt = now,
-            ),
+        if (draft.id != null) {
+            requireNotNull(current) { "Kategori tidak tersedia" }
+        }
+        val id = draft.id ?: catalogDao.nextCategoryId()
+        val category = CategoryEntity(
+            id = id,
+            name = draft.name.trim(),
+            iconKey = draft.iconKey.ifBlank { "inventory" },
+            sortOrder = current?.sortOrder ?: id.toInt(),
+            isActive = current?.isActive ?: true,
+            updatedAt = now,
         )
-        return id
+        if (current == null) catalogDao.insertCategory(category) else catalogDao.updateCategory(category)
+        id
     }
 
     suspend fun saveProduct(draft: ProductDraft): Long = database.withTransaction {
@@ -90,29 +92,38 @@ class InventoryRepository(
             "Batas stok menipis tidak valid"
         }
         require(draft.unitLabel.isNotBlank()) { "Satuan wajib diisi" }
-        require(catalogDao.getCategory(draft.categoryId) != null) { "Kategori tidak tersedia" }
+        val category = requireNotNull(catalogDao.getCategory(draft.categoryId)) {
+            "Kategori tidak tersedia"
+        }
+        require(category.isActive) { "Kategori sudah tidak aktif" }
 
         val now = clock()
-        val id = draft.id ?: catalogDao.nextProductId()
         val current = draft.id?.let { catalogDao.getProduct(it) }
+        if (draft.id != null) {
+            requireNotNull(current) { "Produk tidak tersedia" }
+        }
+        val id = draft.id ?: catalogDao.nextProductId()
         val newStock = current?.stock ?: draft.openingStock
-        catalogDao.insertProduct(
-            ProductEntity(
-                id = id,
-                categoryId = draft.categoryId,
-                name = draft.name.trim(),
-                basePrice = draft.basePrice,
-                stock = newStock,
-                stockTrackingEnabled = draft.stockTrackingEnabled,
-                hasVariants = current?.hasVariants ?: false,
-                lowStockThreshold = draft.lowStockThreshold,
-                imageUri = draft.imageUri ?: current?.imageUri,
-                sortOrder = current?.sortOrder ?: id.toInt(),
-                isActive = current?.isActive ?: true,
-                unitLabel = draft.unitLabel.trim(),
-                updatedAt = now,
-            ),
+        val imageUri = when {
+            draft.imageUri == null -> current?.imageUri
+            else -> draft.imageUri.trim().takeIf(String::isNotBlank)
+        }
+        val product = ProductEntity(
+            id = id,
+            categoryId = draft.categoryId,
+            name = draft.name.trim(),
+            basePrice = draft.basePrice,
+            stock = newStock,
+            stockTrackingEnabled = draft.stockTrackingEnabled,
+            hasVariants = current?.hasVariants ?: false,
+            lowStockThreshold = draft.lowStockThreshold,
+            imageUri = imageUri,
+            sortOrder = current?.sortOrder ?: id.toInt(),
+            isActive = current?.isActive ?: true,
+            unitLabel = draft.unitLabel.trim(),
+            updatedAt = now,
         )
+        if (current == null) catalogDao.insertProduct(product) else catalogDao.updateProduct(product)
         if (current == null && draft.stockTrackingEnabled && draft.openingStock > 0) {
             adminDao.insertStockMovement(
                 StockMovementEntity(
@@ -176,21 +187,29 @@ class InventoryRepository(
         val product = requireNotNull(catalogDao.getProduct(draft.productId)) {
             "Produk tidak tersedia"
         }
+        require(product.isActive) { "Produk sudah tidak aktif" }
         val now = clock()
-        val id = draft.id ?: catalogDao.nextVariantId()
         val current = draft.id?.let { catalogDao.getVariant(it) }
-        catalogDao.insertVariant(
-            ProductVariantEntity(
-                id = id,
-                productId = draft.productId,
-                label = draft.label.trim(),
-                priceOverride = draft.priceOverride,
-                stock = current?.stock ?: draft.openingStock,
-                sortOrder = current?.sortOrder ?: id.toInt(),
-                isActive = current?.isActive ?: true,
-                updatedAt = now,
-            ),
+        if (draft.id != null) {
+            requireNotNull(current) { "Varian tidak tersedia" }
+            require(current.productId == product.id) { "Varian tidak sesuai produk" }
+        } else {
+            require(product.stock == 0) {
+                "Kosongkan stok produk sebelum menambahkan varian agar stok tidak hilang"
+            }
+        }
+        val id = draft.id ?: catalogDao.nextVariantId()
+        val variant = ProductVariantEntity(
+            id = id,
+            productId = draft.productId,
+            label = draft.label.trim(),
+            priceOverride = draft.priceOverride,
+            stock = current?.stock ?: draft.openingStock,
+            sortOrder = current?.sortOrder ?: id.toInt(),
+            isActive = current?.isActive ?: true,
+            updatedAt = now,
         )
+        if (current == null) catalogDao.insertVariant(variant) else catalogDao.updateVariant(variant)
         if (!product.hasVariants) {
             catalogDao.updateProduct(product.copy(hasVariants = true, updatedAt = now))
         }
@@ -217,6 +236,11 @@ class InventoryRepository(
     suspend fun setProductActive(productId: Long, active: Boolean) {
         ownerSession.requireOwner()
         val product = requireNotNull(catalogDao.getProduct(productId)) { "Produk tidak tersedia" }
+        if (active) {
+            require(catalogDao.getCategory(product.categoryId)?.isActive == true) {
+                "Aktifkan kategori produk terlebih dahulu"
+            }
+        }
         catalogDao.updateProduct(product.copy(isActive = active, updatedAt = clock()))
     }
 
@@ -234,6 +258,16 @@ class InventoryRepository(
     suspend fun setVariantActive(variantId: Long, active: Boolean) {
         ownerSession.requireOwner()
         val variant = requireNotNull(catalogDao.getVariant(variantId)) { "Varian tidak tersedia" }
+        if (active) {
+            val product = requireNotNull(catalogDao.getProduct(variant.productId)) {
+                "Produk varian tidak tersedia"
+            }
+            require(product.isActive) { "Aktifkan produk terlebih dahulu" }
+        } else {
+            require(catalogDao.activeVariantCountForProduct(variant.productId) > 1) {
+                "Arsipkan produk jika varian terakhir tidak dipakai"
+            }
+        }
         catalogDao.updateVariant(variant.copy(isActive = active, updatedAt = clock()))
     }
 
@@ -307,6 +341,7 @@ class InventoryRepository(
             )
         } else {
             val current = requireNotNull(adminDao.getUnit(id)) { "Satuan tidak tersedia" }
+            require(current.productId == productId) { "Satuan tidak sesuai produk" }
             adminDao.updateUnit(
                 current.copy(
                     label = label.trim(),
@@ -328,6 +363,12 @@ class InventoryRepository(
         ownerSession.requireOwner()
         require(capabilities.tierPricing) { "Harga bertingkat tidak aktif pada APK ini" }
         require(catalogDao.getProduct(productId) != null) { "Produk tidak tersedia" }
+        require(minimumBaseQuantity > 0) { "Batas jumlah minimal harus lebih dari nol" }
+        require(unitPrice in 0..MoneyMath.MAX_MONEY) { "Harga bertingkat tidak valid" }
+        val duplicate = adminDao.getPriceTiers(productId).firstOrNull {
+            it.id != id && it.minimumBaseQuantity == minimumBaseQuantity
+        }
+        require(duplicate == null) { "Batas jumlah harga bertingkat sudah ada" }
         InventoryRules.resolveUnitPrice(
             basePrice = unitPrice,
             baseQuantity = minimumBaseQuantity,

@@ -56,6 +56,7 @@ class ExcelExportManager(
         }
         val workbook = collectWorkbook(profile.businessName, exportedAt, range, mode)
         val directory = File(context.cacheDir, EXPORT_DIRECTORY).apply { mkdirs() }
+        cleanupGeneratedFiles(directory, "usaha-kecil-", MAX_EXPORTS_TO_KEEP)
         val output = File(
             directory,
             "usaha-kecil-${safeFileName(profile.businessName)}-${mode.name.lowercase(Locale.US)}-$exportedAt.xlsx",
@@ -68,6 +69,15 @@ class ExcelExportManager(
             "${context.packageName}.fileprovider",
             output,
         )
+    }
+
+    private fun cleanupGeneratedFiles(directory: File, prefix: String, keep: Int) {
+        directory.listFiles()
+            .orEmpty()
+            .filter { it.isFile && it.name.startsWith(prefix) }
+            .sortedByDescending { it.lastModified() }
+            .drop(keep)
+            .forEach(File::delete)
     }
 
     private fun collectWorkbook(
@@ -133,10 +143,16 @@ class ExcelExportManager(
             "SELECT COUNT(*), COALESCE(SUM(total), 0) FROM sales WHERE ${range.where("createdAt")}",
         )
         val cashIn = scalarLong(
-            "SELECT COALESCE(SUM(amount), 0) FROM cash_entries WHERE ${range.where("createdAt")} AND type IN ('SALE_IN', 'CASH_IN', 'RECEIVABLE_IN')",
+            "SELECT COALESCE(SUM(amount), 0) FROM cash_entries WHERE ${range.where("createdAt")} AND paymentMethod = 'CASH' AND type IN ('SALE_IN', 'CASH_IN', 'RECEIVABLE_IN')",
+        )
+        val nonCashIn = scalarLong(
+            "SELECT COALESCE(SUM(amount), 0) FROM cash_entries WHERE ${range.where("createdAt")} AND paymentMethod != 'CASH' AND type IN ('SALE_IN', 'CASH_IN', 'RECEIVABLE_IN')",
         )
         val cashOut = scalarLong(
-            "SELECT COALESCE(SUM(amount), 0) FROM cash_entries WHERE ${range.where("createdAt")} AND type IN ('PURCHASE_OUT', 'CASH_OUT', 'EXPENSE', 'PAYABLE_OUT', 'WAGE_OUT')",
+            "SELECT COALESCE(SUM(amount), 0) FROM cash_entries WHERE ${range.where("createdAt")} AND paymentMethod = 'CASH' AND type IN ('PURCHASE_OUT', 'CASH_OUT', 'EXPENSE', 'PAYABLE_OUT', 'WAGE_OUT')",
+        )
+        val nonCashOut = scalarLong(
+            "SELECT COALESCE(SUM(amount), 0) FROM cash_entries WHERE ${range.where("createdAt")} AND paymentMethod != 'CASH' AND type IN ('PURCHASE_OUT', 'CASH_OUT', 'EXPENSE', 'PAYABLE_OUT', 'WAGE_OUT')",
         )
         val expenses = scalarLong(
             "SELECT COALESCE(SUM(amount), 0) FROM cash_entries WHERE ${range.where("createdAt")} AND type = 'EXPENSE'",
@@ -158,10 +174,12 @@ class ExcelExportManager(
             listOf("Ringkasan Keuangan", "Nilai"),
             listOf("Jumlah transaksi", sales.first.toString()),
             listOf("Penjualan", formatRupiah(sales.second)),
-            listOf("Kas masuk", formatRupiah(cashIn)),
-            listOf("Kas keluar", formatRupiah(cashOut)),
+            listOf("Kas masuk (fisik)", formatRupiah(cashIn)),
+            listOf("Non-tunai masuk", formatRupiah(nonCashIn)),
+            listOf("Kas keluar (fisik)", formatRupiah(cashOut)),
+            listOf("Non-tunai keluar", formatRupiah(nonCashOut)),
             listOf("Pengeluaran operasional", formatRupiah(expenses)),
-            listOf("Saldo kas tercatat", formatRupiah(cashIn - cashOut)),
+            listOf("Saldo kas fisik", formatRupiah(cashIn - cashOut)),
             listOf("Sisa utang", formatRupiah(outstandingDebt("PAYABLE"))),
             listOf("Sisa piutang", formatRupiah(outstandingDebt("RECEIVABLE"))),
             emptyList(),
@@ -173,7 +191,7 @@ class ExcelExportManager(
         return ExcelSheet(
             name = "Ringkasan",
             rows = rows,
-            headerRows = setOf(5, 15),
+            headerRows = setOf(5, 17),
             titleRows = setOf(0),
             subtitleRows = setOf(1, 2, 3),
             fitToOnePage = true,
@@ -340,6 +358,7 @@ class ExcelExportManager(
                 formatDateTime(row[6].toLongOrNull()),
             )
         },
+        textColumns = setOf(1),
     )
 
     private fun purchaseSheet(
@@ -658,6 +677,7 @@ class ExcelExportManager(
         exportedAt: Long,
         headers: List<String>,
         rows: List<List<String>>,
+        textColumns: Set<Int> = emptySet(),
     ): ExcelSheet = ExcelSheet(
         name = name,
         rows = buildList {
@@ -671,6 +691,7 @@ class ExcelExportManager(
         headerRows = setOf(4),
         titleRows = setOf(0),
         subtitleRows = setOf(1, 2),
+        textColumns = textColumns,
     )
 
     private fun queryRows(sql: String): List<List<String>> {
@@ -789,5 +810,6 @@ class ExcelExportManager(
 
     private companion object {
         const val EXPORT_DIRECTORY = "excel-exports"
+        const val MAX_EXPORTS_TO_KEEP = 5
     }
 }

@@ -5,6 +5,7 @@ import com.bimacore.usahakecil.domain.InventoryRules
 import com.bimacore.usahakecil.domain.LedgerLine
 import com.bimacore.usahakecil.domain.LedgerRules
 import com.bimacore.usahakecil.domain.MoneyMath
+import com.bimacore.usahakecil.domain.PaymentMethod
 import com.bimacore.usahakecil.security.ReportSession
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -38,6 +39,7 @@ data class PurchaseDraft(
     val supplierId: Long,
     val invoiceNumber: String = "",
     val amountPaid: Long,
+    val paymentMethod: String = PaymentMethod.CASH.name,
     val note: String = "",
     val lines: List<PurchaseLineDraft>,
 )
@@ -126,9 +128,11 @@ class OperationsRepository(
             )
         } else {
             val current = requireNotNull(operationsDao.getParty(id)) { "Data pihak tidak tersedia" }
+            require(current.kind == kind.name) {
+                "Jenis pihak tidak dapat diubah setelah dibuat"
+            }
             operationsDao.updateParty(
                 current.copy(
-                    kind = kind.name,
                     name = name.trim(),
                     phone = phone.trim(),
                     address = address.trim(),
@@ -161,10 +165,12 @@ class OperationsRepository(
             val product = requireNotNull(catalogDao.getProduct(line.productId)) {
                 "Produk pembelian tidak tersedia"
             }
+            require(product.isActive) { "Produk pembelian sudah tidak aktif" }
             val variant = line.variantId?.let {
                 requireNotNull(catalogDao.getVariant(it)) { "Varian pembelian tidak tersedia" }
             }
             require(variant == null || variant.productId == product.id) { "Varian tidak sesuai produk" }
+            require(variant == null || variant.isActive) { "Varian pembelian sudah tidak aktif" }
             require(!product.hasVariants || variant != null) {
                 "Produk bervarian wajib memilih varian untuk pembelian"
             }
@@ -176,6 +182,9 @@ class OperationsRepository(
             resolved.map { LedgerLine(it.line.unitCost, it.line.quantity) },
         )
         require(draft.amountPaid in 0..total) { "Pembayaran pembelian melebihi total" }
+        require(draft.paymentMethod in CASH_LEDGER_PAYMENT_METHODS) {
+            "Metode pembayaran pembelian tidak valid"
+        }
 
         val now = clock()
         val status = LedgerRules.status(total, listOf(draft.amountPaid).filter { it > 0 }).name
@@ -269,11 +278,15 @@ class OperationsRepository(
                     amount = draft.amountPaid,
                     category = "Pembelian",
                     note = "Pembayaran pembelian $invoice",
-                    paymentMethod = "CASH",
+                    paymentMethod = draft.paymentMethod,
                     referenceType = "PURCHASE",
                     referenceId = purchaseId,
                     createdAt = now,
-                    shiftId = shiftDao.getOpenShift()?.id,
+                    shiftId = if (draft.paymentMethod == PaymentMethod.CASH.name) {
+                        shiftDao.getOpenShift()?.id
+                    } else {
+                        null
+                    },
                 ),
             )
         }
@@ -299,7 +312,7 @@ class OperationsRepository(
                     DebtPaymentEntity(
                         debtId = debtId,
                         amount = draft.amountPaid,
-                        paymentMethod = "CASH",
+                        paymentMethod = draft.paymentMethod,
                         note = "Pembayaran awal pembelian $invoice",
                         paidAt = now,
                     ),
@@ -319,6 +332,9 @@ class OperationsRepository(
         ownerSession.requireOwner()
         require(amount in 1..MoneyMath.MAX_MONEY) { "Nominal wajib lebih dari nol" }
         require(category.isNotBlank()) { "Kategori wajib diisi" }
+        require(paymentMethod in CASH_LEDGER_PAYMENT_METHODS) {
+            "Metode pembayaran kas tidak valid"
+        }
         return operationsDao.insertCashEntry(
             CashEntryEntity(
                 type = type.name,
@@ -408,6 +424,7 @@ class OperationsRepository(
             PartyKind.CUSTOMER.name
         }
         require(party.kind == expectedKind) { "Jenis pihak tidak sesuai" }
+        require(party.isActive) { "Pihak sudah tidak aktif" }
         require(originalAmount in 1..MoneyMath.MAX_MONEY) { "Nilai tagihan tidak valid" }
         require(initialPayment in 0..originalAmount) { "Pembayaran awal tidak valid" }
         val now = clock()
@@ -465,6 +482,9 @@ class OperationsRepository(
     ) = database.withTransaction {
         ownerSession.requireOwner()
         val debt = requireNotNull(operationsDao.getDebt(debtId)) { "Tagihan tidak tersedia" }
+        require(paymentMethod in CASH_LEDGER_PAYMENT_METHODS) {
+            "Metode pembayaran tagihan tidak valid"
+        }
         require(amount in 1..MoneyMath.MAX_MONEY) { "Nominal pembayaran tidak valid" }
         val totalPaid = Math.addExact(debt.paidAmount, amount)
         require(totalPaid <= debt.originalAmount) { "Pembayaran melebihi sisa tagihan" }
@@ -549,6 +569,11 @@ class OperationsRepository(
     }
 
     private companion object {
+        val CASH_LEDGER_PAYMENT_METHODS = setOf(
+            PaymentMethod.CASH.name,
+            PaymentMethod.QRIS.name,
+            PaymentMethod.TRANSFER.name,
+        )
         val OTHER_CASH_IN_TYPES = setOf("CASH_IN", "RECEIVABLE_IN")
         val CASH_OUT_TYPES = setOf(
             "PURCHASE_OUT",

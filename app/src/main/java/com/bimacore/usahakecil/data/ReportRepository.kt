@@ -20,7 +20,9 @@ data class ReportSummary(
     val totalSales: Long,
     val payments: List<PaymentAggregate>,
     val cashIn: Long,
+    val nonCashIn: Long,
     val cashOut: Long,
+    val nonCashOut: Long,
     val expenses: Long,
     val netCash: Long,
     val outstandingPayables: Long,
@@ -44,6 +46,7 @@ class ReportRepository(
     private val database: PosDatabase,
     val session: ReportSession,
     private val clock: () -> Long = System::currentTimeMillis,
+    private val monotonicClock: () -> Long = System::nanoTime,
 ) {
     private val securityDao = database.securityDao()
     private val reportDao = database.reportDao()
@@ -58,9 +61,19 @@ class ReportRepository(
     }
 
     suspend fun unlock(pin: String): Boolean {
+        checkUnlockAttemptAllowed()
         val stored = securityDao.getReportSecurity() ?: return false
         val valid = PinHasher.verify(pin, stored.toHashRecord())
-        if (valid) session.unlock() else session.lock()
+        if (valid) {
+            session.resetUnlockAttempts()
+            session.unlock()
+        } else {
+            session.lock()
+            val lockoutMillis = session.recordFailedUnlock(monotonicClock())
+            if (lockoutMillis > 0L) {
+                throw IllegalStateException("Terlalu banyak percobaan. Coba lagi dalam 30 detik")
+            }
+        }
         return valid
     }
 
@@ -71,9 +84,25 @@ class ReportRepository(
         val stored = requireNotNull(securityDao.getReportSecurity()) {
             "PIN Owner belum dibuat"
         }
-        require(PinHasher.verify(currentPin, stored.toHashRecord())) { "PIN lama salah" }
+        checkUnlockAttemptAllowed()
+        require(PinHasher.verify(currentPin, stored.toHashRecord())) {
+            session.lock()
+            val lockoutMillis = session.recordFailedUnlock(monotonicClock())
+            if (lockoutMillis > 0L) {
+                "Terlalu banyak percobaan. Coba lagi dalam 30 detik"
+            } else {
+                "PIN lama salah"
+            }
+        }
+        session.resetUnlockAttempts()
         savePin(newPin)
         session.unlock()
+    }
+
+    suspend fun verifyCurrentPin(pin: String): Boolean {
+        session.requireOwner()
+        val stored = securityDao.getReportSecurity() ?: return false
+        return PinHasher.verify(pin, stored.toHashRecord())
     }
 
     fun lock() {
@@ -89,10 +118,16 @@ class ReportRepository(
         val sales = reportDao.salesSummary(fromInclusive, toInclusive)
         val cash = reportDao.cashSummary(fromInclusive, toInclusive)
         val cashIn = cash
-            .filter { it.type in CASH_IN_TYPES }
+            .filter { it.type in CASH_IN_TYPES && it.paymentMethod == "CASH" }
+            .fold(0L) { total, item -> Math.addExact(total, item.total) }
+        val nonCashIn = cash
+            .filter { it.type in CASH_IN_TYPES && it.paymentMethod != "CASH" }
             .fold(0L) { total, item -> Math.addExact(total, item.total) }
         val cashOut = cash
-            .filter { it.type in CASH_OUT_TYPES }
+            .filter { it.type in CASH_OUT_TYPES && it.paymentMethod == "CASH" }
+            .fold(0L) { total, item -> Math.addExact(total, item.total) }
+        val nonCashOut = cash
+            .filter { it.type in CASH_OUT_TYPES && it.paymentMethod != "CASH" }
             .fold(0L) { total, item -> Math.addExact(total, item.total) }
         val expenses = cash
             .filter { it.type == "EXPENSE" }
@@ -104,7 +139,9 @@ class ReportRepository(
             totalSales = sales.totalSales,
             payments = reportDao.paymentSummary(fromInclusive, toInclusive),
             cashIn = cashIn,
+            nonCashIn = nonCashIn,
             cashOut = cashOut,
+            nonCashOut = nonCashOut,
             expenses = expenses,
             netCash = Math.subtractExact(cashIn, cashOut),
             outstandingPayables = reportDao.outstandingDebt(DebtKind.PAYABLE.name),
@@ -248,10 +285,10 @@ class ReportRepository(
             findTrendBucket(buckets, row.createdAt)?.let { bucket ->
                 val accumulator = salesByBucket.getValue(bucket.start)
                 when {
-                    row.type in CASH_IN_TYPES -> {
+                    row.type in CASH_IN_TYPES && row.paymentMethod == "CASH" -> {
                         accumulator.cashIn = Math.addExact(accumulator.cashIn, row.amount)
                     }
-                    row.type in CASH_OUT_TYPES -> {
+                    row.type in CASH_OUT_TYPES && row.paymentMethod == "CASH" -> {
                         accumulator.cashOut = Math.addExact(accumulator.cashOut, row.amount)
                     }
                 }
@@ -290,17 +327,32 @@ class ReportRepository(
         if (!session.isUnlocked) throw ReportLockedException()
     }
 
+    private fun checkUnlockAttemptAllowed() {
+        val remainingMillis = session.unlockAttemptRemainingMillis(monotonicClock())
+        require(remainingMillis == 0L) {
+            "Terlalu banyak percobaan. Coba lagi dalam ${(remainingMillis + 999L) / 1_000L} detik"
+        }
+    }
+
     private fun createTrendBuckets(
         granularity: ReportChartGranularity,
         now: Long,
     ): List<TrendBucket> {
         val currentStart = Calendar.getInstance().apply {
             timeInMillis = now
-            set(Calendar.HOUR_OF_DAY, 0)
+            set(
+                Calendar.HOUR_OF_DAY,
+                if (granularity == ReportChartGranularity.HOURLY) {
+                    get(Calendar.HOUR_OF_DAY)
+                } else {
+                    0
+                },
+            )
             set(Calendar.MINUTE, 0)
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
             when (granularity) {
+                ReportChartGranularity.HOURLY -> set(Calendar.MINUTE, 0)
                 ReportChartGranularity.DAILY -> Unit
                 ReportChartGranularity.WEEKLY -> {
                     val daysFromMonday =
@@ -316,6 +368,10 @@ class ReportRepository(
         }
         val firstStart = (currentStart.clone() as Calendar).apply {
             when (granularity) {
+                ReportChartGranularity.HOURLY -> add(
+                    Calendar.HOUR_OF_DAY,
+                    -(granularity.bucketCount - 1),
+                )
                 ReportChartGranularity.DAILY -> add(
                     Calendar.DAY_OF_MONTH,
                     -(granularity.bucketCount - 1),
@@ -337,6 +393,7 @@ class ReportRepository(
         return (0 until granularity.bucketCount).map { index ->
             val start = (firstStart.clone() as Calendar).apply {
                 when (granularity) {
+                    ReportChartGranularity.HOURLY -> add(Calendar.HOUR_OF_DAY, index)
                     ReportChartGranularity.DAILY -> add(Calendar.DAY_OF_MONTH, index)
                     ReportChartGranularity.WEEKLY -> add(Calendar.DAY_OF_MONTH, index * 7)
                     ReportChartGranularity.MONTHLY -> add(Calendar.MONTH, index)
@@ -345,6 +402,7 @@ class ReportRepository(
             }.timeInMillis
             val nextStart = (firstStart.clone() as Calendar).apply {
                 when (granularity) {
+                    ReportChartGranularity.HOURLY -> add(Calendar.HOUR_OF_DAY, index + 1)
                     ReportChartGranularity.DAILY -> add(Calendar.DAY_OF_MONTH, index + 1)
                     ReportChartGranularity.WEEKLY -> add(Calendar.DAY_OF_MONTH, (index + 1) * 7)
                     ReportChartGranularity.MONTHLY -> add(Calendar.MONTH, index + 1)
@@ -366,6 +424,7 @@ class ReportRepository(
             val nextStart = Calendar.getInstance().apply {
                 timeInMillis = start
                 when (granularity) {
+                    ReportChartGranularity.HOURLY -> add(Calendar.HOUR_OF_DAY, 1)
                     ReportChartGranularity.DAILY -> add(Calendar.DAY_OF_MONTH, 1)
                     ReportChartGranularity.WEEKLY -> add(Calendar.DAY_OF_MONTH, 7)
                     ReportChartGranularity.MONTHLY -> add(Calendar.MONTH, 1)

@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 enum class PosScreen {
@@ -185,12 +186,14 @@ class PosViewModel(
 
     fun customize(item: CartItem) {
         viewModelScope.launch {
-            runCatching { repository.getAvailableToppings(item.productId) }
-                .onSuccess {
-                    _availableToppings.value = it
-                    _customizeItem.value = item
-                }
-                .onFailure { showMessage(it.message ?: "Topping tidak dapat dibuka") }
+            try {
+                _availableToppings.value = repository.getAvailableToppings(item.productId)
+                _customizeItem.value = item
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                showMessage(error.message ?: "Topping tidak dapat dibuka")
+            }
         }
     }
 
@@ -200,13 +203,14 @@ class PosViewModel(
     ) {
         val item = _customizeItem.value ?: return
         viewModelScope.launch {
-            runCatching {
+            try {
                 repository.setCartCustomization(item.lineId, note, toppingQuantities)
-            }.onSuccess {
                 _customizeItem.value = null
                 _availableToppings.value = emptyList()
-            }.onFailure {
-                showMessage(it.message ?: "Catatan pesanan gagal disimpan")
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                showMessage(error.message ?: "Catatan pesanan gagal disimpan")
             }
         }
     }
@@ -264,21 +268,21 @@ class PosViewModel(
         _barcodeLookupInProgress.value = true
         viewModelScope.launch {
             try {
-                runCatching { repository.lookupBarcode(rawBarcode) }
-                    .onSuccess { result ->
-                        when (result) {
-                            is BarcodeLookupResult.Found -> handleBarcodeTarget(result.target)
-                            BarcodeLookupResult.NotFound -> {
-                                _scannerFeedback.value = "Barcode belum terdaftar · ${rawBarcode.trim()}"
-                                _unknownBarcode.value = rawBarcode.trim()
-                            }
-                            BarcodeLookupResult.Inactive ->
-                                _scannerFeedback.value = "Produk atau barcode sudah tidak aktif"
-                            BarcodeLookupResult.Unsupported ->
-                                _scannerFeedback.value = "Scanner barcode belum aktif pada APK ini"
-                        }
+                when (val result = repository.lookupBarcode(rawBarcode)) {
+                    is BarcodeLookupResult.Found -> handleBarcodeTarget(result.target)
+                    BarcodeLookupResult.NotFound -> {
+                        _scannerFeedback.value = "Barcode belum terdaftar · ${rawBarcode.trim()}"
+                        _unknownBarcode.value = rawBarcode.trim()
                     }
-                    .onFailure { _scannerFeedback.value = it.message ?: "Barcode gagal diperiksa" }
+                    BarcodeLookupResult.Inactive ->
+                        _scannerFeedback.value = "Produk atau barcode sudah tidak aktif"
+                    BarcodeLookupResult.Unsupported ->
+                        _scannerFeedback.value = "Scanner barcode belum aktif pada APK ini"
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                _scannerFeedback.value = error.message ?: "Barcode gagal diperiksa"
             } finally {
                 _barcodeLookupInProgress.value = false
                 _barcodeProcessingVersion.value += 1
@@ -351,6 +355,8 @@ class PosViewModel(
                     }
                     is CheckoutResult.Error -> showMessage(result.message)
                 }
+            } catch (error: CancellationException) {
+                throw error
             } catch (error: Exception) {
                 showMessage(error.message ?: "Transaksi gagal disimpan")
             } finally {
@@ -440,7 +446,8 @@ class PosViewModel(
         val result = repository.addProduct(productId, variantId, unitId)
         when (result) {
             AddToCartResult.Added -> if (barcodeProductName != null) {
-                _scannerFeedback.value = "$barcodeProductName ditambahkan"
+                val itemCount = repository.cartQuantity()
+                _scannerFeedback.value = "$barcodeProductName ditambahkan · Keranjang $itemCount barang"
             }
             AddToCartResult.VariantRequired -> {
                 val product = snapshot.value.products.firstOrNull { it.id == productId }

@@ -103,6 +103,29 @@ class ExcelWorkbookExporterTest {
         assertEquals(2, entries.count { it.key.startsWith("xl/worksheets/sheet") })
     }
 
+    @Test
+    fun keeps_barcode_like_values_as_text_even_when_they_start_with_zero() {
+        val sheet = readEntries(
+            ExcelWorkbookExporter.toByteArray(
+                ExcelWorkbook(
+                    sheets = listOf(
+                        ExcelSheet(
+                            name = "Barcode",
+                            rows = listOf(
+                                listOf("No", "Barcode"),
+                                listOf("1", "00123"),
+                            ),
+                            textColumns = setOf(1),
+                        ),
+                    ),
+                ),
+            ),
+        ).getValue("xl/worksheets/sheet1.xml")
+
+        assertTrue(sheet.contains("r=\"B2\" t=\"inlineStr\""))
+        assertTrue(sheet.contains("00123"))
+    }
+
     private fun readEntries(bytes: ByteArray): Map<String, String> {
         val entries = linkedMapOf<String, String>()
         ZipInputStream(ByteArrayInputStream(bytes)).use { zip ->

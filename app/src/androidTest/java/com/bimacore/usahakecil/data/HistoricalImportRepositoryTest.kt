@@ -11,12 +11,14 @@ import com.bimacore.usahakecil.historyimport.HistoryImportItem
 import com.bimacore.usahakecil.historyimport.HistoryImportPayload
 import com.bimacore.usahakecil.historyimport.HistoryImportParser
 import com.bimacore.usahakecil.historyimport.HistoryImportRecord
-import com.bimacore.usahakecil.historyimport.HistoryImportRecordType
-import com.bimacore.usahakecil.historyimport.HistoryImportReviewRow
 import com.bimacore.usahakecil.historyimport.HistoryImportReviewStatus
 import com.bimacore.usahakecil.historyimport.HistoryImportSource
 import com.bimacore.usahakecil.historyimport.HistoryImportSummary
 import com.bimacore.usahakecil.security.ReportSession
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -153,11 +155,19 @@ class HistoricalImportRepositoryTest {
     }
 
     private fun draft(eventAt: Long): HistoryImportDraft {
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("Asia/Jakarta")
+        }
+        val timeFormat = SimpleDateFormat("HH:mm", Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("Asia/Jakarta")
+        }
+        val eventDate = dateFormat.format(Date(eventAt))
+        val eventTime = timeFormat.format(Date(eventAt))
         val sale = HistoryImportRecord(
             sourceRef = "hal-1-baris-1",
             type = "SALE",
-            date = "2024-08-02",
-            time = null,
+            date = eventDate,
+            time = eventTime,
             partyName = null,
             category = "Penjualan",
             paymentMethod = "CASH",
@@ -193,36 +203,12 @@ class HistoricalImportRepositoryTest {
             schemaVersion = HISTORY_IMPORT_SCHEMA_V1,
             source = HistoryImportSource("Buku lama", 1, "RETAIL", "Asia/Jakarta"),
             records = listOf(sale, stock),
-            summary = HistoryImportSummary(2, 1, 1, "2024-08-02", "2024-08-02", emptyList()),
+            summary = HistoryImportSummary(2, 1, 1, eventDate, eventDate, emptyList()),
         )
-        return HistoryImportDraft(
-            payload = payload,
+        return HistoryImportParser().parse(
+            text = Json.encodeToString(payload),
+            expectedBusinessType = BusinessType.RETAIL,
             contentHash = "content-hash-1",
-            rows = listOf(
-                HistoryImportReviewRow(
-                    index = 0,
-                    record = sale,
-                    recordType = HistoryImportRecordType.SALE,
-                    status = HistoryImportReviewStatus.READY,
-                    issues = emptyList(),
-                    fingerprint = "sale-fingerprint",
-                    eventAt = eventAt,
-                    timePrecision = "DATE_ONLY",
-                    canApprove = false,
-                ),
-                HistoryImportReviewRow(
-                    index = 1,
-                    record = stock,
-                    recordType = HistoryImportRecordType.STOCK_ADJUSTMENT,
-                    status = HistoryImportReviewStatus.UNRESOLVED,
-                    issues = listOf("Stok aktif tidak diubah"),
-                    fingerprint = "stock-fingerprint",
-                    eventAt = eventAt,
-                    timePrecision = "DATE_ONLY",
-                    canApprove = false,
-                ),
-            ),
-            warnings = emptyList(),
         )
     }
 }

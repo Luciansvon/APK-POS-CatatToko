@@ -27,4 +27,17 @@ class ReportSessionTest {
         assertTrue(session.isUnlocked)
         assertFalse(reopened.isUnlocked)
     }
+
+    @Test
+    fun owner_session_locks_after_five_failed_unlock_attempts() {
+        val session = ReportSession()
+
+        repeat(4) { index ->
+            assertTrue(session.recordFailedUnlock(index.toLong()) == 0L)
+        }
+        assertTrue(session.recordFailedUnlock(4L) > 0L)
+        assertTrue(session.unlockAttemptRemainingMillis(4L) > 0L)
+        session.resetUnlockAttempts()
+        assertTrue(session.unlockAttemptRemainingMillis(4L) == 0L)
+    }
 }

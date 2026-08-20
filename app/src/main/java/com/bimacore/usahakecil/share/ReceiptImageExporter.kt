@@ -24,11 +24,18 @@ object ReceiptImageExporter {
         receipt: Receipt,
         primaryColor: Int,
     ): Intent = withContext(Dispatchers.IO) {
+        require(receipt.items.size <= MAX_RECEIPT_ITEMS) {
+            "Struk terlalu panjang untuk dibuat sebagai gambar"
+        }
         val width = 720
         val headerHeight = 210
         val itemHeight = 82
         val summaryHeight = if (receipt.paymentMethod == PaymentMethod.CASH) 390 else 320
-        val height = headerHeight + receipt.items.size * itemHeight + summaryHeight
+        val height = Math.addExact(
+            Math.addExact(headerHeight, Math.multiplyExact(receipt.items.size, itemHeight)),
+            summaryHeight,
+        )
+        require(height <= MAX_BITMAP_HEIGHT) { "Struk terlalu panjang untuk dibuat sebagai gambar" }
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         canvas.drawColor(Color.WHITE)
@@ -102,7 +109,12 @@ object ReceiptImageExporter {
         canvas.drawText("Terima kasih sudah berbelanja.", 42f, y + 142f, paint)
 
         val receiptDir = File(context.cacheDir, "receipts").apply { mkdirs() }
-        val output = File(receiptDir, "${receipt.receiptNumber}.png")
+        cleanupGeneratedFiles(receiptDir, MAX_RECEIPTS_TO_KEEP)
+        val safeReceiptNumber = receipt.receiptNumber
+            .replace(Regex("[^A-Za-z0-9._-]"), "-")
+            .take(80)
+            .ifBlank { "receipt" }
+        val output = File(receiptDir, "$safeReceiptNumber.png")
         FileOutputStream(output).use {
             check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) {
                 "Struk gagal dibuat"
@@ -123,6 +135,15 @@ object ReceiptImageExporter {
         }
     }
 
+    private fun cleanupGeneratedFiles(directory: File, keep: Int) {
+        directory.listFiles()
+            .orEmpty()
+            .filter { it.isFile && it.name.endsWith(".png", ignoreCase = true) }
+            .sortedByDescending { it.lastModified() }
+            .drop(keep)
+            .forEach(File::delete)
+    }
+
     private fun drawSummaryLine(
         canvas: Canvas,
         paint: Paint,
@@ -141,4 +162,8 @@ object ReceiptImageExporter {
         canvas.drawText(value, width - 42f, y, paint)
         paint.textAlign = Paint.Align.LEFT
     }
+
+    private const val MAX_RECEIPT_ITEMS = 200
+    private const val MAX_BITMAP_HEIGHT = 24_000
+    private const val MAX_RECEIPTS_TO_KEEP = 10
 }

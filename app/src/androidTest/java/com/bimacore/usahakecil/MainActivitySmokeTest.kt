@@ -367,6 +367,9 @@ class MainActivitySmokeTest {
         composeRule.onNodeWithTag("backup-create")
             .performScrollTo()
             .performSemanticsAction(SemanticsActions.OnClick)
+        waitForText("Amankan salinan data")
+        composeRule.onNodeWithTag("backup-pin-0").performTextInput("2468")
+        composeRule.onNodeWithText("Simpan").performClick()
         composeRule.waitUntil(timeoutMillis = 30_000) {
             composeRule.onAllNodesWithTag("backup-share").fetchSemanticsNodes().isNotEmpty()
         }

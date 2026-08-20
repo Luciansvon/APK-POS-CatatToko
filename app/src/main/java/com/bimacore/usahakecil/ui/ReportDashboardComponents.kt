@@ -157,7 +157,7 @@ fun ReportOverviewCard(
         OwnerMetricStrip(
             listOf(
                 summary.transactionCount.toString() to "Transaksi",
-                formatRupiah(summary.cashIn) to "Uang masuk",
+                formatRupiah(summary.cashIn) to "Kas fisik",
                 formatRupiah(summary.expenses) to "Pengeluaran",
             ),
         )
@@ -296,8 +296,10 @@ fun ReportMetricGrid(
                 true,
             ),
         )
-        add(ReportMetricData("Kas masuk tercatat", formatRupiah(summary.cashIn), summary.cashIn, previous?.cashIn, true))
-        add(ReportMetricData("Kas keluar tercatat", formatRupiah(summary.cashOut), summary.cashOut, previous?.cashOut, false))
+        add(ReportMetricData("Kas fisik masuk", formatRupiah(summary.cashIn), summary.cashIn, previous?.cashIn, true))
+        add(ReportMetricData("Non-tunai masuk", formatRupiah(summary.nonCashIn), summary.nonCashIn, previous?.nonCashIn, true))
+        add(ReportMetricData("Kas fisik keluar", formatRupiah(summary.cashOut), summary.cashOut, previous?.cashOut, false))
+        add(ReportMetricData("Non-tunai keluar", formatRupiah(summary.nonCashOut), summary.nonCashOut, previous?.nonCashOut, false))
         add(ReportMetricData("Pengeluaran", formatRupiah(summary.expenses), summary.expenses, previous?.expenses, false))
         add(ReportMetricData("Selisih kas", formatRupiah(summary.netCash), summary.netCash, previous?.netCash, true))
         add(ReportMetricData("Saldo utang saat ini", formatRupiah(summary.outstandingPayables), null, null, null))
@@ -710,25 +712,35 @@ private fun SalesTrendCard(trend: ReportTrendReport) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
             )
-            TrendBars(
-                points = points,
-                maxValue = maxValue,
-                selectedIndex = selectedIndex,
-                granularity = trend.granularity,
-                value = { it.sales },
-                barColor = Color(0xFF2E7D32),
-                onSelected = { selectedIndex = it },
-            )
-            val selected = points[selectedIndex]
-            Text(
-                "${formatTrendDate(selected.bucketStart, trend.granularity)}: ${formatRupiah(selected.sales)} • ${selected.transactionCount} transaksi",
-                style = MaterialTheme.typography.labelMedium,
-            )
-            Text(
-                "Ketuk batang untuk melihat angka periode tersebut.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelSmall,
-            )
+            if (points.isEmpty()) {
+                ZeroTrendChart(
+                    points = emptyList(),
+                    granularity = trend.granularity,
+                    selectedIndex = 0,
+                    emptyMessage = "Belum ada penjualan pada periode ini.",
+                    onSelected = {},
+                )
+            } else {
+                TrendBars(
+                    points = points,
+                    maxValue = maxValue,
+                    selectedIndex = selectedIndex.coerceIn(points.indices),
+                    granularity = trend.granularity,
+                    value = { it.sales },
+                    barColor = Color(0xFF2E7D32),
+                    onSelected = { selectedIndex = it },
+                )
+                val selected = points[selectedIndex.coerceIn(points.indices)]
+                Text(
+                    "${formatTrendDate(selected.bucketStart, trend.granularity)}: ${formatRupiah(selected.sales)} • ${selected.transactionCount} transaksi",
+                    style = MaterialTheme.typography.labelMedium,
+                )
+                Text(
+                    "Ketuk batang untuk melihat angka periode tersebut.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelSmall,
+                )
+            }
         }
     }
 }
@@ -1328,6 +1340,7 @@ private fun formatTrendDate(
     granularity: ReportChartGranularity,
 ): String = SimpleDateFormat(
     when (granularity) {
+        ReportChartGranularity.HOURLY -> "d MMM, HH:00"
         ReportChartGranularity.DAILY,
         ReportChartGranularity.WEEKLY,
         -> "d MMM yyyy"
@@ -1342,6 +1355,7 @@ private fun formatTrendAxisDate(
     granularity: ReportChartGranularity,
 ): String = SimpleDateFormat(
     when (granularity) {
+        ReportChartGranularity.HOURLY -> "HH:00"
         ReportChartGranularity.DAILY,
         ReportChartGranularity.WEEKLY,
         -> "d MMM"
@@ -1352,6 +1366,7 @@ private fun formatTrendAxisDate(
 ).format(Date(timestamp))
 
 private fun ReportChartGranularity.controlLabel(): String = when (this) {
+    ReportChartGranularity.HOURLY -> "Per jam"
     ReportChartGranularity.DAILY -> "Per hari"
     ReportChartGranularity.WEEKLY -> "Per minggu"
     ReportChartGranularity.MONTHLY -> "Per bulan"
@@ -1359,6 +1374,7 @@ private fun ReportChartGranularity.controlLabel(): String = when (this) {
 }
 
 private fun ReportChartGranularity.sentenceLabel(): String = when (this) {
+    ReportChartGranularity.HOURLY -> "data per jam"
     ReportChartGranularity.DAILY -> "data per hari"
     ReportChartGranularity.WEEKLY -> "data per minggu"
     ReportChartGranularity.MONTHLY -> "data per bulan"

@@ -57,6 +57,15 @@ class WorkforceRepository(
             val current = requireNotNull(workforceDao.getEmployee(id)) {
                 "Pekerja tidak tersedia"
             }
+            if (current.scheme != scheme.name) {
+                val hasHistory = workforceDao.rateCount(id) > 0 ||
+                    workforceDao.attendanceCount(id) > 0 ||
+                    workforceDao.freelanceJobCount(id) > 0 ||
+                    workforceDao.workerPaymentCount(id) > 0
+                require(!hasHistory) {
+                    "Skema pekerja tidak dapat diganti setelah punya riwayat"
+                }
+            }
             workforceDao.updateEmployee(
                 current.copy(
                     name = name.trim(),

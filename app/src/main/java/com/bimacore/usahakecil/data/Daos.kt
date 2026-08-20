@@ -27,11 +27,17 @@ interface CatalogDao {
     @Query("SELECT * FROM products WHERE id = :id")
     suspend fun getProduct(id: Long): ProductEntity?
 
+    @Query("SELECT * FROM products ORDER BY id")
+    suspend fun getAllProducts(): List<ProductEntity>
+
     @Query("SELECT * FROM categories WHERE id = :id")
     suspend fun getCategory(id: Long): CategoryEntity?
 
     @Query("SELECT COUNT(*) FROM products WHERE categoryId = :categoryId AND isActive = 1")
     suspend fun activeProductCountForCategory(categoryId: Long): Int
+
+    @Query("SELECT COUNT(*) FROM product_variants WHERE productId = :productId AND isActive = 1")
+    suspend fun activeVariantCountForProduct(productId: Long): Int
 
     @Query("SELECT * FROM product_variants WHERE id = :id")
     suspend fun getVariant(id: Long): ProductVariantEntity?
@@ -83,6 +89,9 @@ interface CartDao {
 
     @Query("SELECT * FROM cart_lines ORDER BY updatedAt")
     suspend fun getLines(): List<CartLineEntity>
+
+    @Query("SELECT COALESCE(SUM(quantity), 0) FROM cart_lines")
+    suspend fun getTotalQuantity(): Int
 
     @Query("SELECT * FROM cart_lines WHERE id = :lineId")
     suspend fun getLine(lineId: String): CartLineEntity?

@@ -2,6 +2,7 @@ package com.bimacore.usahakecil.backup
 
 import android.content.Context
 import androidx.room.Room
+import androidx.core.content.FileProvider
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.bimacore.usahakecil.data.BusinessProfileEntity
@@ -16,9 +17,11 @@ import com.bimacore.usahakecil.data.ProductBarcodeEntity
 import com.bimacore.usahakecil.data.ProductEntity
 import com.bimacore.usahakecil.security.ReportSession
 import java.io.FileOutputStream
+import java.io.File
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -59,6 +62,16 @@ class BackupRestoreTest {
         database.catalogDao().insertCategory(
             CategoryEntity(1, "Barang", "inventory", 1),
         )
+        val photoBytes = "photo-data".toByteArray()
+        val photoFile = File(context.filesDir, "product-images/photo.bin").apply {
+            parentFile?.mkdirs()
+            writeBytes(photoBytes)
+        }
+        val photoUri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            photoFile,
+        ).toString()
         database.catalogDao().insertProduct(
             ProductEntity(
                 id = 1,
@@ -69,7 +82,7 @@ class BackupRestoreTest {
                 stockTrackingEnabled = true,
                 hasVariants = false,
                 lowStockThreshold = 1,
-                imageUri = null,
+                imageUri = photoUri,
                 sortOrder = 1,
             ),
         )
@@ -90,9 +103,10 @@ class BackupRestoreTest {
             clock = { 100L },
             databaseName = databaseName,
         )
-        val backupUri = manager.createBackup()
+        val backupUri = manager.createBackup("2468")
         assertTrue(backupUri.toString().endsWith(".ukbackup.zip"))
-        val preview = manager.preview(backupUri)
+        assertTrue(runCatching { manager.preview(backupUri, "0000") }.isFailure)
+        val preview = manager.preview(backupUri, "2468")
         database.catalogDao().updateProduct(
             requireNotNull(database.catalogDao().getProduct(1)).copy(
                 name = "Produk Berubah",
@@ -110,6 +124,8 @@ class BackupRestoreTest {
         assertEquals(5, restored.stock)
         assertEquals("Usaha Awal", database.profileDao().getProfile()?.businessName)
         assertTrue(requireNotNull(database.barcodeDao().getByBarcode("00123")).isActive)
+        val restoredImage = requireNotNull(database.catalogDao().getProduct(1)?.imageUri)
+        assertArrayEquals(photoBytes, requireNotNull(ProductImageStorage.readUri(context, restoredImage)))
     }
 
     @Test
@@ -132,7 +148,7 @@ class BackupRestoreTest {
             clock = { 200L },
             databaseName = databaseName,
         )
-        val backupUri = manager.createBackup()
+        val backupUri = manager.createBackup("2468")
         context.contentResolver.openFileDescriptor(backupUri, "rw")!!.use { descriptor ->
             FileOutputStream(descriptor.fileDescriptor).use { output ->
                 output.write("rusak".toByteArray())
@@ -172,8 +188,8 @@ class BackupRestoreTest {
             clock = { 100L },
             databaseName = databaseName,
         )
-        val backupUri = manager.createBackup()
-        val preview = manager.preview(backupUri)
+        val backupUri = manager.createBackup("2468")
+        val preview = manager.preview(backupUri, "2468")
 
         database.securityDao().saveReportSecurity(
             com.bimacore.usahakecil.data.ReportSecurityEntity(
@@ -211,7 +227,7 @@ class BackupRestoreTest {
             clock = { 100L },
             databaseName = databaseName,
         )
-        manager.createBackup()
+        manager.createBackup("2468")
 
         val source = context.getDatabasePath(databaseName)
         val bytes = source.readBytes()

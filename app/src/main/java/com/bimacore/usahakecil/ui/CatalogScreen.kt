@@ -1,6 +1,7 @@
 package com.bimacore.usahakecil.ui
 
 import android.graphics.BitmapFactory
+import android.graphics.BitmapFactory.Options
 import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
@@ -75,6 +76,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.unit.sp
 import com.bimacore.usahakecil.data.CatalogSnapshot
 import com.bimacore.usahakecil.domain.Product
@@ -347,17 +350,30 @@ fun ProductVisual(
 ) {
     val context = LocalContext.current
     val bitmap by produceState<ImageBitmap?>(initialValue = null, imageUri) {
-        value = if (imageUri.isNullOrBlank()) {
-            null
-        } else {
-            try {
-                context.contentResolver.openInputStream(Uri.parse(imageUri))?.use {
-                    BitmapFactory.decodeStream(it)?.asImageBitmap()
+        value = withContext(Dispatchers.IO) {
+            if (imageUri.isNullOrBlank()) {
+                null
+            } else {
+                try {
+                    val uri = Uri.parse(imageUri)
+                    val bounds = Options().apply { inJustDecodeBounds = true }
+                    context.contentResolver.openInputStream(uri)?.use { input ->
+                        BitmapFactory.decodeStream(input, null, bounds)
+                    }
+                    val sample = calculateSampleSize(bounds.outWidth, bounds.outHeight, 512, 512)
+                    val decodeOptions = Options().apply { inSampleSize = sample }
+                    context.contentResolver.openInputStream(uri)?.use { input ->
+                        BitmapFactory.decodeStream(input, null, decodeOptions)?.asImageBitmap()
+                    }
+                } catch (_: FileNotFoundException) {
+                    null
+                } catch (_: SecurityException) {
+                    null
+                } catch (_: IllegalArgumentException) {
+                    null
+                } catch (_: OutOfMemoryError) {
+                    null
                 }
-            } catch (_: FileNotFoundException) {
-                null
-            } catch (_: SecurityException) {
-                null
             }
         }
     }
@@ -383,6 +399,20 @@ fun ProductVisual(
             )
         }
     }
+}
+
+private fun calculateSampleSize(
+    width: Int,
+    height: Int,
+    targetWidth: Int,
+    targetHeight: Int,
+): Int {
+    if (width <= 0 || height <= 0) return 1
+    var sample = 1
+    while (width / (sample * 2) >= targetWidth && height / (sample * 2) >= targetHeight) {
+        sample *= 2
+    }
+    return sample
 }
 
 @Composable

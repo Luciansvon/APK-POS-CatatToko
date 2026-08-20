@@ -33,50 +33,52 @@ class ExcelExportTest {
     private val databaseName = "excel-export-test.db"
 
     @Before
-    fun setUp() = runBlocking {
-        context = ApplicationProvider.getApplicationContext()
-        context.deleteDatabase(databaseName)
-        database = Room.databaseBuilder(context, PosDatabase::class.java, databaseName)
-            .addMigrations(
-                MIGRATION_1_2,
-                MIGRATION_2_3,
-                MIGRATION_3_4,
-                MIGRATION_4_5,
-                MIGRATION_5_6,
+    fun setUp() {
+        runBlocking {
+            context = ApplicationProvider.getApplicationContext()
+            context.deleteDatabase(databaseName)
+            database = Room.databaseBuilder(context, PosDatabase::class.java, databaseName)
+                .addMigrations(
+                    MIGRATION_1_2,
+                    MIGRATION_2_3,
+                    MIGRATION_3_4,
+                    MIGRATION_4_5,
+                    MIGRATION_5_6,
+                )
+                .build()
+            database.profileDao().saveProfile(
+                BusinessProfileEntity(
+                    businessUid = "excel-test",
+                    businessName = "Kopi & Roti",
+                    businessType = "RETAIL",
+                    createdAt = 1,
+                    updatedAt = 1,
+                ),
             )
-            .build()
-        database.profileDao().saveProfile(
-            BusinessProfileEntity(
-                businessUid = "excel-test",
-                businessName = "Kopi & Roti",
-                businessType = "RETAIL",
-                createdAt = 1,
-                updatedAt = 1,
-            ),
-        )
-        database.catalogDao().insertCategory(CategoryEntity(1, "Minuman", "inventory", 1))
-        database.catalogDao().insertProduct(
-            ProductEntity(
-                id = 1,
-                categoryId = 1,
-                name = "Kopi <Susu>",
-                basePrice = 15_000,
-                stock = 4,
-                stockTrackingEnabled = true,
-                hasVariants = false,
-                lowStockThreshold = 1,
-                imageUri = null,
-                sortOrder = 1,
-            ),
-        )
-        database.barcodeDao().insert(
-            ProductBarcodeEntity(
-                barcode = "00123AbC",
-                productId = 1,
-                createdAt = 1,
-                updatedAt = 1,
-            ),
-        )
+            database.catalogDao().insertCategory(CategoryEntity(1, "Minuman", "inventory", 1))
+            database.catalogDao().insertProduct(
+                ProductEntity(
+                    id = 1,
+                    categoryId = 1,
+                    name = "Kopi <Susu>",
+                    basePrice = 15_000,
+                    stock = 4,
+                    stockTrackingEnabled = true,
+                    hasVariants = false,
+                    lowStockThreshold = 1,
+                    imageUri = null,
+                    sortOrder = 1,
+                ),
+            )
+            database.barcodeDao().insert(
+                ProductBarcodeEntity(
+                    barcode = "00123AbC",
+                    productId = 1,
+                    createdAt = 1,
+                    updatedAt = 1,
+                ),
+            )
+        }
     }
 
     @After

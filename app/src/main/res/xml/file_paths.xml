@@ -9,4 +9,7 @@
     <cache-path
         name="excel_exports"
         path="excel-exports/" />
+    <files-path
+        name="product_images"
+        path="product-images/" />
 </paths>

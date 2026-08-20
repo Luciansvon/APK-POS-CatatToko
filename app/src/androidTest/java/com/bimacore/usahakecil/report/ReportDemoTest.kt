@@ -228,10 +228,12 @@ class ReportDemoTest {
 
         assertEquals(4, daily.transactionCount)
         assertEquals(135_000L, daily.totalSales)
-        assertEquals(165_000L, daily.cashIn)
+        assertEquals(85_000L, daily.cashIn)
+        assertEquals(80_000L, daily.nonCashIn)
         assertEquals(20_000L, daily.cashOut)
+        assertEquals(0L, daily.nonCashOut)
         assertEquals(8_000L, daily.expenses)
-        assertEquals(145_000L, daily.netCash)
+        assertEquals(65_000L, daily.netCash)
         assertEquals(60_000L, daily.outstandingPayables)
         assertEquals(60_000L, daily.outstandingReceivables)
         assertEquals(4, daily.payments.size)
@@ -245,7 +247,7 @@ class ReportDemoTest {
         )
         assertEquals(14, dailyTrend.points.size)
         assertEquals(135_000L, dailyTrend.points.last().sales)
-        assertEquals(165_000L, dailyTrend.points.last().cashIn)
+        assertEquals(85_000L, dailyTrend.points.last().cashIn)
         assertEquals(20_000L, dailyTrend.points.last().cashOut)
         assertTrue(dailyTrend.products.isNotEmpty())
         assertEquals(
@@ -455,7 +457,11 @@ class ReportDemoTest {
                     amount = sale.received,
                     category = "Penjualan",
                     note = "Penjualan demo $receiptNumber",
-                    paymentMethod = sale.method.name,
+                    paymentMethod = if (sale.method == PaymentMethod.CREDIT) {
+                        PaymentMethod.CASH.name
+                    } else {
+                        sale.method.name
+                    },
                     referenceType = "SALE",
                     referenceId = saleId,
                     createdAt = createdAt,

@@ -1,6 +1,7 @@
 package com.bimacore.usahakecil.ui
 
 import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -43,6 +44,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -51,8 +53,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.bimacore.usahakecil.backup.BackupPreview
+import com.bimacore.usahakecil.backup.ProductImageStorage
 import com.bimacore.usahakecil.data.DebtEntity
 import com.bimacore.usahakecil.data.DebtKind
 import com.bimacore.usahakecil.data.CategoryEntity
@@ -70,6 +74,9 @@ import com.bimacore.usahakecil.export.ExcelExportMode
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 internal fun ownerTopAppBarColors() = TopAppBarDefaults.topAppBarColors(
@@ -989,6 +996,7 @@ fun ReportsScreen(viewModel: OperationsViewModel) {
                     },
                     label = { Text("PIN Owner") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                    visualTransformation = PasswordVisualTransformation(),
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Button(
@@ -1214,7 +1222,13 @@ fun MoreScreen(
     val preview by viewModel.backupPreview.collectAsState()
     var showProfile by remember { mutableStateOf(false) }
     var showChangePin by remember { mutableStateOf(false) }
+    var showBackupPin by remember { mutableStateOf(false) }
     var showShareBackup by remember { mutableStateOf(false) }
+    val saveBackup = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/zip"),
+    ) { uri ->
+        if (uri != null) viewModel.saveBackupCopy(uri)
+    }
     val openBackup = rememberLauncherForActivityResult(
         ActivityResultContracts.GetContent(),
     ) { uri ->
@@ -1254,12 +1268,12 @@ fun MoreScreen(
                 supportingText = if (backupUri == null) {
                     "Buat salinan data agar catatan usaha tidak hilang saat HP rusak atau hilang."
                 } else {
-                    "Bagikan salinan ke tempat lain, jangan hanya disimpan di HP ini."
+                    "Salinan terenkripsi masih sementara di aplikasi. Simpan ke Download atau bagikan ke tempat lain."
                 },
             )
             Button(
                 onClick = {
-                    if (backupUri == null) viewModel.createBackup() else showShareBackup = true
+                    if (backupUri == null) showBackupPin = true else showShareBackup = true
                 },
                 enabled = !busy,
                 modifier = Modifier
@@ -1282,7 +1296,20 @@ fun MoreScreen(
             }
             if (backupUri != null) {
                 OutlinedButton(
-                    onClick = viewModel::createBackup,
+                    onClick = {
+                        saveBackup.launch("CatatToko-salinan.ukbackup.zip")
+                    },
+                    enabled = !busy,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp)
+                        .testTag("backup-save"),
+                    shape = OwnerActionShape,
+                ) {
+                    Text("Simpan ke HP / Download")
+                }
+                OutlinedButton(
+                    onClick = { showBackupPin = true },
                     enabled = !busy,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1302,8 +1329,10 @@ fun MoreScreen(
                     try {
                         openBackup.launch("*/*")
                     } catch (error: Exception) {
-                        viewModel.finishRestoreFileSelection(null)
-                        throw error
+                        viewModel.finishRestoreFileSelection(
+                            null,
+                            error.message ?: "Pemilih file backup tidak dapat dibuka",
+                        )
                     }
                 },
                 testTag = "restore-entry",
@@ -1353,11 +1382,25 @@ fun MoreScreen(
             showProfile = false
         }
     }
+    if (showBackupPin) {
+        TextInputDialog(
+            title = "Amankan salinan data",
+            labels = listOf("PIN Owner"),
+            numericIndexes = setOf(0),
+            passwordIndexes = setOf(0),
+            fieldTagPrefix = "backup-pin",
+            onDismiss = { showBackupPin = false },
+        ) {
+            viewModel.createBackup(it[0])
+            showBackupPin = false
+        }
+    }
     if (showChangePin) {
         TextInputDialog(
             title = "Ganti PIN Owner",
             labels = listOf("PIN lama", "PIN baru 4-8 angka"),
             numericIndexes = setOf(0, 1),
+            passwordIndexes = setOf(0, 1),
             onDismiss = { showChangePin = false },
         ) {
             viewModel.changeReportPin(it[0], it[1])
@@ -1638,6 +1681,8 @@ private fun TextInputDialog(
     title: String,
     labels: List<String>,
     numericIndexes: Set<Int> = emptySet(),
+    passwordIndexes: Set<Int> = emptySet(),
+    fieldTagPrefix: String? = null,
     initialValues: List<String> = List(labels.size) { "" },
     onDismiss: () -> Unit,
     onSave: (List<String>) -> Unit,
@@ -1659,11 +1704,17 @@ private fun TextInputDialog(
                         label = { Text(label) },
                         keyboardOptions = KeyboardOptions(
                             keyboardType = if (index in numericIndexes) {
-                                KeyboardType.Number
+                                if (index in passwordIndexes) KeyboardType.NumberPassword else KeyboardType.Number
                             } else {
                                 KeyboardType.Text
                             },
                         ),
+                        visualTransformation = if (index in passwordIndexes) {
+                            PasswordVisualTransformation()
+                        } else {
+                            androidx.compose.ui.text.input.VisualTransformation.None
+                        },
+                        modifier = fieldTagPrefix?.let { Modifier.testTag("$it-$index") } ?: Modifier,
                     )
                 }
             }
@@ -1685,18 +1736,36 @@ private fun ProductDialog(
     var selectedImageUri by remember(product?.id, product?.imageUri) {
         mutableStateOf(product?.imageUri)
     }
+    var pendingImageUri by remember { mutableStateOf<Uri?>(null) }
+    var imageError by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
+    val imageScope = rememberCoroutineScope()
     val imagePicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
     ) { uri ->
-        if (uri != null) {
-            runCatching {
-                context.contentResolver.takePersistableUriPermission(
-                    uri,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
-                )
+        if (uri != null) pendingImageUri = uri
+    }
+    LaunchedEffect(pendingImageUri) {
+        val source = pendingImageUri ?: return@LaunchedEffect
+        pendingImageUri = null
+        imageError = null
+        imageScope.launch(Dispatchers.IO) {
+            val result = runCatching { ProductImageStorage.copyFromUri(context, source) }
+            withContext(Dispatchers.Main) {
+                result.onSuccess { selectedImageUri = it }
+                    .onFailure { imageError = it.message ?: "Foto produk gagal disimpan" }
             }
-            selectedImageUri = uri.toString()
+        }
+    }
+    LaunchedEffect(product?.imageUri) {
+        val existing = product?.imageUri?.takeIf { it.isNotBlank() } ?: return@LaunchedEffect
+        if (ProductImageStorage.isOwnedUri(context, existing)) return@LaunchedEffect
+        val result = withContext(Dispatchers.IO) {
+            runCatching { ProductImageStorage.copyFromUri(context, Uri.parse(existing)) }
+        }
+        if (selectedImageUri == existing) {
+            result.onSuccess { selectedImageUri = it }
+                .onFailure { imageError = it.message ?: "Foto lama tidak dapat disalin ke penyimpanan aplikasi" }
         }
     }
     var categoryIndex by remember {
@@ -1733,15 +1802,19 @@ private fun ProductDialog(
                 ) {
                     Text(if (selectedImageUri == null) "Pilih foto menu" else "Ganti foto menu")
                 }
-                selectedImageUri?.let { uri ->
+                if (!selectedImageUri.isNullOrBlank()) {
                     ProductVisual(
-                        imageUri = uri,
+                        imageUri = selectedImageUri,
                         icon = Icons.Outlined.Inventory2,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(120.dp),
                     )
                 }
+                if (!selectedImageUri.isNullOrBlank()) {
+                    TextButton(onClick = { selectedImageUri = "" }) { Text("Hapus foto") }
+                }
+                imageError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 listOf("Nama produk", "Harga jual", "Stok awal", "Satuan").forEachIndexed { index, label ->
                     OutlinedTextField(
                         value = values[index],
