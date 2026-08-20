@@ -1,58 +1,130 @@
-# Usaha Kecil Suite
+# CatatToko
 
-Satu source Android offline-first untuk tiga APK operasional:
+POS Android offline-first untuk usaha kecil, dengan tiga APK dari satu source code:
 
-- Retail dan UMKM;
-- Grosir dan Agen;
-- Kuliner dan Pedagang Kaki Lima.
+- **Retail & UMKM**
+- **Grosir & Agen**
+- **Kuliner & PKL**
 
-Versi publik saat ini: `0.7.1` (`versionCode 23`) dengan barcode offline untuk Retail dan Grosir. Semua fungsi utama tetap berjalan lokal di HP owner tanpa akun, server, atau internet.
+Versi publik terbaru: **v0.7.1** (`versionCode 23`) — rilis produksi signed, tetap berjalan lokal di HP tanpa akun, server, atau koneksi internet untuk fungsi utama.
 
-## Download APK v0.7.1
+## Download APK
 
 Pilih APK sesuai jenis usaha:
 
-- [Download CatatToko Retail dan UMKM](https://github.com/Luciansvon/APK-POS-CatatToko/releases/download/v0.7.1/CatatToko-Retail.apk)
-- [Download CatatToko Grosir dan Agen](https://github.com/Luciansvon/APK-POS-CatatToko/releases/download/v0.7.1/CatatToko-Grosir.apk)
-- [Download CatatToko Kuliner dan PKL](https://github.com/Luciansvon/APK-POS-CatatToko/releases/download/v0.7.1/CatatToko-Kuliner.apk)
+- **Retail & UMKM** — [Download CatatToko-Retail.apk](https://github.com/Luciansvon/APK-POS-CatatToko/releases/download/v0.7.1/CatatToko-Retail.apk)
+- **Grosir & Agen** — [Download CatatToko-Grosir.apk](https://github.com/Luciansvon/APK-POS-CatatToko/releases/download/v0.7.1/CatatToko-Grosir.apk)
+- **Kuliner & PKL** — [Download CatatToko-Kuliner.apk](https://github.com/Luciansvon/APK-POS-CatatToko/releases/download/v0.7.1/CatatToko-Kuliner.apk)
 
-[Lihat catatan rilis CatatToko v0.7.1](https://github.com/Luciansvon/APK-POS-CatatToko/releases/tag/v0.7.1).
+[Catatan rilis v0.7.1](https://github.com/Luciansvon/APK-POS-CatatToko/releases/tag/v0.7.1) · [Semua release](https://github.com/Luciansvon/APK-POS-CatatToko/releases)
 
-> **Penting untuk pengguna v0.6.0:** v0.7.1 memakai certificate produksi yang sama dengan v0.7.0, sedangkan v0.6.0 memakai debug certificate. Buat dan bagikan backup ke luar HP terlebih dahulu, uninstall v0.6.0, install v0.7.1, lalu restore backup. Pengguna v0.7.0 dapat memperbarui aplikasi langsung.
+> **Update dari v0.7.0:** dapat dipasang langsung karena memakai certificate produksi yang sama.
+>
+> **Update dari v0.6.0:** buat dan bagikan backup ke luar HP terlebih dahulu, uninstall v0.6.0, install v0.7.1, lalu restore backup. v0.6.0 memakai debug certificate yang berbeda sehingga Android tidak menerima update langsung.
 
-Aplikasi selalu mulai dalam Mode Kasir/Pekerja. Pada pemasangan pertama, panduan wajib menjelaskan Mode Kasir/Pekerja dan Mode Owner tanpa tombol lewati. Pekerja hanya dapat memakai kasir, melihat stok produk dan total transaksi aktif, serta membuka shift. Owner dapat memakai kasir tanpa membuka shift pekerja. Operasional, keuangan, laporan, profil, backup, restore, impor catatan lama, dan export Excel tetap baru muncul setelah PIN Owner benar.
+## Yang baru di v0.7.1
 
-## Fungsi bersama
+- **Backup terenkripsi** memakai AES-GCM + PBKDF2 dan PIN backup, termasuk perlindungan file serta media/foto produk.
+- **Restore lebih aman** dengan validasi ZIP, path, hash, integritas data, serta kompatibilitas dengan backup versi lama.
+- **Barcode lebih stabil** saat produk, varian, dan satuan diedit; ditambah gate anti-double-scan dan feedback jumlah item di keranjang.
+- **Keamanan Owner diperkuat** melalui hashing PIN, lockout, pembersihan state sensitif, pembatalan proses saat sesi berubah, dan proteksi layar saat Owner terkunci.
+- **Validasi data diperketat** untuk stok, harga tier, kategori, pembayaran, resep, tenaga kerja, serta import histori agar relasi atau nilai tidak valid tidak lolos ke database.
+- **Laporan dan export diperbaiki**, termasuk pemisahan kas/nonkas, state grafik kosong, cache receipt/export, dan format barcode pada Excel.
 
-- kasir, katalog, kategori, produk, varian, keranjang, dan kalkulator;
-- pembayaran Tunai, QRIS, Transfer, serta piutang pada flavor yang mengizinkan;
-- stok berbasis riwayat pergerakan dan penyesuaian wajib alasan;
-- supplier, pembelian, kas, pengeluaran, utang, piutang, dan cicilan;
-- daftar serta detail transaksi;
-- laporan omzet, metode pembayaran, kas, pengeluaran, utang, dan piutang;
-- satu PIN Owner offline yang disimpan sebagai hash;
-- pekerja harian, freelancer/panggilan, kehadiran, pekerjaan, dan pembayaran;
+## Fitur utama
+
+### Kasir & transaksi
+
+- katalog, kategori, produk, varian, keranjang, dan kalkulator;
+- pembayaran **Tunai, QRIS, Transfer**, serta piutang pada flavor yang mendukung;
+- daftar dan detail transaksi;
+- struk transaksi dan berbagi sebagai PNG;
+- mode Kasir/Pekerja sebagai mode awal aplikasi;
+- Owner tetap dapat memakai kasir tanpa membuka shift pekerja.
+
+### Stok & operasional
+
+- stok berbasis riwayat pergerakan;
+- penyesuaian stok wajib alasan;
+- supplier dan pembelian;
+- kas, pengeluaran, utang, piutang, dan cicilan;
+- pekerja harian, freelancer/panggilan, kehadiran, pekerjaan, dan pembayaran.
+
+### Barcode offline
+
+Tersedia pada **Retail** dan **Grosir** tanpa koneksi internet:
+
+- EAN-13;
+- EAN-8;
+- UPC-A;
+- UPC-E;
+- Code 128;
+- mapping ke produk, varian, dan satuan;
+- scan-to-fill untuk pendaftaran barcode;
+- fallback input manual jika izin kamera tidak tersedia.
+
+Kuliner menyembunyikan fitur barcode pada versi saat ini.
+
+### Import catatan lama
+
+Owner dapat mengimpor histori dari JSON hasil pembacaan AI eksternal tanpa menaruh API key atau model AI di dalam APK.
+
+- schema `catattoko.history-import.v1`;
+- validasi isi sebelum import;
+- review per record;
+- status data siap, perlu dicek, tidak diterapkan, atau duplikat;
+- deteksi file dan record ganda;
+- tanggal transaksi lama tetap dipertahankan;
+- import tidak membuka shift dan tidak mengubah stok aktif secara sembarangan.
+
+### Backup & restore
+
+- backup lokal berversi;
+- backup terenkripsi AES-GCM + PBKDF2;
+- PIN khusus backup;
+- validasi integritas, ZIP, path, dan hash;
+- media/foto produk ikut dilindungi;
+- berbagi file backup ke luar HP;
+- restore aman dan tetap mendukung backup lama yang kompatibel.
+
+### Laporan & export
+
+- omzet;
+- metode pembayaran;
+- kas dan pengeluaran;
+- utang dan piutang;
+- export `.xlsx` offline;
+- sheet `Info Export`, `Ringkasan`, data operasional, dan `Barcode Produk` bila tersedia;
+- lebar kolom otomatis agar hasil export lebih mudah dibaca.
+
+### Keamanan Owner
+
+Operasional sensitif hanya tersedia setelah PIN Owner benar, termasuk:
+
+- keuangan dan laporan;
 - profil usaha;
-- backup lokal berversi, pemeriksaan integritas, berbagi file, dan restore aman;
-- impor histori dari JSON hasil AI eksternal dengan validasi, review Owner, dan deteksi duplikat tanpa API key di APK;
-- export `.xlsx` offline terstruktur dengan `Info Export`, `Ringkasan`, tabel operasional, dan lebar kolom otomatis untuk dibagikan Owner;
-- struk dan berbagi PNG.
-- barcode offline Retail/Grosir dengan mapping produk, varian, dan satuan; Kuliner menyembunyikannya pada V1.
+- backup dan restore;
+- import catatan lama;
+- export Excel;
+- pengelolaan data master dan fungsi Owner lain.
 
-## Fungsi khusus APK
+PIN Owner disimpan sebagai hash dan v0.7.1 memperkuat lockout serta lifecycle state sensitif.
 
-| APK | Fungsi khusus |
+## Perbedaan tiap APK
+
+| APK | Fitur khusus |
 |---|---|
-| Retail dan UMKM | pelanggan, penjualan piutang, dan barcode offline |
-| Grosir dan Agen | multi-satuan pcs/pak/dus, konversi stok, harga bertingkat, pelanggan, piutang, dan barcode per satuan/varian |
-| Kuliner dan PKL | topping, catatan item, antrean/status pesanan, resep sederhana, pengurangan bahan |
+| **Retail & UMKM** | pelanggan, penjualan piutang, barcode offline |
+| **Grosir & Agen** | multi-satuan pcs/pak/dus, konversi stok, harga bertingkat, pelanggan, piutang, barcode per satuan/varian |
+| **Kuliner & PKL** | topping, catatan item, antrean/status pesanan, resep sederhana, pengurangan bahan |
 
-Cloud, pajak otomatis, HPP/laba, BPJS, payroll formal, printer, marketplace, payment gateway, serta sinkronisasi multi-device belum termasuk rilis ini.
+## Belum termasuk
+
+Cloud, pajak otomatis, HPP/laba, BPJS, payroll formal, printer thermal, marketplace, payment gateway, sinkronisasi multi-device, dan QR barcode belum termasuk rilis v0.7.1.
 
 ## Build dan test
 
-Gunakan JDK 17 atau lebih baru. Pull request diverifikasi otomatis melalui
-`.github/workflows/android-ci.yml` untuk seluruh flavor.
+Gunakan **JDK 17 atau lebih baru**. Pull request diverifikasi otomatis melalui `.github/workflows/android-ci.yml` untuk seluruh flavor.
 
 ```powershell
 .\gradlew.bat testRetailDebugUnitTest testWholesaleDebugUnitTest testCulinaryDebugUnitTest
@@ -61,8 +133,7 @@ Gunakan JDK 17 atau lebih baru. Pull request diverifikasi otomatis melalui
 .\gradlew.bat lintRetailDebug lintWholesaleDebug lintCulinaryDebug
 ```
 
-Perintah unit test di atas tidak menjalankan test pada `app/src/androidTest`.
-Test instrumentasi harus dijalankan pada emulator/perangkat untuk masing-masing flavor.
+Perintah unit test di atas tidak menjalankan test pada `app/src/androidTest`. Test instrumentasi harus dijalankan pada emulator/perangkat untuk masing-masing flavor.
 
 Setelah seluruh verifikasi lulus:
 
@@ -79,23 +150,21 @@ dist/debug/CatatToko-Kuliner.apk
 ```
 
 APK produksi memakai gate terpisah dan tidak boleh diambil dari `dist/debug`.
-Isi secret `CATATTOKO_RELEASE_STORE_FILE`, `CATATTOKO_RELEASE_STORE_PASSWORD`,
-`CATATTOKO_RELEASE_KEY_ALIAS`, dan `CATATTOKO_RELEASE_KEY_PASSWORD`, lalu jalankan:
+Isi secret `CATATTOKO_RELEASE_STORE_FILE`, `CATATTOKO_RELEASE_STORE_PASSWORD`, `CATATTOKO_RELEASE_KEY_ALIAS`, dan `CATATTOKO_RELEASE_KEY_PASSWORD`, lalu jalankan:
 
 ```powershell
 .\gradlew.bat verifyReleaseSigningReady assembleRelease
 .\scripts\package-release-apks.ps1
 ```
 
-Script produksi menolak APK unsigned dan debug certificate sebelum menyalin hasil ke
-`dist/release/`. Workflow manual `.github/workflows/android-release.yml` memakai gate yang sama.
+Script produksi menolak APK unsigned dan debug certificate sebelum menyalin hasil ke `dist/release/`. Workflow manual `.github/workflows/android-release.yml` memakai gate yang sama.
 
 ## Dokumentasi
 
-- `docs/superpowers/specs/2026-07-30-offline-operations-suite-design.md`: spesifikasi rilis fitur.
-- `docs/ARCHITECTURE.md`: arsitektur dan batas sistem.
-- `docs/WORKLOG.md`: pekerjaan serta bukti verifikasi.
-- `docs/ERROR_SOLUTIONS.md`: gejala, root cause, solusi, dan bukti bugfix.
-- `docs/RELEASE_NOTES.md`: riwayat versi APK.
-- `docs/UI_UX_REQUIREMENTS.md`: backlog desain visual yang sengaja ditunda.
-- `docs/MUMU_TESTING_GUIDE.md`: flow standar MuMu dua device, Owner test, screenshot binary-safe, dan audit vision.
+- `docs/superpowers/specs/2026-07-30-offline-operations-suite-design.md` — spesifikasi rilis fitur;
+- `docs/ARCHITECTURE.md` — arsitektur dan batas sistem;
+- `docs/WORKLOG.md` — pekerjaan serta bukti verifikasi;
+- `docs/ERROR_SOLUTIONS.md` — gejala, root cause, solusi, dan bukti bugfix;
+- `docs/RELEASE_NOTES.md` — riwayat versi APK;
+- `docs/UI_UX_REQUIREMENTS.md` — backlog desain visual yang sengaja ditunda;
+- `docs/MUMU_TESTING_GUIDE.md` — flow standar MuMu dua device, Owner test, screenshot binary-safe, dan audit vision.
