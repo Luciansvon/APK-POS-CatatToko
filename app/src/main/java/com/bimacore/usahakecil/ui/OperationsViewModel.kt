@@ -26,6 +26,7 @@ import com.bimacore.usahakecil.data.ReportChartGranularity
 import com.bimacore.usahakecil.data.ReportChartMode
 import com.bimacore.usahakecil.data.ReportPeriod
 import com.bimacore.usahakecil.data.ReportProductMeasure
+import com.bimacore.usahakecil.data.ReportLockedException
 import com.bimacore.usahakecil.data.ReportRepository
 import com.bimacore.usahakecil.data.ReportSummary
 import com.bimacore.usahakecil.data.ReportTrendReport
@@ -183,7 +184,7 @@ class OperationsViewModel(
     val reportPeriod = _reportPeriod.asStateFlow()
     private val _reportChartMode = MutableStateFlow(ReportChartMode.CASH_FLOW)
     val reportChartMode = _reportChartMode.asStateFlow()
-    private val _reportChartGranularity = MutableStateFlow(ReportChartGranularity.DAILY)
+    private val _reportChartGranularity = MutableStateFlow(ReportChartGranularity.HOURLY)
     val reportChartGranularity = _reportChartGranularity.asStateFlow()
     private val _reportProductMeasure = MutableStateFlow(ReportProductMeasure.SALES)
     val reportProductMeasure = _reportProductMeasure.asStateFlow()
@@ -230,6 +231,11 @@ class OperationsViewModel(
     init {
         refreshPinState()
         refreshShiftSummary()
+        viewModelScope.launch {
+            application.reportSession.unlocked.collect { unlocked ->
+                if (!unlocked) clearOwnerSensitiveState()
+            }
+        }
     }
 
     fun consumeMessage() {
@@ -552,7 +558,7 @@ class OperationsViewModel(
         loadReport()
         val pendingUri = _pendingRestoreUri.value
         if (pendingUri != null) {
-            _backupPreview.value = backups.preview(pendingUri)
+            _backupPreview.value = backups.preview(pendingUri, pin)
             _pendingRestoreUri.value = null
             _message.value = "Salinan valid. Periksa identitas sebelum memulihkan data."
         } else if (_pendingHistoryImportUri.value != null) {
@@ -562,6 +568,8 @@ class OperationsViewModel(
                 _historyImportState.value = HistoryImportUiState.Review(historyImports.inspectUri(importUri))
                 _pendingHistoryImportUri.value = null
                 _message.value = "File terbaca. Periksa catatan sebelum dimasukkan."
+            } catch (error: CancellationException) {
+                throw error
             } catch (error: Exception) {
                 _historyImportState.value = HistoryImportUiState.Error(
                     error.message ?: "File catatan lama gagal diperiksa",
@@ -576,11 +584,18 @@ class OperationsViewModel(
 
     fun lockReport() {
         reports.lock()
+        clearOwnerSensitiveState()
+        _message.value = "Mode Owner dikunci"
+    }
+
+    private fun clearOwnerSensitiveState() {
+        reportJob?.cancel()
+        reportJob = null
         _reportSummary.value = null
         _previousReportSummary.value = null
         _reportPeriod.value = ReportPeriod.DAY
         _reportChartMode.value = ReportChartMode.CASH_FLOW
-        _reportChartGranularity.value = ReportChartGranularity.DAILY
+        _reportChartGranularity.value = ReportChartGranularity.HOURLY
         _reportProductMeasure.value = ReportProductMeasure.SALES
         _selectedReportProductId.value = null
         _reportTrend.value = null
@@ -590,7 +605,11 @@ class OperationsViewModel(
         _excelError.value = null
         _forecastReport.value = null
         _forecastError.value = null
-        _message.value = "Mode Owner dikunci"
+        _backupUri.value = null
+        _backupPreview.value = null
+        _saleDetail.value = null
+        _shiftSummary.value = null
+        _historyImportState.value = HistoryImportUiState.Empty
     }
 
     fun changeReportPin(
@@ -609,8 +628,8 @@ class OperationsViewModel(
         _reportPeriod.value = period
         _reportChartGranularity.value = when (period) {
             ReportPeriod.DAY,
-            ReportPeriod.WEEK,
-            -> ReportChartGranularity.DAILY
+            -> ReportChartGranularity.HOURLY
+            ReportPeriod.WEEK -> ReportChartGranularity.DAILY
             ReportPeriod.MONTH -> ReportChartGranularity.WEEKLY
             ReportPeriod.YEAR -> ReportChartGranularity.MONTHLY
         }
@@ -657,8 +676,9 @@ class OperationsViewModel(
         reports.session.beginExternalOwnerFlow()
     }
 
-    fun finishRestoreFileSelection(uri: Uri?) {
+    fun finishRestoreFileSelection(uri: Uri?, errorMessage: String? = null) {
         reports.session.endExternalOwnerFlow()
+        errorMessage?.let { _message.value = it }
         if (uri == null) {
             _pendingRestoreUri.value = null
             return
@@ -675,8 +695,9 @@ class OperationsViewModel(
         reports.session.beginExternalOwnerFlow()
     }
 
-    fun finishHistoryImportFileSelection(uri: Uri?) {
+    fun finishHistoryImportFileSelection(uri: Uri?, errorMessage: String? = null) {
         reports.session.endExternalOwnerFlow()
+        errorMessage?.let { _message.value = it }
         if (uri == null) {
             _pendingHistoryImportUri.value = null
             return
@@ -715,6 +736,8 @@ class OperationsViewModel(
                     )
                     _message.value = "Catatan lama berhasil dimasukkan"
                 }
+            } catch (error: CancellationException) {
+                throw error
             } catch (error: Exception) {
                 _historyImportState.value = HistoryImportUiState.Error(
                     error.message ?: "Catatan lama gagal dimasukkan",
@@ -731,9 +754,15 @@ class OperationsViewModel(
         _pendingHistoryImportUri.value = null
     }
 
-    fun createBackup() = execute("Salinan data siap dibagikan") {
+    fun createBackup(pin: String) = execute("Salinan data terenkripsi siap dibagikan") {
         reports.session.requireOwner()
-        _backupUri.value = backups.createBackup()
+        require(reports.verifyCurrentPin(pin)) { "PIN Owner salah" }
+        _backupUri.value = backups.createBackup(pin)
+    }
+
+    fun saveBackupCopy(destinationUri: Uri) = execute("Salinan tersimpan di lokasi pilihan") {
+        val sourceUri = requireNotNull(_backupUri.value) { "Buat salinan data dulu" }
+        backups.saveCopy(sourceUri, destinationUri)
     }
 
     fun createExcelExport(mode: ExcelExportMode) {
@@ -790,12 +819,18 @@ class OperationsViewModel(
 
     private fun refreshPinState() {
         viewModelScope.launch {
-            application.databaseOperations.withOperation {
-                val hasPin = reports.hasPin()
-                _reportHasPin.value = hasPin
-                if (hasPin && reports.session.isUnlocked) {
-                    loadReport()
+            try {
+                application.databaseOperations.withOperation {
+                    val hasPin = reports.hasPin()
+                    _reportHasPin.value = hasPin
+                    if (hasPin && reports.session.isUnlocked) {
+                        loadReport()
+                    }
                 }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: ReportLockedException) {
+                clearOwnerSensitiveState()
             }
         }
     }
@@ -815,6 +850,8 @@ class OperationsViewModel(
         _forecastError.value = null
         try {
             _forecastReport.value = reports.readProductForecasts(toInclusive = now)
+        } catch (error: CancellationException) {
+            throw error
         } catch (_: Exception) {
             _forecastReport.value = null
             _forecastError.value = "Prediksi belum dapat dimuat sekarang"
@@ -832,6 +869,8 @@ class OperationsViewModel(
                 now = range.last,
                 fromInclusive = range.first,
             )
+        } catch (error: CancellationException) {
+            throw error
         } catch (_: Exception) {
             _reportTrend.value = null
             _reportTrendError.value = "Grafik belum dapat dimuat sekarang"
@@ -881,6 +920,8 @@ class OperationsViewModel(
                 application.databaseOperations.withOperation { action() }
                 afterSuccess?.invoke()
                 if (successMessage != null) _message.value = successMessage
+            } catch (error: CancellationException) {
+                throw error
             } catch (error: Exception) {
                 _message.value = error.message ?: "Data gagal disimpan"
             } finally {
@@ -904,6 +945,8 @@ class OperationsViewModel(
                     reports.session.requireOwner()
                     _historyImportState.value = HistoryImportUiState.Review(load())
                 }
+            } catch (error: CancellationException) {
+                throw error
             } catch (error: Exception) {
                 _historyImportState.value = HistoryImportUiState.Error(
                     error.message ?: "Catatan lama gagal diperiksa",

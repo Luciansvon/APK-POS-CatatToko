@@ -7,6 +7,9 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
+import android.view.WindowManager
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -26,6 +29,17 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         val posApplication = application as PosApplication
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                posApplication.reportSession.unlocked.collect { unlocked ->
+                    if (unlocked) {
+                        window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                    } else {
+                        window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                    }
+                }
+            }
+        }
         val guidePreferences = getSharedPreferences(
             FirstRunGuidePreferences.FILE_NAME,
             MODE_PRIVATE,
@@ -86,8 +100,4 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onStop() {
-        super.onStop()
-        (application as PosApplication).reportSession.lock()
-    }
 }

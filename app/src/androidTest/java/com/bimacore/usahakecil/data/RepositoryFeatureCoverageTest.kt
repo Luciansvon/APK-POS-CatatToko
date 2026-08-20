@@ -73,6 +73,15 @@ class RepositoryFeatureCoverageTest {
         )
 
         operations.openShift("Kasir tetap boleh", 0, "")
+        database.cartDao().upsertLine(
+            CartLineEntity(
+                id = "baris-kasir",
+                productId = 1,
+                variantId = null,
+                quantity = 1,
+                updatedAt = 1,
+            ),
+        )
         culinary.setCartLineNote("baris-kasir", "tanpa sambal")
         assertTrue(operations.hasOpenShift.first())
         assertEquals("Kasir tetap boleh", database.shiftDao().getOpenShift()?.cashierName)

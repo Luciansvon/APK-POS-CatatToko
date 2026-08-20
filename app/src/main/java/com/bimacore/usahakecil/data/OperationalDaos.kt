@@ -162,6 +162,18 @@ interface WorkforceDao {
     @Update
     suspend fun updateEmployee(employee: EmployeeEntity)
 
+    @Query("SELECT COUNT(*) FROM wage_rates WHERE employeeId = :employeeId")
+    suspend fun rateCount(employeeId: Long): Int
+
+    @Query("SELECT COUNT(*) FROM attendance_records WHERE employeeId = :employeeId")
+    suspend fun attendanceCount(employeeId: Long): Int
+
+    @Query("SELECT COUNT(*) FROM freelance_jobs WHERE employeeId = :employeeId")
+    suspend fun freelanceJobCount(employeeId: Long): Int
+
+    @Query("SELECT COUNT(*) FROM worker_payments WHERE employeeId = :employeeId")
+    suspend fun workerPaymentCount(employeeId: Long): Int
+
     @Query("SELECT * FROM wage_rates WHERE employeeId = :employeeId ORDER BY effectiveAt DESC")
     fun observeRates(employeeId: Long): Flow<List<WageRateEntity>>
 
@@ -295,6 +307,7 @@ data class PaymentAggregate(
 
 data class CashAggregate(
     val type: String,
+    val paymentMethod: String,
     val total: Long,
 )
 
@@ -318,6 +331,7 @@ data class ProductTrendRow(
 data class CashTrendRow(
     val createdAt: Long,
     val type: String,
+    val paymentMethod: String,
     val amount: Long,
 )
 
@@ -379,10 +393,10 @@ interface ReportDao {
 
     @Query(
         """
-        SELECT type, COALESCE(SUM(amount), 0) AS total
+        SELECT type, paymentMethod, COALESCE(SUM(amount), 0) AS total
         FROM cash_entries
         WHERE createdAt BETWEEN :fromInclusive AND :toInclusive
-        GROUP BY type
+        GROUP BY type, paymentMethod
         """,
     )
     suspend fun cashSummary(
@@ -429,7 +443,7 @@ interface ReportDao {
 
     @Query(
         """
-        SELECT createdAt, type, amount
+        SELECT createdAt, type, paymentMethod, amount
         FROM cash_entries
         WHERE createdAt BETWEEN :fromInclusive AND :toInclusive
         ORDER BY createdAt, id

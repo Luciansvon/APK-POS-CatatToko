@@ -144,11 +144,23 @@ class PosRepository(
             categories = catalog.categories.filter { it.isActive }.map {
                 Category(it.id, it.name, it.iconKey)
             },
-            products = catalog.products.filter { it.isActive }.map { it.toDomain() },
-            variants = catalog.variants.filter { it.isActive }.map { it.toDomain() },
+            products = catalog.products
+                .filter { it.isActive && categoryMap[it.categoryId]?.isActive == true }
+                .map { it.toDomain() },
+            variants = catalog.variants
+                .filter { it.isActive && productMap[it.productId]?.isActive == true }
+                .map { it.toDomain() },
             cartItems = cart.lines.mapNotNull { line ->
                 val product = productMap[line.productId] ?: return@mapNotNull null
+                if (!product.isActive || categoryMap[product.categoryId]?.isActive != true) {
+                    return@mapNotNull null
+                }
                 val variant = line.variantId?.let(variantMap::get)
+                if (line.variantId != null &&
+                    (variant == null || !variant.isActive || variant.productId != product.id)
+                ) {
+                    return@mapNotNull null
+                }
                 val category = categoryMap[product.categoryId]
                 val parsed = parseLineId(line.id)
                 val unit = parsed.unitId?.let(unitMap::get)
@@ -159,7 +171,11 @@ class PosRepository(
                 val applicableTier = tiersByProduct[product.id]
                     .orEmpty()
                     .filter { combinedBaseQuantity >= it.minimumBaseQuantity }
-                    .maxByOrNull { it.minimumBaseQuantity }
+                    .maxWithOrNull(
+                        compareBy<PriceTierEntity> {
+                            it.minimumBaseQuantity
+                        }.thenBy { it.updatedAt }.thenBy { it.id },
+                    )
                 val selectedUnitPrice = if (applicableTier != null) {
                     MoneyMath.multiply(applicableTier.unitPrice, factor)
                 } else {
@@ -258,7 +274,7 @@ class PosRepository(
             require(businessType == BusinessType.CULINARY) {
                 "Catatan dan topping hanya tersedia di APK Kuliner"
             }
-            requireNotNull(cartDao.getLine(lineId)) { "Item keranjang tidak tersedia" }
+            val line = requireNotNull(cartDao.getLine(lineId)) { "Item keranjang tidak tersedia" }
             culinaryDao.saveCartLineNote(
                 CartLineNoteEntity(lineId = lineId, note = note.trim(), updatedAt = clock()),
             )
@@ -271,6 +287,7 @@ class PosRepository(
                         "Topping tidak tersedia"
                     }
                     require(topping.isActive) { "Topping sudah tidak aktif" }
+                    require(topping.productId == line.productId) { "Topping tidak sesuai menu" }
                     culinaryDao.saveCartLineTopping(
                         CartLineToppingEntity(
                             lineId = lineId,
@@ -296,6 +313,9 @@ class PosRepository(
             val product = catalogDao.getProduct(productId)
                 ?: return@withTransaction AddToCartResult.OutOfStock
             if (!product.isActive) {
+                return@withTransaction AddToCartResult.OutOfStock
+            }
+            if (catalogDao.getCategory(product.categoryId)?.isActive != true) {
                 return@withTransaction AddToCartResult.OutOfStock
             }
             if (product.hasVariants && variantId == null) {
@@ -345,6 +365,10 @@ class PosRepository(
             touchDraft()
             AddToCartResult.Added
         }
+    }
+
+    suspend fun cartQuantity(): Int = databaseOperations.withOperation {
+        cartDao.getTotalQuantity()
     }
 
     suspend fun setQuantity(lineId: String, quantity: Int): Boolean =
@@ -416,6 +440,9 @@ class PosRepository(
                             "Produk sudah tidak tersedia"
                         }
                         require(product.isActive) { "Produk ${product.name} sudah tidak aktif" }
+                        require(catalogDao.getCategory(product.categoryId)?.isActive == true) {
+                            "Kategori produk ${product.name} sudah tidak aktif"
+                        }
                         val variant = line.variantId?.let {
                             requireNotNull(catalogDao.getVariant(it)) {
                                 "Varian sudah tidak tersedia"
@@ -544,6 +571,7 @@ class PosRepository(
                         val product = requireNotNull(catalogDao.getProduct(productId)) {
                             "Bahan resep sudah tidak tersedia"
                         }
+                        require(product.isActive) { "Bahan resep ${product.name} sudah tidak aktif" }
                         require(!product.hasVariants) {
                             "Bahan resep ${product.name} memakai varian dan harus diperbaiki Owner"
                         }

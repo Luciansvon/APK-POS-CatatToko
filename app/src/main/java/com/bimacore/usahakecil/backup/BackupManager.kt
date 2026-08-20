@@ -2,12 +2,16 @@ package com.bimacore.usahakecil.backup
 
 import android.content.Context
 import android.net.Uri
+import androidx.room.withTransaction
 import androidx.core.content.FileProvider
 import com.bimacore.usahakecil.data.DatabaseOperationCoordinator
 import com.bimacore.usahakecil.data.PosDatabase
 import com.bimacore.usahakecil.security.ReportSession
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
+import java.util.zip.ZipException
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
@@ -17,6 +21,7 @@ import kotlinx.coroutines.withContext
 data class BackupPreview(
     val manifest: BackupManifest,
     val sourceUri: Uri,
+    internal val decryptionPin: String? = null,
 )
 
 class BackupManager(
@@ -29,62 +34,82 @@ class BackupManager(
     private val clock: () -> Long = System::currentTimeMillis,
     private val databaseName: String = DEFAULT_DATABASE_NAME,
 ) {
-    suspend fun createBackup(): Uri = databaseOperations.withOperation {
+    suspend fun createBackup(pin: String): Uri = databaseOperations.withOperation {
         ownerSession.requireOwner()
+        BackupCrypto.validatePin(pin)
         withContext(Dispatchers.IO) {
-        val database = currentDatabase()
-        val profile = requireNotNull(database.profileDao().getProfile()) {
-            "Profil usaha belum tersedia"
-        }
-        checkpoint(database)
-        val source = context.getDatabasePath(databaseName)
-        require(source.exists()) { "Database aktif tidak ditemukan" }
-        val bytes = source.readBytes()
-        val manifest = BackupManifest.create(
-            businessUid = profile.businessUid,
-            businessName = profile.businessName,
-            businessType = profile.businessType,
-            createdAt = clock(),
-            schemaVersion = DATABASE_SCHEMA_VERSION,
-            databaseBytes = bytes,
-        )
-        val directory = File(context.cacheDir, BACKUP_DIRECTORY).apply { mkdirs() }
-        val output = File(directory, "CatatToko-${manifest.createdAt}.ukbackup.zip")
-        writePackage(output, manifest, bytes)
-        FileProvider.getUriForFile(
-            context,
-            "${context.packageName}.fileprovider",
-            output,
-        )
+            val database = currentDatabase()
+            val profile = requireNotNull(database.profileDao().getProfile()) {
+                "Profil usaha belum tersedia"
+            }
+            checkpoint(database)
+            val source = context.getDatabasePath(databaseName)
+            require(source.exists()) { "Database aktif tidak ditemukan" }
+            val bytes = source.readBytes()
+            val mediaBytes = createMediaArchive(database)
+            val payload = createPayload(bytes, mediaBytes)
+            require(payload.size.toLong() <= MAX_PAYLOAD_SIZE_BYTES) {
+                "Data pada salinan terlalu besar"
+            }
+            val parameters = BackupCrypto.newParameters()
+            val manifest = BackupManifest.create(
+                businessUid = profile.businessUid,
+                businessName = profile.businessName,
+                businessType = profile.businessType,
+                createdAt = clock(),
+                schemaVersion = DATABASE_SCHEMA_VERSION,
+                databaseBytes = bytes,
+                mediaBytes = mediaBytes,
+                formatVersion = BackupManifest.ENCRYPTED_FORMAT_VERSION,
+                payloadSize = payload.size,
+                payloadSha256 = BackupManifest.sha256(payload),
+                encryptionSaltBase64 = BackupCrypto.encode(parameters.salt),
+                encryptionNonceBase64 = BackupCrypto.encode(parameters.nonce),
+            )
+            val encryptedPayload = BackupCrypto.encrypt(
+                payload = payload,
+                pin = pin,
+                parameters = parameters,
+                associatedData = manifest.serialize().toByteArray(Charsets.UTF_8),
+            )
+            val directory = File(context.cacheDir, BACKUP_DIRECTORY).apply { mkdirs() }
+            cleanupGeneratedFiles(directory, "CatatToko-", MAX_BACKUPS_TO_KEEP)
+            val output = File(directory, "CatatToko-${manifest.createdAt}.ukbackup.zip")
+            writePackage(output, manifest, encryptedPayload)
+            FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                output,
+            )
         }
     }
 
-    suspend fun preview(uri: Uri): BackupPreview = databaseOperations.withOperation {
+    suspend fun preview(uri: Uri, pin: String? = null): BackupPreview = databaseOperations.withOperation {
         ownerSession.requireOwner()
         withContext(Dispatchers.IO) {
-        val packageData = readPackage(uri)
-        require(packageData.manifest.verify(packageData.databaseBytes)) {
-            "Berkas salinan rusak atau sudah berubah"
-        }
-        require(packageData.manifest.schemaVersion <= DATABASE_SCHEMA_VERSION) {
-            "Versi salinan lebih baru dari aplikasi"
-        }
-        val profile = currentDatabase().profileDao().getProfile()
-        if (profile != null) {
-            require(packageData.manifest.businessType == profile.businessType) {
-                "Salinan dari jenis usaha ${packageData.manifest.businessType} tidak dapat dipasang pada aplikasi ${profile.businessType}"
+            val packageData = readPackage(uri, pin)
+            require(packageData.manifest.verify(packageData.databaseBytes, packageData.mediaBytes)) {
+                "Berkas salinan rusak atau sudah berubah"
             }
-        }
-        BackupPreview(packageData.manifest, uri)
+            require(packageData.manifest.schemaVersion <= DATABASE_SCHEMA_VERSION) {
+                "Versi salinan lebih baru dari aplikasi"
+            }
+            val profile = currentDatabase().profileDao().getProfile()
+            if (profile != null) {
+                require(packageData.manifest.businessType == profile.businessType) {
+                    "Salinan dari jenis usaha ${packageData.manifest.businessType} tidak dapat dipasang pada aplikasi ${profile.businessType}"
+                }
+            }
+            BackupPreview(packageData.manifest, uri, pin)
         }
     }
 
     suspend fun restore(preview: BackupPreview) = databaseOperations.withOperation {
         ownerSession.requireOwner()
         withContext(Dispatchers.IO) {
-        val incoming = readPackage(preview.sourceUri)
+        val incoming = readPackage(preview.sourceUri, preview.decryptionPin)
         require(incoming.manifest == preview.manifest) { "Keterangan salinan berubah" }
-        require(incoming.manifest.verify(incoming.databaseBytes)) {
+        require(incoming.manifest.verify(incoming.databaseBytes, incoming.mediaBytes)) {
             "Berkas salinan rusak atau sudah berubah"
         }
         val profile = currentDatabase().profileDao().getProfile()
@@ -95,6 +120,7 @@ class BackupManager(
         }
         val active = context.getDatabasePath(databaseName)
         val safetyDir = File(context.cacheDir, BACKUP_DIRECTORY).apply { mkdirs() }
+        cleanupGeneratedFiles(safetyDir, "sebelum-restore-", MAX_SAFETY_DATABASES_TO_KEEP)
         val safety = File(safetyDir, "sebelum-restore-${clock()}.db")
 
         val currentSecurity = currentDatabase().securityDao().getReportSecurity()
@@ -128,6 +154,7 @@ class BackupManager(
                     "Profil usaha hasil pemulihan tidak sesuai dengan aplikasi"
                 }
             }
+            restoreMedia(reopened, incoming.mediaBytes)
         } catch (error: Exception) {
             closeDatabase()
             clearSidecars(active)
@@ -141,18 +168,126 @@ class BackupManager(
         }
     }
 
+    suspend fun saveCopy(sourceUri: Uri, destinationUri: Uri) = databaseOperations.withOperation {
+        ownerSession.requireOwner()
+        withContext(Dispatchers.IO) {
+            val input = context.contentResolver.openInputStream(sourceUri)
+                ?: throw IllegalArgumentException("Salinan sementara tidak dapat dibuka")
+            val output = context.contentResolver.openOutputStream(destinationUri, "w")
+                ?: throw IllegalArgumentException("Lokasi simpan tidak dapat dibuka")
+            input.use { source ->
+                output.use { target ->
+                    val buffer = ByteArray(8192)
+                    var total = 0L
+                    var read: Int
+                    while (source.read(buffer).also { read = it } != -1) {
+                        total += read
+                        require(total <= MAX_PACKAGE_SIZE_BYTES) {
+                            "Salinan terlalu besar untuk disimpan"
+                        }
+                        target.write(buffer, 0, read)
+                    }
+                    target.flush()
+                }
+            }
+        }
+    }
+
     private fun writePackage(
         output: File,
         manifest: BackupManifest,
-        databaseBytes: ByteArray,
+        encryptedPayload: ByteArray,
     ) {
         ZipOutputStream(FileOutputStream(output)).use { zip ->
             zip.putNextEntry(ZipEntry(MANIFEST_ENTRY))
             zip.write(manifest.serialize().toByteArray(Charsets.UTF_8))
             zip.closeEntry()
+            zip.putNextEntry(ZipEntry(PAYLOAD_ENTRY))
+            zip.write(encryptedPayload)
+            zip.closeEntry()
+        }
+    }
+
+    private fun createPayload(
+        databaseBytes: ByteArray,
+        mediaBytes: ByteArray,
+    ): ByteArray {
+        val output = ByteArrayOutputStream()
+        ZipOutputStream(output).use { zip ->
             zip.putNextEntry(ZipEntry(DATABASE_ENTRY))
             zip.write(databaseBytes)
             zip.closeEntry()
+            zip.putNextEntry(ZipEntry(MEDIA_ENTRY))
+            zip.write(mediaBytes)
+            zip.closeEntry()
+        }
+        return output.toByteArray()
+    }
+
+    private suspend fun createMediaArchive(database: PosDatabase): ByteArray {
+        val products = database.catalogDao().getAllProducts()
+        val images = products.mapNotNull { product ->
+            val value = product.imageUri?.trim().orEmpty()
+            if (value.isBlank()) return@mapNotNull null
+            val bytes = ProductImageStorage.readUri(context, value)
+                ?: throw IllegalArgumentException("Foto produk ${product.name} tidak dapat dibaca untuk backup")
+            ProductMedia(product.id, bytes)
+        }
+        if (images.isEmpty()) return ByteArray(0)
+        val output = ByteArrayOutputStream()
+        java.util.zip.ZipOutputStream(output).use { zip ->
+            images.forEach { image ->
+                zip.putNextEntry(ZipEntry("$MEDIA_DIRECTORY/${image.productId}.img"))
+                zip.write(image.bytes)
+                zip.closeEntry()
+            }
+        }
+        return output.toByteArray().also {
+            require(it.size.toLong() <= MAX_MEDIA_SIZE_BYTES) {
+                "Foto produk pada backup terlalu besar"
+            }
+        }
+    }
+
+    private suspend fun restoreMedia(database: PosDatabase, mediaBytes: ByteArray) {
+        if (mediaBytes.isEmpty()) return
+        val restored = linkedMapOf<Long, String>()
+        try {
+            ZipInputStream(ByteArrayInputStream(mediaBytes).buffered()).use { zip ->
+                var entry = zip.nextEntry
+                while (entry != null) {
+                    require(!entry.isDirectory) { "Media backup berisi folder yang tidak valid" }
+                    val prefix = "$MEDIA_DIRECTORY/"
+                    require(entry.name.startsWith(prefix)) {
+                        "Media backup berisi bagian tidak sah"
+                    }
+                    val productId = entry.name.removePrefix(prefix)
+                        .removeSuffix(".img")
+                        .toLongOrNull()
+                    require(productId != null && productId > 0L) {
+                        "Identitas foto produk pada backup tidak valid"
+                    }
+                    require(restored[productId] == null) { "Foto produk pada backup ganda" }
+                    val bytes = readBytesWithLimit(zip, ProductImageStorage.MAX_IMAGE_BYTES)
+                    restored[productId] = ProductImageStorage.writeRestored(
+                        context,
+                        "product-$productId.img",
+                        bytes,
+                    )
+                    zip.closeEntry()
+                    entry = zip.nextEntry
+                }
+            }
+        } catch (error: ZipException) {
+            throw IllegalArgumentException("Media backup rusak", error)
+        }
+        database.withTransaction {
+            restored.forEach { (productId, imageUri) ->
+                val product = requireNotNull(database.catalogDao().getProduct(productId)) {
+                    "Foto backup mengarah ke produk yang tidak tersedia"
+                }
+                database.catalogDao().updateProduct(product.copy(imageUri = imageUri))
+            }
         }
     }
 
@@ -165,21 +300,29 @@ class BackupManager(
             }
     }
 
-    private fun readPackage(uri: Uri): PackageData {
+    private fun readPackage(uri: Uri, pin: String? = null): PackageData {
         var manifest: BackupManifest? = null
         var databaseBytes: ByteArray? = null
+        var mediaBytes: ByteArray? = null
+        var encryptedPayload: ByteArray? = null
         var entryCount = 0
+        val seenEntries = mutableSetOf<String>()
         val input = context.contentResolver.openInputStream(uri)
             ?: throw IllegalArgumentException("Berkas salinan tidak dapat dibuka")
         ZipInputStream(input.buffered()).use { zip ->
             var entry = zip.nextEntry
             while (entry != null) {
                 entryCount++
-                require(entryCount <= 2) { "Berkas salinan berisi bagian yang tidak valid" }
+                require(entryCount <= 3) { "Berkas salinan berisi bagian yang tidak valid" }
                 val name = entry.name
-                require(name == MANIFEST_ENTRY || name == DATABASE_ENTRY) {
+                require(name == MANIFEST_ENTRY ||
+                    name == DATABASE_ENTRY ||
+                    name == MEDIA_ENTRY ||
+                    name == PAYLOAD_ENTRY
+                ) {
                     "Berkas salinan berisi bagian tidak sah: $name"
                 }
+                require(seenEntries.add(name)) { "Berkas salinan berisi bagian ganda: $name" }
                 when (name) {
                     MANIFEST_ENTRY -> {
                         val bytes = readBytesWithLimit(zip, MAX_MANIFEST_SIZE_BYTES)
@@ -188,14 +331,84 @@ class BackupManager(
                     DATABASE_ENTRY -> {
                         databaseBytes = readBytesWithLimit(zip, MAX_BACKUP_SIZE_BYTES)
                     }
+                    MEDIA_ENTRY -> {
+                        mediaBytes = readBytesWithLimit(zip, MAX_MEDIA_SIZE_BYTES)
+                    }
+                    PAYLOAD_ENTRY -> {
+                        encryptedPayload = readBytesWithLimit(zip, MAX_PAYLOAD_SIZE_BYTES + AES_GCM_TAG_BYTES)
+                    }
+                }
+                zip.closeEntry()
+                entry = zip.nextEntry
+            }
+        }
+        val resolvedManifest = requireNotNull(manifest) { "Keterangan salinan tidak ditemukan" }
+        return if (resolvedManifest.isEncrypted) {
+            require(databaseBytes == null && mediaBytes == null) {
+                "Berkas terenkripsi berisi data mentah"
+            }
+            val encrypted = requireNotNull(encryptedPayload) {
+                "Payload terenkripsi tidak ditemukan"
+            }
+            val suppliedPin = requireNotNull(pin) {
+                "Masukkan PIN Owner untuk membuka salinan"
+            }
+            require(encrypted.size.toLong() <= MAX_PAYLOAD_SIZE_BYTES + AES_GCM_TAG_BYTES) {
+                "Payload terenkripsi terlalu besar"
+            }
+            require(resolvedManifest.payloadSize > 0) {
+                "Ukuran payload terenkripsi tidak valid"
+            }
+            val payload = BackupCrypto.decrypt(
+                payload = encrypted,
+                pin = suppliedPin,
+                saltBase64 = resolvedManifest.encryptionSaltBase64,
+                nonceBase64 = resolvedManifest.encryptionNonceBase64,
+                associatedData = resolvedManifest.serialize().toByteArray(Charsets.UTF_8),
+            )
+            require(payload.size == resolvedManifest.payloadSize) {
+                "Payload terenkripsi berubah"
+            }
+            require(BackupManifest.sha256(payload) == resolvedManifest.payloadSha256) {
+                "Payload terenkripsi berubah"
+            }
+            readPayload(payload, resolvedManifest)
+        } else {
+            PackageData(
+                manifest = resolvedManifest,
+                databaseBytes = requireNotNull(databaseBytes) { "Isi database tidak ditemukan" },
+                mediaBytes = mediaBytes ?: ByteArray(0),
+            )
+        }
+    }
+
+    private fun readPayload(payload: ByteArray, manifest: BackupManifest): PackageData {
+        var databaseBytes: ByteArray? = null
+        var mediaBytes: ByteArray? = null
+        var entryCount = 0
+        val seenEntries = mutableSetOf<String>()
+        ZipInputStream(ByteArrayInputStream(payload).buffered()).use { zip ->
+            var entry = zip.nextEntry
+            while (entry != null) {
+                entryCount++
+                require(entryCount <= 2) { "Payload salinan berisi bagian yang tidak valid" }
+                require(!entry.isDirectory) { "Payload salinan berisi folder yang tidak valid" }
+                require(entry.name == DATABASE_ENTRY || entry.name == MEDIA_ENTRY) {
+                    "Payload salinan berisi bagian tidak sah"
+                }
+                require(seenEntries.add(entry.name)) { "Payload salinan berisi bagian ganda" }
+                when (entry.name) {
+                    DATABASE_ENTRY -> databaseBytes = readBytesWithLimit(zip, MAX_BACKUP_SIZE_BYTES)
+                    MEDIA_ENTRY -> mediaBytes = readBytesWithLimit(zip, MAX_MEDIA_SIZE_BYTES)
                 }
                 zip.closeEntry()
                 entry = zip.nextEntry
             }
         }
         return PackageData(
-            manifest = requireNotNull(manifest) { "Keterangan salinan tidak ditemukan" },
+            manifest = manifest,
             databaseBytes = requireNotNull(databaseBytes) { "Isi database tidak ditemukan" },
+            mediaBytes = mediaBytes ?: ByteArray(0),
         )
     }
 
@@ -237,17 +450,41 @@ class BackupManager(
     private data class PackageData(
         val manifest: BackupManifest,
         val databaseBytes: ByteArray,
+        val mediaBytes: ByteArray,
     )
 
+    private data class ProductMedia(
+        val productId: Long,
+        val bytes: ByteArray,
+    )
+
+    private fun cleanupGeneratedFiles(directory: File, prefix: String, keep: Int) {
+        directory.listFiles()
+            .orEmpty()
+            .filter { it.isFile && it.name.startsWith(prefix) }
+            .sortedByDescending { it.lastModified() }
+            .drop(keep)
+            .forEach(File::delete)
+    }
+
     companion object {
-        const val SENSITIVITY_WARNING = "Salinan data berisi informasi usaha, transaksi, pelanggan, dan pekerja. Bagikan hanya kepada pihak yang dipercaya."
+        const val SENSITIVITY_WARNING = "Salinan data terenkripsi dengan PIN Owner dan berisi informasi usaha, transaksi, pelanggan, serta pekerja. Simpan PIN terpisah dari file dan bagikan hanya kepada pihak yang dipercaya."
         
         private const val DEFAULT_DATABASE_NAME = "usaha-kecil-pos.db"
         private const val DATABASE_SCHEMA_VERSION = 6
         private const val BACKUP_DIRECTORY = "backups"
         private const val MANIFEST_ENTRY = "manifest.txt"
         private const val DATABASE_ENTRY = "database.db"
+        private const val MEDIA_ENTRY = "media.zip"
+        private const val PAYLOAD_ENTRY = "payload.bin"
+        private const val MEDIA_DIRECTORY = "product-images"
         private const val MAX_BACKUP_SIZE_BYTES = 256 * 1024 * 1024L
+        private const val MAX_MEDIA_SIZE_BYTES = 256 * 1024 * 1024L
+        private const val MAX_PAYLOAD_SIZE_BYTES = 512 * 1024 * 1024L
+        private const val AES_GCM_TAG_BYTES = 16L
+        private const val MAX_PACKAGE_SIZE_BYTES = MAX_PAYLOAD_SIZE_BYTES + AES_GCM_TAG_BYTES + 2 * 1024 * 1024L
         private const val MAX_MANIFEST_SIZE_BYTES = 1 * 1024 * 1024L
+        private const val MAX_BACKUPS_TO_KEEP = 5
+        private const val MAX_SAFETY_DATABASES_TO_KEEP = 3
     }
 }

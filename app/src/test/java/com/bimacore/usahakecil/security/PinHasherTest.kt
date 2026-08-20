@@ -25,6 +25,15 @@ class PinHasherTest {
     }
 
     @Test
+    fun `pin verification rejects malformed security records`() {
+        val record = PinHasher.create("246810")
+
+        assertFalse(PinHasher.verify("246810", record.copy(iterations = 99_999)))
+        assertFalse(PinHasher.verify("246810", record.copy(saltBase64 = "AQI=")))
+        assertFalse(PinHasher.verify("246810", record.copy(hashBase64 = "AQI=")))
+    }
+
+    @Test
     fun `report session starts locked and can be locked again`() {
         val session = ReportSession()
 

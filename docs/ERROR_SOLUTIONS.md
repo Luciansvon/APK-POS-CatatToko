@@ -94,7 +94,7 @@ Identitas line kasir memakai kombinasi produk, varian, dan satuan, sedangkan pro
 
 - Unit test, build debug/test APK, lint, dan minified release candidate seluruh flavor lulus.
 - Regression instrumentation mencakup duplicate, target lintas produk, mapping varian+satuan Grosir, Worker terkunci, Kuliner unsupported, migration, backup/restore, dan Excel.
-- Hasil connected test menunggu izin perangkat.
+- Connected Retail, Wholesale, dan Culinary lulus di `emulator-5554` tanpa failure.
 
 ### File terdampak
 
@@ -563,6 +563,212 @@ Test dibuat adaptif: membuka sticky summary bila tersedia, atau langsung memakai
 
 - `app/src/androidTest/java/com/bimacore/usahakecil/MainActivitySmokeTest.kt`
 
+## ERR-063 - Edit produk menghilangkan mapping barcode melalui cascade Room
+
+Tanggal: 2026-08-20
+
+Varian dan versi: Semua flavor; barcode aktif pada Retail dan Wholesale
+
+### Kondisi/gejala
+
+Edit produk atau varian dapat memakai `INSERT OR REPLACE`. Pada Room, replace menghapus row lama lebih dulu; foreign key cascade lalu menghapus mapping barcode yang menempel pada produk tersebut.
+
+### Root cause
+
+DAO memakai strategi replace untuk data master yang mempunyai child barcode, dan repository tidak membedakan insert baru dengan update data lama.
+
+### Solusi
+
+Repository sekarang memakai `@Update` untuk ID yang sudah ada dan menolak ID yang tidak ditemukan. Transisi produk ke model varian juga menolak stok parent yang masih ada agar stok tidak hilang diam-diam.
+
+### Perlindungan regresi
+
+`editing_product_and_variant_keeps_all_barcode_mappings` memeriksa mapping produk dasar, varian, dan satuan tetap ada setelah edit.
+
+### Bukti verifikasi aktual
+
+- `editing_product_and_variant_keeps_all_barcode_mappings` lulus pada connected Retail.
+- `testRetailDebugUnitTest testWholesaleDebugUnitTest testCulinaryDebugUnitTest` lulus.
+- `assembleDebug assembleRetailDebugAndroidTest assembleWholesaleDebugAndroidTest assembleCulinaryDebugAndroidTest` lulus.
+- Connected Retail, Wholesale, dan Culinary lulus di `emulator-5554`; tidak ada failure.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/data/InventoryRepository.kt`
+- `app/src/main/java/com/bimacore/usahakecil/data/Daos.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/data/BarcodeRepositoryTest.kt`
+
+## ERR-064 - Backup sensitif tersimpan sebagai ZIP mentah dan hanya berada di cache
+
+Tanggal: 2026-08-20
+
+Varian dan versi: Semua flavor
+
+### Kondisi/gejala
+
+Backup lama berisi database dan foto secara langsung di ZIP. File hasil pembuatan juga hanya berada di cache aplikasi, sehingga dapat hilang saat cache dibersihkan dan user tidak mendapat jalur `Simpan ke HP`.
+
+### Root cause
+
+Format backup belum mempunyai lapisan enkripsi portable. Alur UI hanya menyediakan share tanpa menyimpan salinan ke lokasi yang dipilih user.
+
+### Solusi
+
+Backup baru memakai format v3: payload database/media dibungkus lalu dienkripsi AES-GCM dengan kunci turunan PBKDF2 dari PIN Owner, dan metadata manifest diikat sebagai associated data. Backup format v1/v2 tetap dapat dibaca. UI meminta PIN Owner, menampilkan status sementara, dan menyediakan `Simpan ke HP / Download` selain `Bagikan`.
+
+### Perlindungan regresi
+
+`BackupCryptoTest` memeriksa PIN salah dan manifest yang diubah ditolak. `BackupRestoreTest` memeriksa backup terenkripsi, preview dengan PIN salah, restore database, barcode, dan foto.
+
+### Bukti verifikasi aktual
+
+- `BackupCryptoTest` lulus pada unit test Retail, Wholesale, dan Culinary.
+- `BackupRestoreTest` lulus dalam connected Retail, termasuk PIN salah, integritas, restore, barcode, dan foto.
+- Full unit, build semua APK debug/test, lint, serta connected tiga flavor lulus di `emulator-5554`.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/backup/BackupCrypto.kt`
+- `app/src/main/java/com/bimacore/usahakecil/backup/BackupManifest.kt`
+- `app/src/main/java/com/bimacore/usahakecil/backup/BackupManager.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/ManagementScreens.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/OperationsViewModel.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/backup/BackupRestoreTest.kt`
+
+## ERR-065 - Mode Owner terkunci ketika Activity masuk background
+
+Tanggal: 2026-08-20
+
+Varian dan versi: Semua flavor
+
+### Kondisi/gejala
+
+Pindah sementara ke aplikasi lain, recent apps, atau mematikan layar memanggil `onStop()` dan memaksa user memasukkan PIN lagi.
+
+### Root cause
+
+`MainActivity.onStop()` menganggap setiap background sebagai perintah mengunci Owner, padahal proses aplikasi belum berakhir dan perilaku auto-lock belum disetujui.
+
+### Solusi
+
+Auto-lock lifecycle dihapus. Mode Owner hanya dikunci melalui aksi `Kunci Mode Owner`/`Keluar Mode Owner`, atau ketika proses aplikasi dibuat ulang sehingga `ReportSession` kembali terkunci.
+
+### Perlindungan regresi
+
+State tetap dipusatkan pada `ReportSession`; alur manual lock pada Home dan More tetap memakai `lockReport()`.
+
+### Bukti verifikasi aktual
+
+- Connected `MainActivitySmokeTest` lulus pada Retail, Wholesale, dan Culinary setelah Owner lock/recreate.
+- Tidak ada auto-lock lifecycle yang tersisa; lock manual tetap diverifikasi lewat alur Owner.
+- Pengujian perpindahan ke aplikasi lain secara visual belum menjadi test terpisah.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/MainActivity.kt`
+- `app/src/main/java/com/bimacore/usahakecil/security/ReportSession.kt`
+
+## ERR-066 - Scan barcode tidak memberi jumlah keranjang dan alur barcode baru dapat berulang
+
+Tanggal: 2026-08-20
+
+Varian dan versi: Retail/Wholesale
+
+### Kondisi/gejala
+
+Feedback hanya menyebut nama produk, sehingga kasir tidak tahu apakah jumlah keranjang bertambah. Scanner juga harus menahan frame saat lookup dan pendaftaran barcode baru berlangsung.
+
+### Root cause
+
+Feedback tidak membaca jumlah unit keranjang setelah transaksi add berhasil, sementara callback kamera berjalan berulang di atas proses repository.
+
+### Solusi
+
+Feedback sekarang berbunyi `Nama ditambahkan · Keranjang N barang`. Lookup memakai try/catch yang meneruskan `CancellationException`, dan gate scanner tetap menunggu proses selesai serta frame kosong sebelum menerima barcode berikutnya.
+
+### Perlindungan regresi
+
+`BarcodeScanGateTest` dan regression repository barcode tetap menjadi pengaman untuk scan diam, banyak barcode, duplicate mapping, dan mapping varian/satuan.
+
+### Bukti verifikasi aktual
+
+- Unit `BarcodeScanGateTest` lulus untuk barcode diam, proses berjalan, dan frame kosong.
+- Connected repository test barcode lulus pada Retail, termasuk duplicate, varian, satuan, migration, dan edit mapping.
+- Connected camera capture belum dilakukan; hasil ini membuktikan gate/repository, bukan kualitas kamera fisik.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/data/Daos.kt`
+- `app/src/main/java/com/bimacore/usahakecil/data/PosRepository.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/PosViewModel.kt`
+
+## ERR-067 - Laporan kosong dapat crash dan file cache menumpuk
+
+Tanggal: 2026-08-20
+
+Varian dan versi: Semua flavor
+
+### Kondisi/gejala
+
+Kartu tren penjualan mengakses titik pertama walaupun daftar titik kosong. Export Excel dan gambar struk juga meninggalkan file lama di cache tanpa batas.
+
+### Root cause
+
+Render grafik hanya mengandalkan `TrendBars` untuk menampilkan empty state, tetapi kode sesudahnya tetap mengakses `points[selectedIndex]`. Cleanup cache belum diterapkan untuk dua jenis export.
+
+### Solusi
+
+Grafik penjualan memakai empty state `Rp0` sebelum membaca titik. Export Excel menyimpan maksimal lima file dan export struk maksimal sepuluh file terakhir.
+
+### Perlindungan regresi
+
+Regression report/export yang sudah ada tetap dipakai; full test/build dijalankan ulang setelah patch.
+
+### Bukti verifikasi aktual
+
+- `ReportDemoTest`, `AnnualSalesExportTest`, dan `ExcelExportTest` lulus pada connected Retail.
+- Unit test tiga flavor, build APK debug/test tiga flavor, connected tiga flavor, dan lint lulus.
+- Cleanup cache dibatasi lewat code path export; tidak ada error lint baru, hanya warning dependency/Compose.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/ui/ReportDashboardComponents.kt`
+- `app/src/main/java/com/bimacore/usahakecil/export/ExcelExportManager.kt`
+- `app/src/main/java/com/bimacore/usahakecil/share/ReceiptImageExporter.kt`
+
+## ERR-068 - Race laporan melempar `ReportLockedException` setelah sesi Owner dikunci
+
+Tanggal: 2026-08-20
+
+Varian dan versi: Semua flavor, debug audit
+
+### Kondisi/gejala
+
+Saat Activity dibuat ulang atau sesi Owner dikunci ketika pemuatan laporan masih berjalan, coroutine lama masih memanggil repository setelah sesi terkunci. UI test gagal dengan `ReportLockedException`, dan kondisi yang sama berpotensi muncul saat lifecycle berubah cepat.
+
+### Root cause
+
+Job laporan tidak selalu dibatalkan ketika state sensitif dibersihkan. `refreshPinState()` juga menjalankan `loadReport()` tanpa menangani lock yang terjadi di tengah operasi. Catch umum pada grafik berisiko menelan cancellation sehingga lifecycle lama tidak berhenti bersih.
+
+### Solusi
+
+State sensitif sekarang membatalkan `reportJob`. Pemuatan awal mengabaikan `ReportLockedException` setelah sesi dikunci, tetapi tetap meneruskan `CancellationException`. Pemuatan grafik menjaga aturan cancellation yang sama.
+
+### Perlindungan regresi
+
+`MainActivitySmokeTest` menjalankan recreate dan lock isolation antar-test, lalu menutup layar Owner, laporan, backup, export, dan kasir.
+
+### Bukti verifikasi aktual
+
+- Connected Retail lulus 75/75 test.
+- Connected Wholesale dan Culinary lulus tanpa failure; tiga test lintas-varian berstatus skip sesuai `assumeTrue`.
+- Unit test, build APK debug/test, dan lint lulus.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/ui/OperationsViewModel.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/MainActivitySmokeTest.kt`
+
 ## ERR-054 - Import penjualan non-piutang dapat berubah menjadi lunas tanpa bukti pembayaran
 
 Tanggal: 2026-08-13
@@ -586,7 +792,8 @@ Parser hanya memeriksa pembayaran parsial untuk `CREDIT`, sedangkan repository m
 ### Bukti verifikasi aktual
 
 - Unit test parser untuk `CASH` dengan `amountPaid = 0` lulus pada Retail, Grosir, dan Kuliner.
-- Regression instrumentation repository berhasil dikompilasi dan memastikan penjualan non-piutang dengan pembayaran salah serta kas bermetode `CREDIT` tidak menulis batch, penjualan, atau kas; eksekusi connected menunggu izin perangkat.
+- Regression instrumentation memastikan penjualan non-piutang dengan pembayaran salah serta kas bermetode `CREDIT` tidak menulis batch, penjualan, atau kas.
+- Pembaruan 2026-08-20: connected Retail lulus 75/75; Wholesale dan Culinary juga lulus tanpa failure.
 
 ## ERR-055 - Area Owner hanya dilindungi UI pada beberapa repository
 
@@ -613,7 +820,8 @@ Sebagian repository tidak menerima `ReportSession`; proteksi hanya mengandalkan 
 ### Bukti verifikasi aktual
 
 - Unit test, build debug, build AndroidTest, dan lint seluruh flavor lulus.
-- Regression instrumentation berhasil dikompilasi untuk data tersembunyi, mutasi ditolak, serta flow kasir yang memang diizinkan tetap bekerja; eksekusi connected menunggu izin perangkat.
+- Regression instrumentation memastikan data tersembunyi, mutasi ditolak, serta flow kasir yang memang diizinkan tetap bekerja.
+- Pembaruan 2026-08-20: connected Retail, Wholesale, dan Culinary lulus tanpa failure.
 
 ## ERR-056 - Resep Kuliner mengurangi stok induk ketika bahan mempunyai varian
 
@@ -637,7 +845,8 @@ Owner dapat menyimpan produk bervarian sebagai bahan resep, tetapi checkout sela
 
 ### Bukti verifikasi aktual
 
-- Build AndroidTest Kuliner lulus dengan regression yang memastikan penyimpanan resep ditolak, checkout fail-closed, stok varian tidak berubah, dan penjualan tidak tercipta; eksekusi connected menunggu izin perangkat.
+- Build AndroidTest Kuliner lulus dengan regression yang memastikan penyimpanan resep ditolak, checkout fail-closed, stok varian tidak berubah, dan penjualan tidak tercipta.
+- Pembaruan 2026-08-20: connected Culinary lulus tanpa failure.
 
 ## ERR-057 - Restore menutup database ketika flow kasir masih aktif
 
@@ -665,7 +874,8 @@ Restore dijalankan di coroutine `OperationsViewModel`; Activity baru membersihka
 
 - Build debug, AndroidTest, dan lint seluruh flavor lulus.
 - Unit test coordinator membuktikan operasi kedua menunggu lock aktif dan pemanggilan nested pada coordinator yang sama tidak deadlock.
-- Regression backup/restore berhasil dikompilasi dan tetap mencakup rollback, integritas, identitas usaha, serta PIN Owner; eksekusi connected menunggu izin perangkat.
+- Regression backup/restore mencakup rollback, integritas, identitas usaha, serta PIN Owner.
+- Pembaruan 2026-08-20: connected Retail, Wholesale, dan Culinary lulus tanpa failure.
 
 ## ERR-058 - APK release minified dapat disalahartikan sebagai APK produksi
 

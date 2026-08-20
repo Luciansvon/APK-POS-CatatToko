@@ -12,6 +12,7 @@ enum class ReportChartGranularity(
     val label: String,
     val bucketCount: Int,
 ) {
+    HOURLY("Per jam", 24),
     DAILY("Harian", 14),
     WEEKLY("Mingguan", 8),
     MONTHLY("Bulanan", 12),
