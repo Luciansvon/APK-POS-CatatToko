@@ -20,6 +20,42 @@ dist/debug/CatatToko-Grosir.apk
 dist/debug/CatatToko-Kuliner.apk
 ```
 
+## Versi 0.7.1 - 2026-08-20
+
+Status: Persiapan rilis produksi signed melalui GitHub Actions
+
+### Kenapa versi ini dibuat
+
+- Audit lanjutan menemukan celah pada konsistensi mapping barcode, validasi katalog/stok, proteksi Owner, lifecycle laporan, backup, export, dan import histori.
+- Perbaikan perlu dibagikan sebagai patch kompatibel setelah v0.7.0.
+
+### Perubahan
+
+- Memperbaiki update mapping barcode, validasi produk/varian/satuan aktif, gate anti-double-scan, dan feedback jumlah barang di keranjang.
+- Menjaga stok, harga tier, kategori, pembayaran, resep, tenaga kerja, dan import histori agar tidak menerima relasi atau nilai yang tidak valid.
+- Memperkuat hashing PIN, lockout Owner, pembersihan state sensitif, pembatalan coroutine, dan `FLAG_SECURE` saat Owner terkunci.
+- Menambahkan backup terenkripsi AES-GCM dengan PBKDF2, perlindungan media foto, validasi ZIP/path/hash, serta kompatibilitas backup lama.
+- Memperbaiki laporan kas/nonkas, grafik kosong, cache export/receipt, format barcode Excel, dan dokumentasi root cause setiap bug.
+
+### Kekurangan dan masalah yang diketahui
+
+- Capture kamera fisik, torch, rotasi, lifecycle background, dan scan 20 barang beruntun belum diuji visual terpisah; analyzer, repository, dan connected test sudah lulus.
+- QR belum didukung pada V1.
+- Release hanya boleh dibagikan setelah workflow signing memverifikasi certificate produksi, checksum, dan ketiga flavor.
+
+### Verifikasi
+
+- Unit test Retail, Grosir, dan Kuliner lulus.
+- `assembleDebug`, AndroidTest APK tiga flavor, dan lint lulus tanpa error.
+- MuMu Retail lulus 75/75; Wholesale dan Culinary lulus tanpa failure dengan 3 test skip masing-masing.
+- Workflow signed release dan checksum APK akan dicatat setelah artifact production selesai diverifikasi.
+
+### APK release signed
+
+- Retail: menunggu artifact workflow signed.
+- Grosir: menunggu artifact workflow signed.
+- Kuliner: menunggu artifact workflow signed.
+
 ## Versi 0.7.0 - 2026-08-13
 
 Status: Rilis produksi signed; QA kamera fisik masih pending

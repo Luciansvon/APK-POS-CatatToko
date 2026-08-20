@@ -25,6 +25,17 @@ Worklog bukan pengganti:
 
 ---
 
+## 2026-08-20 - Persiapan release patch 0.7.1
+
+Status: Source sudah di-merge ke `main`; persiapan versionCode 23, release notes, dan workflow signed sedang dijalankan.
+
+- Menaikkan metadata APK dari `0.7.0 / versionCode 22` menjadi `0.7.1 / versionCode 23`.
+- Menyiapkan link download v0.7.1 pada README dan catatan patch sebelum artifact ditimpa.
+- Release signed akan memakai gate `verifyReleaseSigningReady`, `assembleRelease`, dan `scripts/package-release-apks.ps1` melalui GitHub Actions karena keystore production tidak tersimpan di checkout lokal.
+- Source audit yang dirilis berasal dari merge commit `a0e1f4cb20319d2d959cf30c119085f1e2222013`.
+
+---
+
 ## 2026-08-13 - Barcode offline kandidat 0.7.0
 
 Status: Source dan APK debug lokal selesai; QA perangkat menunggu izin.
