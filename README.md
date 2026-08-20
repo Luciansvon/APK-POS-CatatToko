@@ -18,7 +18,7 @@ Pilih APK sesuai jenis usaha:
 
 [Lihat catatan rilis CatatToko v0.7.1](https://github.com/Luciansvon/APK-POS-CatatToko/releases/tag/v0.7.1).
 
-> **Penting untuk pengguna v0.6.0:** v0.7.0 adalah rilis pertama dengan certificate produksi. Android tidak dapat memasangnya langsung di atas v0.6.0 yang memakai debug certificate. Buat dan bagikan backup ke luar HP terlebih dahulu, uninstall v0.6.0, install v0.7.0, lalu restore backup.
+> **Penting untuk pengguna v0.6.0:** v0.7.1 memakai certificate produksi yang sama dengan v0.7.0, sedangkan v0.6.0 memakai debug certificate. Buat dan bagikan backup ke luar HP terlebih dahulu, uninstall v0.6.0, install v0.7.1, lalu restore backup. Pengguna v0.7.0 dapat memperbarui aplikasi langsung.
 
 Aplikasi selalu mulai dalam Mode Kasir/Pekerja. Pada pemasangan pertama, panduan wajib menjelaskan Mode Kasir/Pekerja dan Mode Owner tanpa tombol lewati. Pekerja hanya dapat memakai kasir, melihat stok produk dan total transaksi aktif, serta membuka shift. Owner dapat memakai kasir tanpa membuka shift pekerja. Operasional, keuangan, laporan, profil, backup, restore, impor catatan lama, dan export Excel tetap baru muncul setelah PIN Owner benar.
 

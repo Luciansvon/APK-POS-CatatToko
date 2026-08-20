@@ -22,7 +22,7 @@ dist/debug/CatatToko-Kuliner.apk
 
 ## Versi 0.7.1 - 2026-08-20
 
-Status: Persiapan rilis produksi signed melalui GitHub Actions
+Status: Rilis produksi signed; artifact dan certificate sudah diverifikasi
 
 ### Kenapa versi ini dibuat
 
@@ -41,20 +41,22 @@ Status: Persiapan rilis produksi signed melalui GitHub Actions
 
 - Capture kamera fisik, torch, rotasi, lifecycle background, dan scan 20 barang beruntun belum diuji visual terpisah; analyzer, repository, dan connected test sudah lulus.
 - QR belum didukung pada V1.
-- Release hanya boleh dibagikan setelah workflow signing memverifikasi certificate produksi, checksum, dan ketiga flavor.
+- QA kamera fisik tetap menjadi batas verifikasi visual; pembaruan v0.7.1 memakai certificate produksi yang sama dengan v0.7.0 sehingga dapat dipasang sebagai update langsung dari v0.7.0.
 
 ### Verifikasi
 
 - Unit test Retail, Grosir, dan Kuliner lulus.
 - `assembleDebug`, AndroidTest APK tiga flavor, dan lint lulus tanpa error.
 - MuMu Retail lulus 75/75; Wholesale dan Culinary lulus tanpa failure dengan 3 test skip masing-masing.
-- Workflow signed release dan checksum APK akan dicatat setelah artifact production selesai diverifikasi.
+- Workflow signed release `32364082336` lulus dalam 10m28s, termasuk build, verifikasi signature, dan upload artifact.
+- Ketiga APK memakai certificate produksi dengan SHA-256 `E9D193841B5493F332450C4C0DA41C6369598C12C0B147C8BF60DC61EAA285F2`; V1 dan V2 signature valid.
+- Manifest ketiga APK terverifikasi memakai `versionCode 23` dan `versionName 0.7.1` dengan suffix flavor.
 
 ### APK release signed
 
-- Retail: menunggu artifact workflow signed.
-- Grosir: menunggu artifact workflow signed.
-- Kuliner: menunggu artifact workflow signed.
+- Retail: `CatatToko-Retail.apk` | SHA256 `95E389BA5F799881B76B417DCE4C24A351752C57071984311E50207FE9E9F8BD`
+- Grosir: `CatatToko-Grosir.apk` | SHA256 `F504C90E21C271CE3AFA06A43398BC25418C55FD2D1F063921D1AC6E52A5AB20`
+- Kuliner: `CatatToko-Kuliner.apk` | SHA256 `1BEFB24965B95AD662E31BC83783F1A14041F9DAC26A351881B407B12B2E80AA`
 
 ## Versi 0.7.0 - 2026-08-13
 
