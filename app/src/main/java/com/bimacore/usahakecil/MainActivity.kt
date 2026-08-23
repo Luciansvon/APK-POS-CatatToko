@@ -12,6 +12,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import android.view.WindowManager
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
@@ -20,7 +21,15 @@ import com.bimacore.usahakecil.ui.BrandLoadingScreen
 import com.bimacore.usahakecil.ui.OperationsViewModel
 import com.bimacore.usahakecil.ui.PosViewModel
 import com.bimacore.usahakecil.ui.theme.UsahaKecilTheme
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+internal const val MIN_BRAND_LOADING_MILLIS = 3_000L
+
+internal fun shouldShowBrandLoading(
+    isInitializing: Boolean,
+    minimumDurationElapsed: Boolean,
+): Boolean = isInitializing || !minimumDurationElapsed
 
 class MainActivity : ComponentActivity() {
     private var restoreInProgress = false
@@ -61,7 +70,12 @@ class MainActivity : ComponentActivity() {
                     factory = OperationsViewModel.Factory(posApplication),
                 )
                 val isInitializing by posViewModel.isInitializing.collectAsState()
-                if (isInitializing) {
+                var minimumLoadingDurationElapsed by remember { mutableStateOf(false) }
+                LaunchedEffect(Unit) {
+                    delay(MIN_BRAND_LOADING_MILLIS)
+                    minimumLoadingDurationElapsed = true
+                }
+                if (shouldShowBrandLoading(isInitializing, minimumLoadingDurationElapsed)) {
                     BrandLoadingScreen(getString(R.string.business_label))
                 } else {
                     HomeScreen(

@@ -20,8 +20,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -32,7 +30,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -70,14 +67,13 @@ fun HistoryImportScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Import catatan lama", fontWeight = FontWeight.Bold) },
+            CatatTokoOwnerHeader(
+                pageTitle = "Import catatan lama",
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Kembali")
                     }
                 },
-                colors = ownerTopAppBarColors(),
             )
         },
         bottomBar = {
@@ -175,6 +171,7 @@ fun HistoryImportScreen(
     if (showConfirmation && draft != null) {
         AlertDialog(
             onDismissRequest = { showConfirmation = false },
+            shape = OwnerCardShape,
             title = { Text("Masukkan ke histori?") },
             text = {
                 Text(
@@ -305,9 +302,7 @@ private fun HistoryImportReview(
             )
         }
         item {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            ) {
+            OwnerBentoSurface {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     HistoryImportCount("Siap masuk", draft.readyCount)
                     HistoryImportCount("Perlu dicek", draft.needsReviewCount)
@@ -352,10 +347,7 @@ private fun HistoryImportRecordCard(
         HistoryImportReviewStatus.UNRESOLVED -> MaterialTheme.colorScheme.error
         HistoryImportReviewStatus.DUPLICATE -> MaterialTheme.colorScheme.onSurfaceVariant
     }
-    Card(
-        colors = CardDefaults.cardColors(containerColor = statusColor.copy(alpha = 0.08f)),
-        modifier = Modifier.fillMaxWidth().testTag("history-import-row-${row.index}"),
-    ) {
+    OwnerBentoSurface(modifier = Modifier.fillMaxWidth().testTag("history-import-row-${row.index}")) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(historyTypeLabel(row.recordType), fontWeight = FontWeight.Bold)

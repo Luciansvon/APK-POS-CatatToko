@@ -178,6 +178,8 @@ class OperationsViewModel(
     val busy = _busy.asStateFlow()
     private val _reportSummary = MutableStateFlow<ReportSummary?>(null)
     val reportSummary = _reportSummary.asStateFlow()
+    private val _ownerDaySummary = MutableStateFlow<ReportSummary?>(null)
+    val ownerDaySummary = _ownerDaySummary.asStateFlow()
     private val _previousReportSummary = MutableStateFlow<ReportSummary?>(null)
     val previousReportSummary = _previousReportSummary.asStateFlow()
     private val _reportPeriod = MutableStateFlow(ReportPeriod.DAY)
@@ -225,6 +227,7 @@ class OperationsViewModel(
     val shiftLoading = _shiftLoading.asStateFlow()
 
     private var reportJob: Job? = null
+    private var ownerDaySummaryJob: Job? = null
     private val _reportLoading = MutableStateFlow(false)
     val reportLoading = _reportLoading.asStateFlow()
 
@@ -240,6 +243,37 @@ class OperationsViewModel(
 
     fun consumeMessage() {
         _message.value = null
+    }
+
+    /**
+     * Refreshes only the day summary needed by the Owner overview.
+     *
+     * Financial values stay behind ReportRepository/ReportSession; the overview
+     * must not reconstruct them from owner-observed entity flows in the UI.
+     */
+    fun refreshOwnerDaySummary() {
+        if (!reports.session.isUnlocked) {
+            _ownerDaySummary.value = null
+            return
+        }
+        ownerDaySummaryJob?.cancel()
+        ownerDaySummaryJob = viewModelScope.launch {
+            try {
+                application.databaseOperations.withOperation {
+                    val range = ReportPeriod.DAY.range(System.currentTimeMillis())
+                    val summary = reports.readSummary(range.first, range.last)
+                    if (reports.session.isUnlocked) {
+                        _ownerDaySummary.value = summary
+                    }
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: ReportLockedException) {
+                _ownerDaySummary.value = null
+            } catch (_: Exception) {
+                _ownerDaySummary.value = null
+            }
+        }
     }
 
     fun saveProfile(name: String) = execute("Profil usaha disimpan") {
@@ -591,7 +625,10 @@ class OperationsViewModel(
     private fun clearOwnerSensitiveState() {
         reportJob?.cancel()
         reportJob = null
+        ownerDaySummaryJob?.cancel()
+        ownerDaySummaryJob = null
         _reportSummary.value = null
+        _ownerDaySummary.value = null
         _previousReportSummary.value = null
         _reportPeriod.value = ReportPeriod.DAY
         _reportChartMode.value = ReportChartMode.CASH_FLOW

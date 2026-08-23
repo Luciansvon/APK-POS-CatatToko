@@ -964,6 +964,42 @@ Versi `0.5.0` baru mengunci prompt dan skema desain. Belum ada parser, batas inp
 - `app/src/main/java/com/bimacore/usahakecil/data/HistoryImportEntities.kt`
 - `app/src/main/java/com/bimacore/usahakecil/data/HistoricalImportRepository.kt`
 - `app/src/main/java/com/bimacore/usahakecil/ui/HistoryImportScreen.kt`
+
+## ERR-072 - Brand icon Kasir dan Owner masih generik serta loading terlalu cepat
+
+Tanggal: 2026-08-23
+
+Varian dan versi: Retail, Wholesale, Culinary; patch lokal `0.7.3`
+
+### Kondisi/gejala
+
+Hero layar Kasir dan header Owner memakai `R.drawable.ic_app`, sehingga icon flavor dapat hilang atau terlihat generik. Header Owner juga memotong aset dalam `CircleShape` pada ukuran kecil. Wordmark loading hanya terlihat sesaat ketika inisialisasi database cepat.
+
+### Root cause
+
+`ic_app` bukan pasangan adaptive launcher foreground/background yang dipakai tiap flavor. Komponen header merendernya sebagai gambar lingkaran 30 dp, sedangkan adaptive XML launcher tidak aman dipakai langsung sebagai painter Compose pada seluruh API minimum 23. Gate startup hanya mengikuti `isInitializing` tanpa durasi minimum.
+
+### Solusi
+
+- Menambahkan `CatatTokoAppIcon` shared yang memakai `R.color.ic_launcher_background` dan `R.drawable.ic_launcher_foreground_v3` flavor di dalam rounded-square.
+- Mengganti hero Kasir menjadi 80 dp dan logo Owner menjadi 40 dp tanpa clipping lingkaran; teks dan behavior Kasir tetap.
+- Menjaga `BrandLoadingScreen` memakai `brand_loading_logo`, lalu menampilkan Home setelah inisialisasi selesai dan gate coroutine non-blocking 3.000 ms selesai.
+- Menambahkan pure visibility-gate regression test tanpa timer nyata agar test tidak flaky.
+
+### Bukti verifikasi aktual
+
+- `testRetailDebugUnitTest testWholesaleDebugUnitTest testCulinaryDebugUnitTest assembleDebug assembleRetailDebugAndroidTest assembleWholesaleDebugAndroidTest assembleCulinaryDebugAndroidTest` lulus pada patch `0.7.3` dalam `2m42s`.
+- Regression `StartupLoadingGateTest` memeriksa seluruh kombinasi gate tanpa timer nyata.
+- Targeted `MainActivitySmokeTest#owner_destinations_keep_catattoko_brand_header` lulus `1/1` untuk Retail, Wholesale, dan Culinary.
+- Native ADB/MuMu screenshot mengonfirmasi icon launcher sesuai flavor pada Kasir dan Owner serta full wordmark loading per flavor.
+- Ketiga APK debug `0.7.3` dengan `versionCode 25` di-install ulang memakai `install -r` tanpa uninstall/reset data. Production release tetap ditahan dan belum dipublikasikan.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/ui/OwnerUiStyle.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/CashierLandingScreen.kt`
+- `app/src/main/java/com/bimacore/usahakecil/MainActivity.kt`
+- `app/src/test/java/com/bimacore/usahakecil/StartupLoadingGateTest.kt`
 - `app/src/test/java/com/bimacore/usahakecil/historyimport/HistoryImportParserTest.kt`
 - `app/src/androidTest/java/com/bimacore/usahakecil/data/HistoricalImportRepositoryTest.kt`
 
@@ -2603,3 +2639,96 @@ Aksi utama tetap menonjolkan pembuatan salinan, sementara aksi berbagi berada le
 - `app/src/main/java/com/bimacore/usahakecil/ui/ManagementScreens.kt`
 - `app/src/androidTest/java/com/bimacore/usahakecil/backup/BackupRestoreTest.kt`
 - `app/src/androidTest/java/com/bimacore/usahakecil/MainActivitySmokeTest.kt`
+
+## ERR-069 - Shortcut Kas gagal menunggu layar Keuangan
+
+Tanggal: 2026-08-23
+
+Varian dan versi: Retail, smoke test Owner overview
+
+### Kondisi/gejala
+
+Connected smoke test `owner_overview_shortcuts_route_to_existing_destinations` tetap berada di `owner-overview` setelah interaksi `performScrollTo().performClick()` pada `overview-shortcut-cash`; semantics dump menunjukkan node memiliki `OnClick`, tetapi action tidak tereksekusi stabil pada device MuMu. Akibatnya `finance-section-grid` belum ditemukan.
+
+### Root cause
+
+Routing aplikasi dan callback shortcut sudah benar. Masalah ada pada primitive interaksi test: kombinasi `performScrollTo()` lalu `performClick()` dapat berhenti di semantics node yang masih terlihat tanpa menjalankan `OnClick` secara stabil pada connected run.
+
+### Solusi
+
+Setelah scroll, test memanggil `performSemanticsAction(SemanticsActions.OnClick)` secara eksplisit untuk shortcut Kas, laporan, backup, dan Produk. Semua test Owner yang membuka shortcut Produk memakai primitive yang sama, termasuk `owner_mode_covers_all_relevant_screens_and_locks_again`. Tab Operasional flavor-specific juga dipilih lewat tag stabil `operations-section-grid-{label}` agar teks header/bottom-nav yang duplikat tidak salah sasaran. Assert destination tetap memakai helper bounded `waitForTag`/`waitForText` berbasis `composeRule.waitUntil`.
+
+### Bukti verifikasi aktual
+
+- Source `HomeScreen` dan `OwnerOperationsOverview` menunjukkan callback Kas tetap menuju `AppDestination.FINANCE`, dan `FinanceScreen` tetap memasang `finance-section-grid`.
+- Compile Android test semua flavor dan unit test semua flavor lulus setelah perubahan.
+- Connected test tidak diulang oleh agent karena device sedang dipakai untuk QA manual root.
+
+### File terdampak
+
+- `app/src/androidTest/java/com/bimacore/usahakecil/MainActivitySmokeTest.kt`
+- `docs/ERROR_SOLUTIONS.md`
+
+## ERR-070 - Shortcut Kas membuka tab Utang & Piutang
+
+Tanggal: 2026-08-23
+
+Varian dan versi: Retail, Owner overview bento
+
+### Kondisi/gejala
+
+Shortcut `Kas` dari overview membuka layar Keuangan pada tab `Utang & Piutang`, karena default navigasi Retail memang memakai `financeStartTab = 1`.
+
+### Root cause
+
+HomeScreen hanya meneruskan default tab varian ke `FinanceScreen`, tanpa membedakan pintasan Kas dari navigasi bottom-nav Keuangan.
+
+### Solusi
+
+HomeScreen menyimpan override tab sementara: bottom-nav Keuangan tetap mengembalikan default varian, sedangkan callback shortcut Kas selalu memilih tab `0` (Kas). Smoke test juga menunggu `Shift kasir` untuk memastikan konten tab Kas benar-benar terbuka.
+
+### Bukti verifikasi aktual
+
+- Unit test semua flavor dan compile Kotlin/Android test semua flavor lulus.
+- Connected test tidak dijalankan oleh agent karena device sedang dipakai QA manual root.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/ui/HomeScreen.kt`
+- `app/src/androidTest/java/com/bimacore/usahakecil/MainActivitySmokeTest.kt`
+- `docs/ERROR_SOLUTIONS.md`
+
+## ERR-071 - Redesign berhenti di dashboard dan halaman Owner masih renggang
+
+Tanggal: 2026-08-23
+
+Varian dan versi: Retail, Wholesale, Culinary; area Owner/non-Kasir
+
+### Kondisi/gejala
+
+Setelah bento overview Operasional diterapkan, Keuangan, Laporan, Lainnya, History Import, forecast, dan detail laporan masih memakai header generik/tinggi default atau `Card`/padding lama. Runtime MuMu memperlihatkan area kosong besar di atas Finance/Reports, brand `CatatToko` tidak konsisten, dan header Lainnya dapat terpotong.
+
+### Root cause
+
+Brand header dan token bento dibuat lokal untuk landing overview. Halaman Owner lain masih memakai `TopAppBar` bawaan serta komponen kartu dan padding yang tidak berbagi batas density, sehingga redesign tidak menyebar ke shared source.
+
+### Solusi
+
+- Menambahkan `CatatTokoOwnerHeader`, `OwnerBentoSurface`, dan token spacing/radius shared.
+- Memakai header compact pada Operasional, Keuangan, Laporan, Lainnya, dan History Import.
+- Memigrasikan hero/detail/empty/item/action/category, metric report, trend report, forecast, dan history review ke surface bento dengan padding mengikuti isi.
+- Mempertahankan navigation, Owner authorization, data/offline behavior, semantics/test tags, serta seluruh flow Kasir tanpa perubahan.
+
+### Bukti verifikasi aktual
+
+- `compileRetailDebugKotlin`, `compileWholesaleDebugKotlin`, `compileCulinaryDebugKotlin`, dan tiga target `compile*DebugAndroidTestKotlin` lulus setelah migrasi shared UI.
+- `testRetailDebugUnitTest testWholesaleDebugUnitTest testCulinaryDebugUnitTest`, `assembleDebug`, dan `assembleRetailDebugAndroidTest assembleWholesaleDebugAndroidTest assembleCulinaryDebugAndroidTest` semuanya `BUILD SUCCESSFUL`; connected test tidak dijalankan oleh agent karena device MuMu dipakai root untuk QA manual.
+
+### File terdampak
+
+- `app/src/main/java/com/bimacore/usahakecil/ui/OwnerUiStyle.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/OwnerDashboardComponents.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/ManagementScreens.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/ReportDashboardComponents.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/ForecastScreen.kt`
+- `app/src/main/java/com/bimacore/usahakecil/ui/HistoryImportScreen.kt`

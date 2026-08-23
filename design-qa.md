@@ -1,42 +1,82 @@
-# Design QA - Owner Retail 0.4.8
+# Design QA - Owner / Operasional Bento Overview
 
-## Acuan dan bukti
+## Comparison target
 
-- Acuan opsi 2: `C:\Users\shint\.codex\generated_images\019fc27b-30dc-7a90-aa18-be6dcc160962\exec-091d1b03-ad3e-4f0e-a210-22a29e8b17eb.png`
-- Implementasi HP portrait 1080 x 1920: `C:\Users\shint\.codex\visualizations\2026\08\02\019fc27b-30dc-7a90-aa18-be6dcc160962\owner-redesign-0.4.8\final-report-portrait.png`
-- Implementasi tablet landscape 1600 x 900: `C:\Users\shint\.codex\visualizations\2026\08\02\019fc27b-30dc-7a90-aa18-be6dcc160962\owner-redesign-0.4.8\final-report-landscape.png`
-- Perbandingan dalam satu gambar: `C:\Users\shint\.codex\visualizations\2026\08\02\019fc27b-30dc-7a90-aa18-be6dcc160962\owner-redesign-0.4.8\comparison-report-reference-vs-final.png`
-- Halaman lain: `final-purchase-*`, `final-worker-*`, `final-finance-*`, dan `final-more-*` pada folder bukti yang sama.
+- Source visual truth: `C:\Users\shint\Downloads\ChatGPT Image 23 Agu 2026, 09.15.43.png`
+- Source pixels: `841 x 1870`
+- Runtime device: MuMu `emulator-5554`, Android 12, physical `1080 x 1920`, density `480`
+- Runtime viewport: approximately `360 x 640 dp`
+- Implementation: native Jetpack Compose `OwnerOperationsOverview`
+- Runtime top screenshot: `C:\Users\shint\OneDrive\Dokumen\MuMuSharedFolder\Screenshots\MuMu-20260823-104520-769.png`
+- Runtime lower screenshot: `C:\Users\shint\OneDrive\Dokumen\MuMuSharedFolder\Screenshots\MuMu-20260823-104618-704.png`
+- State: Retail Owner mode, `Operasional` selected, protected zero-value daily summary
 
-## Perbandingan wajib
+## Full-view comparison evidence
 
-- Tipografi dan hierarki: judul, periode, omzet, penjelasan, angka, serta aksi utama terbaca jelas tanpa teks terpotong.
-- Tata letak: alur periode -> simpan Excel -> ringkasan -> grafik dipertahankan. Kartu angka otomatis berubah menjadi baris saat nominal panjang agar nilai tidak menjadi elipsis.
-- Ukuran layar: tidak ada tumpang tindih atau aksi terpotong pada HP portrait dan tablet landscape.
-- Warna dan bentuk: warna hijau Retail, permukaan putih/hijau muda, radius, tab aktif, dan navigasi konsisten dengan sistem visual aplikasi.
-- Isi: istilah teknis yang tidak perlu sudah diganti menjadi bahasa usaha sehari-hari. Rentang tanggal memakai tanda ASCII ` - ` agar tidak berubah menjadi teks rusak.
-- Ikon dan interaksi: ikon kalender, Excel, navigasi, pemilih periode, tab Owner, tombol aksi, rincian, salinan, dan pemulihan dapat ditekan serta mempunyai label semantik.
-- Aksesibilitas: tombol utama selebar layar, target sentuh minimal mengikuti komponen Material, kontras teks jelas, dan aksi destruktif dipisahkan dari aksi utama.
+The reference and final native MuMu screenshot were opened together in one comparison input. The implementation matches the reference hierarchy and proportions: header, summary heading, asymmetric top bento, amber stock card, four shortcuts, report link, backup link, and five-item bottom navigation.
 
-## Perbedaan yang disengaja dari acuan
+The source has a taller aspect ratio than the confirmed MuMu portrait device. The final implementation therefore keeps the reference sizing and scrolls the lower cards on the `360 x 640 dp` runtime instead of shrinking text and touch targets. Top and lower native screenshots cover the complete surface.
 
-- Ikon unduh kecil pada acuan diganti tombol penuh `Simpan Laporan Excel`. Ini keputusan produk untuk pengguna UMKM yang kurang terbiasa dengan ikon tanpa tulisan.
-- Ringkasan nominal panjang ditampilkan per baris pada HP agar angka utuh, bukan diperkecil berlebihan atau dipotong.
-- Label navigasi `Piutang` menjadi `Keuangan` karena halaman juga memuat kas dan transaksi.
+## Focused-region comparison evidence
 
-## Temuan dan perbaikan
+- Header: title, subtitle, divider, and outline Owner icon align with the reference hierarchy.
+- Metrics: protected `Rp0`, transaction count, and cash-in values render in the intended bento proportions.
+- Stock: amber treatment and closest Material cube icon render consistently; the runtime message reflects seeded device data (`2 produk perlu diisi ulang`) instead of the zero-alert source state.
+- Shortcuts: Produk, Pembelian, Kas, and Pekerja retain equal card widths and large touch targets.
+- Links: Lihat laporan keeps the chevron; Backup & Keamanan uses a shield/storage icon and no chevron, matching the source.
+- Navigation: Operasional uses the clipboard icon and visible green top indicator; Reports uses the document icon.
 
-- P1 selesai: rentang tanggal `â€“` diperbaiki menjadi `27 Jul - 2 Agu 2026`; regression test menolak karakter rusak dan mewajibkan tiga rentang bertanda ` - `.
-- P1 selesai: `Rp165.000` yang sebelumnya terpotong diperbaiki dengan susunan metrik adaptif.
-- P2 selesai: sisa `supplier`, `freelancer`, `Edit`, dan kode `RETAIL` diganti menjadi `pemasok`, `pekerja panggilan`, `Ubah`, dan `Toko & UMKM`.
-- P0 tersisa: tidak ada.
-- P1 tersisa: tidak ada.
-- P2 tersisa: tidak ada.
+## Resolved findings
 
-## Verifikasi
+- [P1] Owner metrics originally bypassed the protected report read boundary.
+  - Resolution: daily metrics now come from `ReportRepository.readSummary(...)` and clear when Owner locks.
+- [P1] The Retail `Kas` shortcut originally opened the default `Utang & Piutang` tab.
+  - Resolution: the shortcut overrides Finance to tab `0`, while direct bottom-navigation keeps each flavor default.
+- [P1] Connected Compose click coverage was unstable after scrolling.
+  - Resolution: the test uses bounded waits plus the semantics `OnClick` action for scrollable bento targets.
+- [P2] Several icons and the selected navigation treatment visibly differed from the reference.
+  - Resolution: BarChart, ReceiptLong, AccountBalanceWallet, PersonOutline, Assignment, Description, Group, shield/storage, and a foreground green selection line are used.
+- [P2] Archived variants could affect the stock-warning count.
+  - Resolution: inactive variants are excluded.
 
-- Unit test, lint, build debug, dan kompilasi AndroidTest tiga varian lulus.
-- Connected test: Retail 47/47 per perangkat; Grosir dan Kuliner masing-masing 49 run dengan 2 test khusus Retail dilewati per perangkat, tanpa kegagalan.
-- `ReportDemoTest` lulus pada kedua perangkat dan mencakup periode, laporan, grafik, perkiraan, serta berkas Excel.
+## Verification
+
+- Unit tests: `testRetailDebugUnitTest`, `testWholesaleDebugUnitTest`, and `testCulinaryDebugUnitTest` passed; 234 tests, 0 failures.
+- Builds: all three debug APKs and all three AndroidTest APKs built successfully.
+- Connected test: `owner_overview_shortcuts_route_to_existing_destinations` passed on `emulator-5554` after verifying Kas opens the Kas content and the report, backup, and product routes remain reachable.
+- Runtime: final Retail APK installed with replace mode and left installed on MuMu.
+- Crash buffer: empty after final launch and interaction pass.
+- Visual QA: native MuMu PNGs inspected directly; Computer Use was not used for the final evidence.
+
+## Accepted runtime differences
+
+- Source zero-alert copy differs from the emulator because the emulator contains two seeded low/out-of-stock products.
+- The confirmed MuMu viewport is shorter than the reference aspect ratio, so the lower cards require scrolling. This preserves readable type and touch sizes.
+
+prior overview result: passed
+
+## Implementation status — 2026-08-23
+
+Shared `CatatToko` owner header and bento tokens are now applied to all non-Kasir Owner destinations and shared report/history/forecast components across the three flavors. Cashier screens remain out of scope. This records implementation status only; final visual verdict remains an audit decision by root.
+
+## Final owner-wide audit — 2026-08-23
+
+- Scope audit: modified production UI files are limited to Owner/shared management surfaces; the Kasir landing, catalog, cart, payment, and receipt files are untouched.
+- Branding audit: `CatatTokoOwnerHeader` is used by Operasional, Keuangan, Laporan, Lainnya, and Import catatan lama. The shared header renders the CatatToko icon, `CatatToko`, and the current page title.
+- Density audit: shared outer padding is `16.dp`, group spacing is `12.dp`, cards size to their content, and `48.dp` minimum height is reserved for touch targets rather than decorative whitespace.
+- Retail visual audit: Produk, Stok, Pembelian, Pekerja, Kas, Transaksi, Laporan, Lainnya, and Import catatan lama were inspected from native MuMu screenshots.
+- Cross-flavor visual audit: the shared bento overview was inspected in Wholesale/Grosir and Culinary/Pesanan; CatatToko branding is consistent while each flavor keeps its own color and navigation label.
+- Automated verification: 234 unit tests passed with zero failures; all three debug APKs and all three AndroidTest APKs built successfully.
+- Connected verification: `owner_mode_covers_all_relevant_screens_and_locks_again` passed independently for Retail, Wholesale, and Culinary on `emulator-5554`.
+- Runtime verification: all three final debug APKs were installed with replace mode and left installed. Retail was returned to the foreground. The emulator crash buffer has no `com.bimacore.usahakecil` entries; older unrelated TikTok crash entries remain in the shared buffer.
+- Packaging audit: Retail, Wholesale, and Culinary `0.7.2` (`versionCode 24`) were packaged under the fixed `dist/debug/CatatToko-*.apk` names, verified as Android Debug signed, installed with `adb install -r`, and reported the expected flavor-suffixed version names through `dumpsys package`.
+- Native screenshot evidence:
+  - Retail Laporan: `C:\Users\shint\OneDrive\Dokumen\MuMuSharedFolder\Screenshots\MuMu-20260823-145715-942.png`
+  - Retail Produk: `C:\Users\shint\OneDrive\Dokumen\MuMuSharedFolder\Screenshots\MuMu-20260823-145915-510.png`
+  - Retail Stok/Pembelian/Pekerja: `MuMu-20260823-150108-839.png`, `MuMu-20260823-150110-290.png`, `MuMu-20260823-150111-767.png`
+  - Retail Kas/Transaksi: `MuMu-20260823-150200-588.png`, `MuMu-20260823-150202-045.png`
+  - Retail Import catatan lama: `MuMu-20260823-150232-360.png`
+  - Wholesale/Grosir: `MuMu-20260823-150359-546.png`
+  - Culinary/Pesanan: `MuMu-20260823-150526-936.png`
 
 final result: passed

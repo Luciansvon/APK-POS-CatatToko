@@ -238,6 +238,10 @@ class MainActivitySmokeTest {
             else -> "Operasional"
         }
         composeRule.onNodeWithText(operationsLabel).performClick()
+        composeRule.onNodeWithTag("owner-overview").assertIsDisplayed()
+        composeRule.onNodeWithTag("overview-shortcut-products")
+            .performScrollTo()
+            .performSemanticsAction(SemanticsActions.OnClick)
         composeRule.onNodeWithTag("operations-section-grid").assertExists()
         composeRule.onNodeWithText("Pembelian").assertIsDisplayed()
 
@@ -264,6 +268,66 @@ class MainActivitySmokeTest {
     }
 
     @Test
+    fun owner_overview_shortcuts_route_to_existing_destinations() {
+        unlockOwner()
+
+        val operationsLabel = when (BuildConfig.BUSINESS_TYPE) {
+            "WHOLESALE" -> "Grosir"
+            "CULINARY" -> "Pesanan"
+            else -> "Operasional"
+        }
+
+        composeRule.onNodeWithText(operationsLabel).performClick()
+        composeRule.onNodeWithTag("owner-overview").assertIsDisplayed()
+        composeRule.onNodeWithTag("overview-shortcut-cash")
+            .performScrollTo()
+            .performSemanticsAction(SemanticsActions.OnClick)
+        waitForTag("finance-section-grid")
+        waitForText("Shift kasir")
+
+        composeRule.onNodeWithText(operationsLabel).performClick()
+        composeRule.onNodeWithTag("overview-report-link")
+            .performScrollTo()
+            .performSemanticsAction(SemanticsActions.OnClick)
+        waitForText("Omzet hari ini")
+
+        composeRule.onNodeWithText(operationsLabel).performClick()
+        composeRule.onNodeWithTag("overview-backup-link")
+            .performScrollTo()
+            .performSemanticsAction(SemanticsActions.OnClick)
+        waitForText("Salinan & keamanan data")
+
+        composeRule.onNodeWithText(operationsLabel).performClick()
+        composeRule.onNodeWithTag("overview-shortcut-products")
+            .performScrollTo()
+            .performSemanticsAction(SemanticsActions.OnClick)
+        composeRule.onNodeWithTag("operations-section-grid").assertExists()
+    }
+
+    @Test
+    fun owner_destinations_keep_catattoko_brand_header() {
+        unlockOwner()
+
+        val operationsLabel = when (BuildConfig.BUSINESS_TYPE) {
+            "WHOLESALE" -> "Grosir"
+            "CULINARY" -> "Pesanan"
+            else -> "Operasional"
+        }
+
+        composeRule.onNodeWithText(operationsLabel).performClick()
+        waitForTag("catattoko-owner-brand")
+
+        composeRule.onNodeWithText("Keuangan").performClick()
+        waitForTag("catattoko-owner-brand")
+
+        composeRule.onNodeWithText("Laporan").performClick()
+        waitForTag("catattoko-owner-brand")
+
+        composeRule.onNodeWithText("Lainnya").performClick()
+        waitForTag("catattoko-owner-brand")
+    }
+
+    @Test
     fun product_form_exposes_menu_photo_picker() {
         unlockOwner()
 
@@ -273,8 +337,12 @@ class MainActivitySmokeTest {
             else -> "Operasional"
         }
         composeRule.onNodeWithText(operationsLabel).performClick()
+        composeRule.onNodeWithTag("owner-overview").assertIsDisplayed()
+        composeRule.onNodeWithTag("overview-shortcut-products")
+            .performScrollTo()
+            .performSemanticsAction(SemanticsActions.OnClick)
         if (BuildConfig.BUSINESS_TYPE != "RETAIL") {
-            composeRule.onAllNodesWithText("Produk")[0].performClick()
+            clickOperationsTab("Produk")
         }
         waitForText("Tambah produk")
         composeRule.onNodeWithText("Tambah produk").performClick()
@@ -292,8 +360,12 @@ class MainActivitySmokeTest {
             else -> "Operasional"
         }
         composeRule.onNodeWithText(operationsLabel).performClick()
+        composeRule.onNodeWithTag("owner-overview").assertIsDisplayed()
+        composeRule.onNodeWithTag("overview-shortcut-products")
+            .performScrollTo()
+            .performSemanticsAction(SemanticsActions.OnClick)
         if (BuildConfig.BUSINESS_TYPE != "RETAIL") {
-            composeRule.onAllNodesWithText("Produk")[0].performClick()
+            clickOperationsTab("Produk")
         }
         waitForText("Tambah produk")
         val productId = runBlocking {
@@ -460,24 +532,30 @@ class MainActivitySmokeTest {
         val financeLabel = "Keuangan"
 
         composeRule.onNodeWithText(operationsLabel).performClick()
+        composeRule.onNodeWithTag("owner-overview").assertIsDisplayed()
+        composeRule.onNodeWithTag("overview-shortcut-products")
+            .performScrollTo()
+            .performSemanticsAction(SemanticsActions.OnClick)
         when (BuildConfig.BUSINESS_TYPE) {
             "WHOLESALE" -> {
+                clickOperationsTab("Grosir")
                 waitForText("Multi-satuan dan harga bertingkat", substring = true)
-                composeRule.onAllNodesWithText("Produk")[0].performClick()
+                clickOperationsTab("Produk")
             }
 
             "CULINARY" -> {
+                clickOperationsTab("Kuliner")
                 waitForText("Atur topping/resep")
-                composeRule.onAllNodesWithText("Produk")[0].performClick()
+                clickOperationsTab("Produk")
             }
         }
         waitForText("Tambah produk")
-        composeRule.onAllNodesWithText("Stok")[0].performClick()
+        clickOperationsTab("Stok")
         waitForText("Stok perlu perhatian")
-        composeRule.onAllNodesWithText("Pembelian")[0].performClick()
+        clickOperationsTab("Pembelian")
         waitForText("Catat pembelian")
         waitForText("Total pembelian tercatat")
-        composeRule.onAllNodesWithText("Pekerja")[0].performClick()
+        clickOperationsTab("Pekerja")
         waitForText("Tambah pekerja")
         waitForText("Pembayaran pekerja tertunda")
 
@@ -598,6 +676,12 @@ class MainActivitySmokeTest {
         composeRule.waitForIdle()
     }
 
+    private fun clickOperationsTab(label: String) {
+        composeRule.onNodeWithTag("operations-section-grid-$label")
+            .performScrollTo()
+            .performSemanticsAction(SemanticsActions.OnClick)
+    }
+
     private fun waitForText(
         text: String,
         substring: Boolean = false,
@@ -612,6 +696,24 @@ class MainActivitySmokeTest {
         } catch (error: Throwable) {
             throw AssertionError(
                 "Gagal menunggu teks '$text'. Layar saat gagal:\n${composeRule.onRoot().printToString()}",
+                error,
+            )
+        }
+    }
+
+    private fun waitForTag(
+        tag: String,
+        timeoutMillis: Long = 5_000,
+    ) {
+        try {
+            composeRule.waitUntil(timeoutMillis = timeoutMillis) {
+                composeRule.onAllNodesWithTag(tag)
+                    .fetchSemanticsNodes()
+                    .isNotEmpty()
+            }
+        } catch (error: Throwable) {
+            throw AssertionError(
+                "Gagal menunggu test tag '$tag'. Layar saat gagal:\n${composeRule.onRoot().printToString()}",
                 error,
             )
         }

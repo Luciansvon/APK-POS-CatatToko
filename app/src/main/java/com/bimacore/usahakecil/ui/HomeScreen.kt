@@ -4,10 +4,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Assessment
+import androidx.compose.material.icons.automirrored.outlined.Assignment
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.PointOfSale
-import androidx.compose.material.icons.outlined.Storefront
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Wallet
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -27,8 +27,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bimacore.usahakecil.backup.BackupPreview
 import com.bimacore.usahakecil.domain.BusinessType
@@ -53,7 +55,9 @@ fun HomeScreen(
     var destination by remember {
         mutableStateOf(if (ownerUnlocked) AppDestination.REPORTS else AppDestination.POS)
     }
+    var showOperationsOverview by remember { mutableStateOf(false) }
     var operationsStartSection by remember { mutableStateOf(presentation.operationsStartSection) }
+    var financeStartTab by remember { mutableStateOf(presentation.financeStartTab) }
     var showOwnerAccess by remember { mutableStateOf(false) }
     var showShiftOpen by remember { mutableStateOf(false) }
     var showHistoryImport by remember { mutableStateOf(false) }
@@ -70,6 +74,7 @@ fun HomeScreen(
     }
     LaunchedEffect(ownerUnlocked) {
         destination = if (ownerUnlocked) AppDestination.REPORTS else AppDestination.POS
+        showOperationsOverview = false
     }
 
     if (showHistoryImport && ownerUnlocked) {
@@ -88,11 +93,31 @@ fun HomeScreen(
                     contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 ) {
                     destinations.forEach { item ->
+                        val isSelected = destination == item
+                        val selectedIndicatorColor = MaterialTheme.colorScheme.primary
                         NavigationBarItem(
-                            selected = destination == item,
+                            modifier = Modifier.drawWithContent {
+                                drawContent()
+                                if (isSelected && item == AppDestination.OPERATIONS) {
+                                    drawRect(
+                                        color = selectedIndicatorColor,
+                                        size = androidx.compose.ui.geometry.Size(
+                                            width = size.width,
+                                            height = 2.dp.toPx(),
+                                        ),
+                                    )
+                                }
+                            },
+                            selected = isSelected,
                             onClick = {
                                 if (item == AppDestination.OPERATIONS) {
                                     operationsStartSection = presentation.operationsStartSection
+                                    showOperationsOverview = true
+                                } else if (item == AppDestination.FINANCE) {
+                                    financeStartTab = presentation.financeStartTab
+                                    showOperationsOverview = false
+                                } else {
+                                    showOperationsOverview = false
                                 }
                                 destination = item
                             },
@@ -107,9 +132,9 @@ fun HomeScreen(
                             Icon(
                                 imageVector = when (item) {
                                     AppDestination.POS -> Icons.Outlined.PointOfSale
-                                    AppDestination.OPERATIONS -> Icons.Outlined.Storefront
+                                    AppDestination.OPERATIONS -> Icons.AutoMirrored.Outlined.Assignment
                                     AppDestination.FINANCE -> Icons.Outlined.Wallet
-                                    AppDestination.REPORTS -> Icons.Outlined.Assessment
+                                    AppDestination.REPORTS -> Icons.Outlined.Description
                                     AppDestination.MORE -> Icons.Outlined.MoreHoriz
                                 },
                                 contentDescription = null,
@@ -158,17 +183,41 @@ fun HomeScreen(
                     onRegisterUnknownBarcode = { barcode ->
                         operationsViewModel.prefillBarcodeForManagement(barcode)
                         operationsStartSection = "Barcode"
+                        showOperationsOverview = false
                         destination = AppDestination.OPERATIONS
                     },
                 )
-                AppDestination.OPERATIONS -> OperationsScreen(
-                    viewModel = operationsViewModel,
-                    startSection = operationsStartSection,
-                    title = presentation.operationsLabel,
-                )
+                AppDestination.OPERATIONS -> if (showOperationsOverview) {
+                    OwnerOperationsOverview(
+                        viewModel = operationsViewModel,
+                        onOpenOperations = { section ->
+                            operationsStartSection = section
+                            showOperationsOverview = false
+                        },
+                        onOpenFinance = {
+                            showOperationsOverview = false
+                            financeStartTab = 0
+                            destination = AppDestination.FINANCE
+                        },
+                        onOpenReports = {
+                            showOperationsOverview = false
+                            destination = AppDestination.REPORTS
+                        },
+                        onOpenMore = {
+                            showOperationsOverview = false
+                            destination = AppDestination.MORE
+                        },
+                    )
+                } else {
+                    OperationsScreen(
+                        viewModel = operationsViewModel,
+                        startSection = operationsStartSection,
+                        title = presentation.operationsLabel,
+                    )
+                }
                 AppDestination.FINANCE -> FinanceScreen(
                     viewModel = operationsViewModel,
-                    startTab = presentation.financeStartTab,
+                    startTab = financeStartTab,
                     title = presentation.financeLabel,
                 )
                 AppDestination.REPORTS -> ReportsScreen(operationsViewModel)

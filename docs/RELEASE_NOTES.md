@@ -20,6 +20,74 @@ dist/debug/CatatToko-Grosir.apk
 dist/debug/CatatToko-Kuliner.apk
 ```
 
+## Versi 0.7.3 - 2026-08-23
+
+Status: APK debug lokal; rilis produksi ditahan menunggu persetujuan visual user
+
+### Kenapa versi ini dibuat
+
+- Artifact debug `0.7.2` masih menampilkan fallback `ic_app` generik pada hero Kasir dan header Owner.
+- Loading wordmark flavor terlalu singkat sehingga identitas CatatToko tidak konsisten terlihat saat aplikasi dibuka.
+
+### Perubahan
+
+- Menambahkan `CatatTokoAppIcon` shared yang merekonstruksi background dan foreground adaptive icon per flavor.
+- Memakai icon tersebut pada hero Kasir ukuran sekitar 80 dp dan header Owner ukuran sekitar 40 dp; flow transaksi tidak diubah.
+- Menjaga wordmark `brand_loading_logo` per flavor serta menambahkan gate loading non-blocking minimal 3.000 ms sejak composition/activity baru.
+- Menambahkan regression unit test untuk gate loading dan menaikkan versi ke `versionCode 25`, `versionName 0.7.3` tanpa perubahan schema/data.
+
+### Kekurangan dan masalah yang diketahui
+
+- Build ini tetap debug lokal dan belum boleh dipublikasikan sebagai rilis produksi.
+- Full connected suite dan production packaging tidak dijalankan pada patch ini; rilis produksi tetap ditahan dan tidak dipublikasikan.
+- QA kamera fisik/barcode dan integrasi printer tetap di luar patch.
+
+### Verifikasi
+
+- `testRetailDebugUnitTest testWholesaleDebugUnitTest testCulinaryDebugUnitTest assembleDebug assembleRetailDebugAndroidTest assembleWholesaleDebugAndroidTest assembleCulinaryDebugAndroidTest` lulus dalam `2m42s` (`234 actionable tasks: 69 executed, 165 up-to-date`).
+- Targeted `MainActivitySmokeTest#owner_destinations_keep_catattoko_brand_header` lulus `1/1` pada Retail, Wholesale, dan Culinary.
+- Native ADB/MuMu screenshot mengonfirmasi icon launcher flavor yang benar pada layar Kasir dan Owner, serta full wordmark loading per flavor.
+- Ketiga APK debug `0.7.3` dengan `versionCode 25` di-install ulang memakai `install -r`, tanpa uninstall atau reset data.
+
+## Versi 0.7.2 - 2026-08-23
+
+Status: APK debug lokal; bukan build production signed
+
+### Kenapa versi ini dibuat
+
+- Redesign bento sebelumnya baru terlihat pada landing Operasional, sementara halaman Owner lain masih memakai header generik dan whitespace besar.
+- Owner membutuhkan identitas CatatToko dan bahasa visual yang konsisten saat berpindah antar modul non-Kasir.
+
+### Perubahan
+
+- Menerapkan shared compact `CatatToko` Owner header dan bento surface/token pada Operasional, Keuangan, Laporan, Lainnya, History Import, forecast, chart, dan dialog management.
+- Menjaga flow Kasir (`CashierLandingScreen`, Catalog, Cart, Payment, Receipt) serta behavior transaksi tetap di luar scope redesign.
+- Memperkuat test navigation Owner dengan semantics click yang stabil untuk shortcut overview dan tag tab Operasional flavor-specific.
+- Memperbarui requirement UI dan ERR-069/ERR-071 agar keputusan scope, root cause, serta bukti implementasi terdokumentasi.
+- Menaikkan `versionCode` ke `24` dan `versionName` ke `0.7.2` tanpa perubahan schema/data.
+
+### Kekurangan dan masalah yang diketahui
+
+- Build ini adalah APK debug lokal, bukan APK production signed; jangan dipublikasikan sebagai rilis produksi.
+- Connected test MuMu dijalankan dan diaudit oleh root setelah patch UI; agent packaging ini tidak mengulang connected test.
+- Native MuMu visual audit Owner-wide sudah lulus untuk Retail, Wholesale, dan Culinary; connected test tetap dibedakan sebagai hasil QA root, bukan rerun agent packaging ini.
+- QA kamera fisik/barcode dan integrasi printer tetap di luar patch ini.
+- Gap icon generik yang tercatat pada artifact `0.7.2` diperbaiki pada patch lokal `0.7.3`; status `0.7.2` tetap debug dan tidak dipromosikan menjadi rilis produksi.
+
+### Verifikasi
+
+- `testRetailDebugUnitTest testWholesaleDebugUnitTest testCulinaryDebugUnitTest` lulus.
+- `assembleDebug` lulus untuk Retail, Wholesale, dan Culinary.
+- `assembleRetailDebugAndroidTest assembleWholesaleDebugAndroidTest assembleCulinaryDebugAndroidTest` lulus.
+- Compile AndroidTest terbaru setelah perbaikan semantics/tab lulus untuk tiga flavor.
+- Connected Owner smoke test telah lulus pada QA root setelah shortcut overview dan tab flavor-specific memakai semantics/tag stabil; tidak diklaim sebagai rerun agent ini.
+
+### APK debug lokal
+
+- Retail: `dist/debug/CatatToko-Retail.apk` | 48,619,716 bytes | SHA256 `DD6B6BCFD3D45C8B89D7DB05229565B3C65BA9F28A6E45CE8BBFE4616C4E5A74`
+- Grosir: `dist/debug/CatatToko-Grosir.apk` | 48,648,756 bytes | SHA256 `AD48DF83E0301267BB20F26B65C534E243637D00D4E5C2D81951B9E0F7369F59`
+- Kuliner: `dist/debug/CatatToko-Kuliner.apk` | 48,720,497 bytes | SHA256 `FA5A27714CF2550F0275BD0AF691D2BBD3761DE9C300D2F93C156B872AB07E83`
+
 ## Versi 0.7.1 - 2026-08-20
 
 Status: Rilis produksi signed; artifact dan certificate sudah diverifikasi
