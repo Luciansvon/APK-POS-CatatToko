@@ -22,7 +22,7 @@ dist/debug/CatatToko-Kuliner.apk
 
 ## Versi 0.7.3 - 2026-08-23
 
-Status: APK production signed terverifikasi; publikasi menunggu merge, belum dipublikasikan
+Status: Rilis production signed dipublikasikan; artifact, certificate, dan hash terverifikasi
 
 ### Kenapa versi ini dibuat
 
@@ -38,7 +38,7 @@ Status: APK production signed terverifikasi; publikasi menunggu merge, belum dip
 
 ### Kekurangan dan masalah yang diketahui
 
-- Artifact signed, certificate, dan hash sudah diverifikasi; URL download publik belum aktif karena merge dan GitHub Release masih ditahan.
+- Artifact signed, certificate, hash, dan URL download publik sudah diverifikasi pada [GitHub Release CatatToko v0.7.3](https://github.com/Luciansvon/APK-POS-CatatToko/releases/tag/v0.7.3), target merge `375ed4e89005029919f508dfa733ce9f349b96bf`.
 - Full connected suite tidak dijalankan pada patch ini; targeted Owner smoke dan audit visual root sudah dicatat sebagai bukti terpisah.
 - QA kamera fisik/barcode dan integrasi printer tetap di luar patch.
 
