@@ -45,7 +45,7 @@ Desain pertama memakai varian **Retail dan UMKM** sebagai acuan. Setelah style d
 - [x] Sheet Ringkasan memiliki pengaturan fit satu halaman cetak; hasil fisik tetap bergantung pada aplikasi printer yang dipakai.
 - [x] Produk, varian, dan kategori memakai istilah `Arsipkan`/`Aktifkan kembali` dengan konfirmasi dampak. Data lama dan histori tidak dihapus.
 - [x] Aksi stok dinamai `Penyesuaian stok` dan menjelaskan bahwa alasan wajib dicatat.
-- [x] Launcher memakai logo tanpa teks per flavor; pemuatan awal memakai logo bertulisan per flavor tanpa delay palsu.
+- [x] Launcher memakai logo tanpa teks per flavor; layar Kasir dan Owner memakai pasangan foreground/background adaptive icon yang sama, sedangkan pemuatan awal memakai logo bertulisan per flavor dan tampil minimal 3 detik tanpa blocking.
 - [x] Setelah backup selesai, aksi utama berubah menjadi `Bagikan salinan data`; berkas baru dikenali sebagai ZIP dan backup `.ukbackup` lama tetap dapat dipilih.
 - [ ] Printer struk pembayaran menjadi tahap berikutnya. Tipe koneksi (Bluetooth/USB/LAN), protokol, lebar kertas, dan model printer belum dipilih; hardware printer belum diimplementasikan.
 - Catatan arsitektur kandidat printer disimpan di `docs/PRINTER_REQUIREMENTS.md`: ESC/POS universal, transaksi wajib tersimpan sebelum cetak, dan kegagalan printer tidak boleh membatalkan transaksi.
@@ -233,7 +233,28 @@ Status: Flow kasir tetap memakai referensi dan implementasi yang sudah disetujui
 - Final references: `Operasional - Stok Owner Final` (`27a28e73ec6845d5bb04bbaa5649cf5b`), `Keuangan - Kas Owner (Empty State)` (`315cbf64dad04a12b093f39c116e228e`), dan `Lainnya - Backup & Keamanan (Final)` (`60f6e98df53a4fc9b858c3f0233063a8`).
 - Arah visual final: app bar putih ringkas, tab teks dengan underline, satu angka utama, daftar tanpa kartu bertumpuk, divider tipis, dan CTA hanya pada konteks yang jelas.
 
+### Keputusan terbaru: Owner / Operasional bento overview (2026-08-23)
+
+Screenshot `C:\Users\shint\Downloads\ChatGPT Image 23 Agu 2026, 09.15.43.png` menjadi acuan visual terbaru untuk layar landing Owner saat membuka `Operasional`. Keputusan ini menggantikan arah flat sebelumnya hanya pada overview tersebut: header `CatatToko` + `Mode Owner`, ringkasan omzet/transaksi/uang masuk, peringatan stok, empat shortcut, serta link laporan dan backup memakai bento card dengan border tipis, radius sedang, dan aksen primary flavor.
+
+Scope implementasi sengaja sempit. Shortcut dan link harus membuka screen/tab existing (`Produk`, `Pembelian`, `Stok`, `Pekerja`, `Kas`, `Laporan`, atau `Backup & Keamanan`); layar detail management, Finance, Reports, More, keamanan Owner, dan flow kasir tidak ikut diubah menjadi bento. Angka finansial overview dibaca melalui `ReportRepository.readSummary` dengan `ReportSession` Owner yang sudah terverifikasi: omzet dan jumlah transaksi hari ini berasal dari `ReportSummary`, sedangkan `Uang masuk` memakai `ReportSummary.cashIn` (kas masuk ledger dengan metode `CASH`), bukan `amountReceived` mentah atau omzet. Summary hari ini dibersihkan saat Owner dikunci dan dimuat ulang ketika overview dibuka.
+
 Eksplorasi Owner awal yang memakai frame ungu, hero hijau besar, kartu bertumpuk, data contoh, atau navigasi terpotong ditolak dan bukan acuan implementasi.
+
+### Requirement final: bento untuk seluruh area Owner/non-Kasir (2026-08-23)
+
+Keputusan user terbaru memperluas bahasa visual bento ke seluruh area Owner pada Retail, Wholesale, dan Culinary: landing Operasional, Produk, Stok, Pembelian, Pekerja, Grosir, Kuliner, Keuangan (Kas/Shift, Utang-Piutang, Transaksi), Laporan beserta rincian dan forecast, Lainnya (Profil, PIN, backup/restore), History Import, Barcode Management, serta dialog management yang tampil sebagai bagian dari halaman. Flow Kasir tetap dikecualikan: `CashierLandingScreen`, Catalog, Cart, Payment, Receipt, dan behavior transaksi tidak diubah.
+
+Semua halaman Owner/non-Kasir memakai komponen shared `CatatToko` compact owner header dengan logo toko dan label `CatatToko`; label flavor hanya metadata kecil. Shared bento surface/card/action row memakai radius sekitar 12 dp, outer padding 16 dp, gap kelompok 12 dp, internal padding 12–16 dp, dan target sentuh minimal 48 dp. Header, judul, tab, filter, dan divider tetap plain; card hanya dipakai untuk metric, kelompok data, atau aksi yang membutuhkan boundary. Fixed-height/spacer dekoratif dan whitespace besar dihapus, kecuali tinggi chart/hero yang memang diperlukan.
+
+> Perubahan ini menggantikan scope sempit pada paragraf sebelumnya. Arah flat Owner lama tidak lagi berlaku untuk halaman Owner/non-Kasir, tetapi flow Kasir tetap memakai desain dan behavior yang sudah disetujui.
+
+### Status 23 Agustus 2026 - Brand icon dan startup loading
+
+- [x] Komponen shared `CatatTokoAppIcon` merender `ic_launcher_background` flavor dan `ic_launcher_foreground_v3` flavor di dalam rounded-square; adaptive XML launcher tidak dipakai langsung sebagai painter Compose.
+- [x] Logo hero layar Kasir memakai icon flavor yang sama pada ukuran sekitar 80 dp dan tetap menampilkan teks `CatatToko`.
+- [x] Header Owner memakai icon flavor yang sama pada ukuran sekitar 40 dp, tanpa clipping berbentuk lingkaran dan tanpa fallback `ic_app` generik.
+- [x] `BrandLoadingScreen` tetap memakai full wordmark per flavor. Home baru ditampilkan setelah inisialisasi selesai dan gate non-blocking minimal 3.000 ms selesai; recreate/restore memulai gate baru.
 
 ### Bahan yang perlu disiapkan sebelum mulai
 

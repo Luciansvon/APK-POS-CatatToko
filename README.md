@@ -1,3 +1,5 @@
+<p align="center"><img src="app/src/retail/res/mipmap-xxxhdpi/ic_launcher.png" width="128" alt="Logo CatatToko"></p>
+
 # Usaha Kecil Suite
 
 Satu source Android offline-first untuk tiga APK operasional:
@@ -6,19 +8,19 @@ Satu source Android offline-first untuk tiga APK operasional:
 - Grosir dan Agen;
 - Kuliner dan Pedagang Kaki Lima.
 
-Versi publik saat ini: `0.7.1` (`versionCode 23`) dengan barcode offline untuk Retail dan Grosir. Semua fungsi utama tetap berjalan lokal di HP owner tanpa akun, server, atau internet.
+Versi target publik saat ini: `0.7.3` (`versionCode 25`) dengan redesign Owner/non-Kasir dan startup branding per flavor. Kandidat production signed sudah terverifikasi; publikasi menunggu merge dan GitHub Release.
 
-## Download APK v0.7.1
+## Download APK v0.7.3
 
 Pilih APK sesuai jenis usaha:
 
-- [Download CatatToko Retail dan UMKM](https://github.com/Luciansvon/APK-POS-CatatToko/releases/download/v0.7.1/CatatToko-Retail.apk)
-- [Download CatatToko Grosir dan Agen](https://github.com/Luciansvon/APK-POS-CatatToko/releases/download/v0.7.1/CatatToko-Grosir.apk)
-- [Download CatatToko Kuliner dan PKL](https://github.com/Luciansvon/APK-POS-CatatToko/releases/download/v0.7.1/CatatToko-Kuliner.apk)
+- [Download CatatToko Retail dan UMKM](https://github.com/Luciansvon/APK-POS-CatatToko/releases/download/v0.7.3/CatatToko-Retail.apk)
+- [Download CatatToko Grosir dan Agen](https://github.com/Luciansvon/APK-POS-CatatToko/releases/download/v0.7.3/CatatToko-Grosir.apk)
+- [Download CatatToko Kuliner dan PKL](https://github.com/Luciansvon/APK-POS-CatatToko/releases/download/v0.7.3/CatatToko-Kuliner.apk)
 
-[Lihat catatan rilis CatatToko v0.7.1](https://github.com/Luciansvon/APK-POS-CatatToko/releases/tag/v0.7.1).
+[Lihat catatan rilis CatatToko v0.7.3](https://github.com/Luciansvon/APK-POS-CatatToko/releases/tag/v0.7.3).
 
-> **Penting untuk pengguna v0.6.0:** v0.7.1 memakai certificate produksi yang sama dengan v0.7.0, sedangkan v0.6.0 memakai debug certificate. Buat dan bagikan backup ke luar HP terlebih dahulu, uninstall v0.6.0, install v0.7.1, lalu restore backup. Pengguna v0.7.0 dapat memperbarui aplikasi langsung.
+> **Status rilis:** artifact signed v0.7.3 sudah terverifikasi, tetapi link baru aktif setelah merge dan GitHub Release dipublikasikan. PR dan release masih sengaja ditahan.
 
 Aplikasi selalu mulai dalam Mode Kasir/Pekerja. Pada pemasangan pertama, panduan wajib menjelaskan Mode Kasir/Pekerja dan Mode Owner tanpa tombol lewati. Pekerja hanya dapat memakai kasir, melihat stok produk dan total transaksi aktif, serta membuka shift. Owner dapat memakai kasir tanpa membuka shift pekerja. Operasional, keuangan, laporan, profil, backup, restore, impor catatan lama, dan export Excel tetap baru muncul setelah PIN Owner benar.
 

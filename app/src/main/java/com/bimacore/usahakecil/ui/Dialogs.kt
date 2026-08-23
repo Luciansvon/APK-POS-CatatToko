@@ -430,6 +430,7 @@ fun AboutDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = OwnerCardShape,
         title = { Text(businessLabel, fontWeight = FontWeight.Bold) },
         text = {
             Text(
@@ -457,6 +458,7 @@ fun OwnerAccessDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = OwnerCardShape,
         title = {
             Text(
                 when {

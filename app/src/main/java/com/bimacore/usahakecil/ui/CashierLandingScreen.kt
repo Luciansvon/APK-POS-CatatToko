@@ -3,7 +3,6 @@ package com.bimacore.usahakecil.ui
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,8 +40,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -84,13 +81,10 @@ fun CashierLandingScreen(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Image(
-                painter = painterResource(R.drawable.ic_app),
+            CatatTokoAppIcon(
+                size = 80.dp,
                 contentDescription = stringResource(R.string.brand_logo_description),
-                contentScale = ContentScale.Fit,
-                modifier = Modifier
-                    .size(64.dp)
-                    .testTag("catattoko-brand-logo"),
+                testTag = "catattoko-brand-logo",
             )
             Text(
                 text = stringResource(R.string.brand_name),

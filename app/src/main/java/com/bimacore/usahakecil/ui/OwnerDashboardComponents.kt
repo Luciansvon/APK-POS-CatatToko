@@ -40,8 +40,8 @@ fun OwnerSectionTabs(
         modifier = Modifier
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState())
-            .heightIn(min = 52.dp)
-            .padding(horizontal = 16.dp)
+            .heightIn(min = 48.dp)
+            .padding(horizontal = OwnerPageHorizontalPadding)
             .testTag(testTag),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
@@ -49,10 +49,10 @@ fun OwnerSectionTabs(
             Column(
                 modifier = Modifier
                     .widthIn(min = 72.dp)
-                    .heightIn(min = 52.dp)
+                    .heightIn(min = 48.dp)
                     .clickable { onSelected(index) }
                     .testTag("$testTag-$label")
-                    .padding(horizontal = 8.dp, vertical = 8.dp),
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.SpaceBetween,
             ) {
@@ -88,28 +88,30 @@ fun OwnerHeroCard(
     modifier: Modifier = Modifier,
     content: (@Composable () -> Unit)? = null,
 ) {
-    Column(
-        modifier = modifier.fillMaxWidth().padding(vertical = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Text(
-            eyebrow,
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(
-            value,
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Text(
-            supportingText,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        content?.invoke()
+    OwnerBentoSurface(modifier = modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                eyebrow,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                value,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                supportingText,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            content?.invoke()
+        }
     }
 }
 
@@ -122,7 +124,7 @@ fun OwnerMetricStrip(metrics: List<Pair<String, String>>) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 10.dp),
+                        .padding(vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -151,7 +153,7 @@ fun OwnerMetricStrip(metrics: List<Pair<String, String>>) {
         modifier = Modifier
             .fillMaxWidth()
             .height(IntrinsicSize.Min)
-            .padding(vertical = 12.dp),
+            .padding(vertical = 8.dp),
     ) {
         metrics.forEachIndexed { index, (value, label) ->
             Column(
@@ -191,26 +193,29 @@ fun OwnerEmptyState(
     testTag: String? = null,
     modifier: Modifier = Modifier,
 ) {
-    Column(
+    OwnerBentoSurface(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp)
             .then(if (testTag == null) Modifier else Modifier.testTag(testTag)),
     ) {
-        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        Text(
-            message,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(top = 4.dp),
-        )
-        if (actionLabel != null && onAction != null) {
-            Button(
-                onClick = onAction,
-                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                shape = OwnerActionShape,
-            ) {
-                Text(actionLabel)
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+        ) {
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(
+                message,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            if (actionLabel != null && onAction != null) {
+                Button(
+                    onClick = onAction,
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    shape = OwnerActionShape,
+                ) {
+                    Text(actionLabel)
+                }
             }
         }
     }
@@ -224,27 +229,26 @@ fun OwnerLinkCard(
     actionLabel: String = "Buka",
     testTag: String? = null,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 72.dp)
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Text(
-                subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        TextButton(
-            onClick = onClick,
-            modifier = if (testTag == null) Modifier else Modifier.testTag(testTag),
+    OwnerBentoSurface(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth().heightIn(min = 60.dp).padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(actionLabel)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            TextButton(
+                onClick = onClick,
+                modifier = if (testTag == null) Modifier else Modifier.testTag(testTag),
+            ) {
+                Text(actionLabel)
+            }
         }
     }
 }
@@ -256,25 +260,24 @@ fun OwnerDetailCard(
     action: String? = null,
     onAction: (() -> Unit)? = null,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 72.dp)
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-            Text(
-                subtitle,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        if (action != null && onAction != null) {
-            TextButton(onClick = onAction, modifier = Modifier.heightIn(min = 48.dp)) {
-                Text(action)
+    OwnerBentoSurface(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth().heightIn(min = 60.dp).padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (action != null && onAction != null) {
+                TextButton(onClick = onAction, modifier = Modifier.heightIn(min = 48.dp)) {
+                    Text(action)
+                }
             }
         }
     }

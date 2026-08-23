@@ -35,8 +35,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -77,14 +75,6 @@ import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-
-@Composable
-internal fun ownerTopAppBarColors() = TopAppBarDefaults.topAppBarColors(
-    containerColor = MaterialTheme.colorScheme.surface,
-    titleContentColor = MaterialTheme.colorScheme.onSurface,
-    navigationIconContentColor = MaterialTheme.colorScheme.onSurface,
-    actionIconContentColor = MaterialTheme.colorScheme.primary,
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -128,10 +118,7 @@ fun OperationsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(title, fontWeight = FontWeight.Bold) },
-                colors = ownerTopAppBarColors(),
-            )
+            CatatTokoOwnerHeader(pageTitle = title)
         },
     ) { padding ->
         Column(
@@ -696,10 +683,7 @@ fun FinanceScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(title, fontWeight = FontWeight.Bold) },
-                colors = ownerTopAppBarColors(),
-            )
+            CatatTokoOwnerHeader(pageTitle = title)
         },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
@@ -906,6 +890,7 @@ fun FinanceScreen(
     saleDetail?.let { detail ->
         AlertDialog(
             onDismissRequest = viewModel::closeSaleDetail,
+            shape = OwnerCardShape,
             title = { Text(detail.sale.receiptNumber) },
             text = {
                 Column(
@@ -970,10 +955,7 @@ fun ReportsScreen(viewModel: OperationsViewModel) {
     var detailMode by remember { mutableStateOf<ReportDetailMode?>(null) }
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Laporan", fontWeight = FontWeight.Bold) },
-                colors = ownerTopAppBarColors(),
-            )
+            CatatTokoOwnerHeader(pageTitle = "Laporan")
         },
     ) { padding ->
         Column(
@@ -1237,10 +1219,7 @@ fun MoreScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Lainnya", fontWeight = FontWeight.Bold) },
-                colors = ownerTopAppBarColors(),
-            )
+            CatatTokoOwnerHeader(pageTitle = "Lainnya")
         },
     ) { padding ->
         Column(
@@ -1410,6 +1389,7 @@ fun MoreScreen(
     preview?.let { item ->
         AlertDialog(
             onDismissRequest = viewModel::cancelRestore,
+            shape = OwnerCardShape,
             title = { Text("Konfirmasi pemulihan") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1432,6 +1412,7 @@ fun MoreScreen(
     if (showShareBackup) {
         AlertDialog(
             onDismissRequest = { showShareBackup = false },
+            shape = OwnerCardShape,
             title = { Text("Peringatan Privasi") },
             text = { Text(com.bimacore.usahakecil.backup.BackupManager.SENSITIVITY_WARNING) },
             confirmButton = {
@@ -1458,7 +1439,12 @@ fun MoreScreen(
 
 @Composable
 private fun ActionRow(vararg actions: Pair<String, () -> Unit>) {
-    CompactGrid(actions.toList())
+    OwnerBentoSurface {
+        CompactGrid(
+            items = actions.toList(),
+            modifier = Modifier.padding(8.dp),
+        )
+    }
 }
 
 @Composable
@@ -1526,46 +1512,46 @@ private fun CategoryGrid(
     onEdit: (CategoryEntity) -> Unit,
     onArchive: (CategoryEntity) -> Unit,
 ) {
-    Column(
-        Modifier
+    OwnerBentoSurface(
+        modifier = Modifier
             .fillMaxWidth()
             .testTag("category-grid"),
     ) {
-        categories.forEachIndexed { index, category ->
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 64.dp),
-                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        category.name,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        if (category.isActive) "Aktif" else "Diarsipkan",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
+        Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp)) {
+            categories.forEachIndexed { index, category ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 60.dp),
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            category.name,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            if (category.isActive) "Aktif" else "Diarsipkan",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                    TextButton(
+                        onClick = { onArchive(category) },
+                        modifier = Modifier
+                            .heightIn(min = 48.dp)
+                            .testTag("archive-category-${category.id}"),
+                        contentPadding = PaddingValues(horizontal = 8.dp),
+                    ) { Text(if (category.isActive) "Arsipkan" else "Aktifkan kembali") }
+                    TextButton(
+                        onClick = { onEdit(category) },
+                        modifier = Modifier.heightIn(min = 48.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp),
+                    ) { Text("Ubah") }
                 }
-                TextButton(
-                    onClick = { onArchive(category) },
-                    modifier = Modifier
-                        .heightIn(min = 48.dp)
-                        .testTag("archive-category-${category.id}"),
-                    contentPadding = PaddingValues(horizontal = 8.dp),
-                ) { Text(if (category.isActive) "Arsipkan" else "Aktifkan kembali") }
-                TextButton(
-                    onClick = { onEdit(category) },
-                    modifier = Modifier.heightIn(min = 48.dp),
-                    contentPadding = PaddingValues(horizontal = 8.dp),
-                ) { Text("Ubah") }
-            }
-            if (index < categories.lastIndex) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f))
+                if (index < categories.lastIndex) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f))
+                }
             }
         }
     }
@@ -1602,6 +1588,7 @@ private fun ArchiveConfirmationDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = OwnerCardShape,
         modifier = Modifier.testTag("archive-confirmation"),
         title = { Text(target.title) },
         text = { Text(target.impact) },
@@ -1622,14 +1609,14 @@ fun SectionTitle(text: String) {
 
 @Composable
 fun InfoCard(title: String, subtitle: String) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Text(title, fontWeight = FontWeight.SemiBold)
-        Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    OwnerBentoSurface(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(title, fontWeight = FontWeight.SemiBold)
+            Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 
@@ -1643,35 +1630,37 @@ private fun ItemCard(
     onSecondaryAction: () -> Unit = {},
     onAction: () -> Unit,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 72.dp)
-            .padding(vertical = 8.dp),
-        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(title, fontWeight = FontWeight.SemiBold)
-            Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-        if (action != null) {
-            TextButton(
-                onClick = onAction,
-                modifier = Modifier
-                    .heightIn(min = 48.dp)
-                    .then(
-                        if (actionTestTag == null) Modifier else Modifier.testTag(actionTestTag),
-                    ),
-                contentPadding = PaddingValues(horizontal = 8.dp),
-            ) { Text(action) }
-        }
-        if (secondaryAction != null) {
-            TextButton(
-                onClick = onSecondaryAction,
-                modifier = Modifier.heightIn(min = 48.dp),
-                contentPadding = PaddingValues(horizontal = 8.dp),
-            ) { Text(secondaryAction) }
+    OwnerBentoSurface(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 60.dp)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(title, fontWeight = FontWeight.SemiBold)
+                Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (action != null) {
+                TextButton(
+                    onClick = onAction,
+                    modifier = Modifier
+                        .heightIn(min = 48.dp)
+                        .then(
+                            if (actionTestTag == null) Modifier else Modifier.testTag(actionTestTag),
+                        ),
+                    contentPadding = PaddingValues(horizontal = 8.dp),
+                ) { Text(action) }
+            }
+            if (secondaryAction != null) {
+                TextButton(
+                    onClick = onSecondaryAction,
+                    modifier = Modifier.heightIn(min = 48.dp),
+                    contentPadding = PaddingValues(horizontal = 8.dp),
+                ) { Text(secondaryAction) }
+            }
         }
     }
 }
@@ -1690,6 +1679,7 @@ private fun TextInputDialog(
     var values by remember { mutableStateOf(initialValues) }
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = OwnerCardShape,
         title = { Text(title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1786,6 +1776,7 @@ private fun ProductDialog(
     }
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = OwnerCardShape,
         title = { Text(if (product == null) "Tambah produk" else "Ubah produk") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1873,6 +1864,7 @@ private fun VariantDialog(
     var values by remember { mutableStateOf(listOf("", "", "")) }
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = OwnerCardShape,
         title = { Text("Tambah varian") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1930,6 +1922,7 @@ private fun StockDialog(
     var reason by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = OwnerCardShape,
         title = { Text("Penyesuaian stok") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1994,6 +1987,7 @@ private fun PurchaseDialog(
         .map { it.first to it.third }
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = OwnerCardShape,
         title = { Text("Catat pembelian") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -2054,6 +2048,7 @@ private fun WorkerDialog(
     var values by remember { mutableStateOf(listOf("", "", "")) }
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = OwnerCardShape,
         title = { Text("Tambah pekerja") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -2101,6 +2096,7 @@ private fun AttendanceDialog(
     var values by remember { mutableStateOf(List(4) { "" }) }
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = OwnerCardShape,
         title = { Text("Catat kehadiran") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -2145,6 +2141,7 @@ private fun WholesaleDialog(
     var values by remember { mutableStateOf(listOf("", "", "")) }
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = OwnerCardShape,
         title = { Text(if (mode == 0) "Tambah satuan" else "Tambah harga bertingkat") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -2206,6 +2203,7 @@ private fun CulinarySetupDialog(
     var amount by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = OwnerCardShape,
         title = { Text(if (mode == 0) "Tambah topping" else "Tambah bahan resep") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -2264,6 +2262,7 @@ private fun CashDialog(
     var values by remember { mutableStateOf(listOf("", "", "")) }
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = OwnerCardShape,
         title = { Text("Tambah catatan kas") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -2306,6 +2305,7 @@ private fun DebtDialog(
     var values by remember { mutableStateOf(listOf("", "", "")) }
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = OwnerCardShape,
         title = { Text(title) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -82,7 +82,7 @@ fun ReportPeriodPicker(
                 .fillMaxWidth()
                 .heightIn(min = 56.dp)
                 .testTag("report-period-selector"),
-            shape = RoundedCornerShape(16.dp),
+            shape = OwnerCardShape,
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         ) {
             Icon(Icons.Outlined.CalendarMonth, contentDescription = null)
@@ -174,12 +174,11 @@ fun ReportSalesMovementCard(
     val visiblePoints = remember(trend, range) {
         trend?.points.orEmpty().filter { it.bucketStart in range }.takeLast(12)
     }
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
+    OwnerBentoSurface(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
         Text(
             "Pergerakan penjualan ${period.label.lowercase(Locale.forLanguageTag("id-ID"))}",
             style = MaterialTheme.typography.titleMedium,
@@ -200,6 +199,7 @@ fun ReportSalesMovementCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             else -> SalesLineChart(visiblePoints, trend.granularity)
+        }
         }
     }
 }
@@ -307,13 +307,14 @@ fun ReportMetricGrid(
             add(ReportMetricData("Saldo piutang saat ini", formatRupiah(summary.outstandingReceivables), null, null, null))
         }
     }
-    Column(modifier = Modifier.fillMaxWidth()) {
-        metrics.forEachIndexed { index, metric ->
+    OwnerBentoSurface(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp)) {
+            metrics.forEachIndexed { index, metric ->
             val delta = metric.delta()
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 10.dp),
+                    .padding(vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(5.dp),
             ) {
                 Row(
@@ -341,8 +342,9 @@ fun ReportMetricGrid(
                     style = MaterialTheme.typography.labelMedium,
                 )
             }
-            if (index < metrics.lastIndex) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f))
+                if (index < metrics.lastIndex) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f))
+                }
             }
         }
     }
@@ -605,13 +607,10 @@ private fun CashFlowTrendCard(trend: ReportTrendReport) {
         mutableIntStateOf((points.size - 1).coerceAtLeast(0))
     }
     val maxValue = points.maxOfOrNull { maxOf(it.cashIn, it.cashOut) }?.coerceAtLeast(1L) ?: 1L
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .testTag("report-cash-flow-chart"),
+    OwnerBentoSurface(
+        modifier = Modifier.fillMaxWidth().testTag("report-cash-flow-chart"),
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Arus kas", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Text(
                 "${formatTrendRange(trend)} • ${trend.granularity.sentenceLabel()}.",
@@ -700,12 +699,8 @@ private fun SalesTrendCard(trend: ReportTrendReport) {
         mutableIntStateOf((points.size - 1).coerceAtLeast(0))
     }
     val maxValue = points.maxOfOrNull { it.sales }?.coerceAtLeast(1L) ?: 1L
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    OwnerBentoSurface(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Penjualan", style = MaterialTheme.typography.titleMedium)
             Text(
                 "Omzet dan transaksi per ${trend.granularity.label.lowercase(Locale.forLanguageTag("id-ID"))}.",
@@ -772,12 +767,8 @@ private fun ProductTrendCard(
     val maxValue = points.maxOfOrNull { point ->
         if (effectiveMeasure == ReportProductMeasure.SALES) point.sales else point.quantity
     }?.coerceAtLeast(1L) ?: 1L
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    OwnerBentoSurface(modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Penjualan produk", style = MaterialTheme.typography.titleMedium)
             Text(
                 "${series.productName} • ${effectiveMeasure.label} per ${trend.granularity.label.lowercase(Locale.forLanguageTag("id-ID"))}",
@@ -836,13 +827,11 @@ private fun ProductComparisonChart(
         .sortedWith(compareByDescending<ProductPerformance> { it.value }.thenBy { it.name })
     val maxValue = products.maxOfOrNull(ProductPerformance::value)?.coerceAtLeast(1L) ?: 1L
 
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-            .testTag("report-product-comparison"),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
+    OwnerBentoSurface(modifier = Modifier.fillMaxWidth().testTag("report-product-comparison")) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
         Text("Performa semua produk", style = MaterialTheme.typography.titleMedium)
         Text(
             "${measure.label} pada ${formatTrendRange(trend)} • diurutkan tertinggi.",
@@ -909,6 +898,7 @@ private fun ProductComparisonChart(
             )
         }
     }
+}
 }
 
 @Composable
