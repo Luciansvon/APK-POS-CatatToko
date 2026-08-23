@@ -22,7 +22,7 @@ dist/debug/CatatToko-Kuliner.apk
 
 ## Versi 0.7.3 - 2026-08-23
 
-Status: Kandidat APK production signed; workflow release masih pending, belum dipublikasikan
+Status: APK production signed terverifikasi; publikasi menunggu merge, belum dipublikasikan
 
 ### Kenapa versi ini dibuat
 
@@ -38,13 +38,20 @@ Status: Kandidat APK production signed; workflow release masih pending, belum di
 
 ### Kekurangan dan masalah yang diketahui
 
-- Artifact signed, certificate, hash, dan URL download publik belum tersedia sebelum workflow release selesai.
+- Artifact signed, certificate, dan hash sudah diverifikasi; URL download publik belum aktif karena merge dan GitHub Release masih ditahan.
 - Full connected suite tidak dijalankan pada patch ini; targeted Owner smoke dan audit visual root sudah dicatat sebagai bukti terpisah.
 - QA kamera fisik/barcode dan integrasi printer tetap di luar patch.
 
 ### Verifikasi
 
 - Gate release worktree `testRetailDebugUnitTest testWholesaleDebugUnitTest testCulinaryDebugUnitTest lint assembleDebug assembleRetailDebugAndroidTest assembleWholesaleDebugAndroidTest assembleCulinaryDebugAndroidTest` lulus dalam `4m27s` (`243 actionable tasks: 144 executed, 99 from cache`).
+- Workflow signed release [`32633126665`](https://github.com/Luciansvon/APK-POS-CatatToko/actions/runs/32633126665) pada head `47fb83f81e14950dd3a5d8eddf1d5ffd142701ad` sukses dalam `8m08s`, termasuk build, verifikasi signature/package, dan upload artifact.
+- PR CI [`32633122091`](https://github.com/Luciansvon/APK-POS-CatatToko/actions/runs/32633122091) sukses: unit test semua flavor, debug/instrumentation APK, minified unsigned release candidates, dan lint.
+- Ketiga APK memakai `versionCode 25`, `versionName` `0.7.3-retail`, `0.7.3-wholesale`, `0.7.3-culinary`, `minSdk 23`, dan `targetSdk 36`.
+- V1 dan V2 valid pada ketiga APK. Certificate SHA-256 sama: `E9D193841B5493F332450C4C0DA41C6369598C12C0B147C8BF60DC61EAA285F2`; DN `CN=CatatToko, OU=Production, O=BIMA Core, C=ID`.
+- Retail: `CatatToko-Retail.apk` | 24,870,998 bytes | SHA256 `5E8352FC8C1EFFA5AF4293A80C9444C1625A9891EB31CC4034D5431FCBC505AC`
+- Grosir: `CatatToko-Grosir.apk` | 24,868,682 bytes | SHA256 `61A1430987F3D8BF5ABF02D1B7D60B3972BD620557AB32C6B23885D13317EDC0`
+- Kuliner: `CatatToko-Kuliner.apk` | 24,870,424 bytes | SHA256 `4151B483BE821928D475C458A948118130EBE0FEB6D103C79C6740DF1FD27B7F`
 - Targeted `MainActivitySmokeTest#owner_destinations_keep_catattoko_brand_header` lulus `1/1` pada Retail, Wholesale, dan Culinary.
 - Native ADB/MuMu screenshot mengonfirmasi icon launcher flavor yang benar pada layar Kasir dan Owner, serta full wordmark loading per flavor.
 - Ketiga APK debug `0.7.3` dengan `versionCode 25` di-install ulang memakai `install -r`, tanpa uninstall atau reset data.

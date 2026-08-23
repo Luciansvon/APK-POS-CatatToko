@@ -8,7 +8,7 @@ Satu source Android offline-first untuk tiga APK operasional:
 - Grosir dan Agen;
 - Kuliner dan Pedagang Kaki Lima.
 
-Versi target publik saat ini: `0.7.3` (`versionCode 25`) dengan redesign Owner/non-Kasir dan startup branding per flavor. Kandidat signed masih menunggu workflow release dan belum dipublikasikan.
+Versi target publik saat ini: `0.7.3` (`versionCode 25`) dengan redesign Owner/non-Kasir dan startup branding per flavor. Kandidat production signed sudah terverifikasi; publikasi menunggu merge dan GitHub Release.
 
 ## Download APK v0.7.3
 
@@ -20,7 +20,7 @@ Pilih APK sesuai jenis usaha:
 
 [Lihat catatan rilis CatatToko v0.7.3](https://github.com/Luciansvon/APK-POS-CatatToko/releases/tag/v0.7.3).
 
-> **Status rilis:** link v0.7.3 akan aktif setelah workflow signed release selesai dan rilis dipublikasikan. Jangan memakai link ini sebagai bukti artifact sebelum status rilis berubah.
+> **Status rilis:** artifact signed v0.7.3 sudah terverifikasi, tetapi link baru aktif setelah merge dan GitHub Release dipublikasikan. PR dan release masih sengaja ditahan.
 
 Aplikasi selalu mulai dalam Mode Kasir/Pekerja. Pada pemasangan pertama, panduan wajib menjelaskan Mode Kasir/Pekerja dan Mode Owner tanpa tombol lewati. Pekerja hanya dapat memakai kasir, melihat stok produk dan total transaksi aktif, serta membuka shift. Owner dapat memakai kasir tanpa membuka shift pekerja. Operasional, keuangan, laporan, profil, backup, restore, impor catatan lama, dan export Excel tetap baru muncul setelah PIN Owner benar.
 
