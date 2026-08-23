@@ -22,7 +22,7 @@ dist/debug/CatatToko-Kuliner.apk
 
 ## Versi 0.7.3 - 2026-08-23
 
-Status: APK debug lokal; rilis produksi ditahan menunggu persetujuan visual user
+Status: Kandidat APK production signed; workflow release masih pending, belum dipublikasikan
 
 ### Kenapa versi ini dibuat
 
@@ -38,13 +38,13 @@ Status: APK debug lokal; rilis produksi ditahan menunggu persetujuan visual user
 
 ### Kekurangan dan masalah yang diketahui
 
-- Build ini tetap debug lokal dan belum boleh dipublikasikan sebagai rilis produksi.
-- Full connected suite dan production packaging tidak dijalankan pada patch ini; rilis produksi tetap ditahan dan tidak dipublikasikan.
+- Artifact signed, certificate, hash, dan URL download publik belum tersedia sebelum workflow release selesai.
+- Full connected suite tidak dijalankan pada patch ini; targeted Owner smoke dan audit visual root sudah dicatat sebagai bukti terpisah.
 - QA kamera fisik/barcode dan integrasi printer tetap di luar patch.
 
 ### Verifikasi
 
-- `testRetailDebugUnitTest testWholesaleDebugUnitTest testCulinaryDebugUnitTest assembleDebug assembleRetailDebugAndroidTest assembleWholesaleDebugAndroidTest assembleCulinaryDebugAndroidTest` lulus dalam `2m42s` (`234 actionable tasks: 69 executed, 165 up-to-date`).
+- Gate release worktree `testRetailDebugUnitTest testWholesaleDebugUnitTest testCulinaryDebugUnitTest lint assembleDebug assembleRetailDebugAndroidTest assembleWholesaleDebugAndroidTest assembleCulinaryDebugAndroidTest` lulus dalam `4m27s` (`243 actionable tasks: 144 executed, 99 from cache`).
 - Targeted `MainActivitySmokeTest#owner_destinations_keep_catattoko_brand_header` lulus `1/1` pada Retail, Wholesale, dan Culinary.
 - Native ADB/MuMu screenshot mengonfirmasi icon launcher flavor yang benar pada layar Kasir dan Owner, serta full wordmark loading per flavor.
 - Ketiga APK debug `0.7.3` dengan `versionCode 25` di-install ulang memakai `install -r`, tanpa uninstall atau reset data.
